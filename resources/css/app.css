@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos personalizados de Dilo Records */
+@layer base {
+    body {
+        @apply bg-black text-white antialiased;
+    }
+}
+
+@layer utilities {
+    /* Scrollbar personalizado */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        @apply bg-dilo-gray-dark;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        @apply bg-dilo-orange rounded;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-dilo-orange-light;
+    }
+}

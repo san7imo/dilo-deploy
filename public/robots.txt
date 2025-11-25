@@ -1,0 +1,37 @@
+# Robots.txt for Dilo Records
+# Last updated: 19 de noviembre de 2025
+
+# Allow all bots by default
+User-agent: *
+Allow: /
+
+# Disallow sensitive paths
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /api/admin/
+Disallow: /api/internal/
+Disallow: /.env
+Disallow: /config/
+Disallow: /storage/
+Disallow: /bootstrap/
+Disallow: /vendor/
+Disallow: /node_modules/
+Disallow: /composer.json
+Disallow: /composer.lock
+Disallow: /package.json
+Disallow: /package-lock.json
+
+# Allow specific public API endpoints
+Allow: /api/artists/
+Allow: /api/releases/
+Allow: /api/events/
+Allow: /api/genres/
+
+# Crawl delay
+Crawl-delay: 1
+
+# Sitemaps
+Sitemap: https://example.com/sitemap.xml
+Sitemap: https://example.com/api/sitemaps/artists
+Sitemap: https://example.com/api/sitemaps/releases
+Sitemap: https://example.com/api/sitemaps/events
