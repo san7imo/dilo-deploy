@@ -11,7 +11,7 @@ const props = defineProps({
 
 const isDeleting = ref(false);
 
-// Preparar social_links: convertir del formato actual al objeto con claves
+// Normalizar social_links
 const prepareSocialLinks = () => {
   const defaults = {
     spotify: "",
@@ -24,8 +24,10 @@ const prepareSocialLinks = () => {
     amazon: "",
   };
 
-  // Si el artista tiene social_links_formatted (atributo del modelo), usarlo
-  if (props.artist.social_links_formatted && typeof props.artist.social_links_formatted === 'object') {
+  if (
+    props.artist.social_links_formatted &&
+    typeof props.artist.social_links_formatted === "object"
+  ) {
     return { ...defaults, ...props.artist.social_links_formatted };
   }
 
@@ -33,12 +35,13 @@ const prepareSocialLinks = () => {
     return defaults;
   }
 
-  // Si ya es un objeto con claves
-  if (typeof props.artist.social_links === "object" && !Array.isArray(props.artist.social_links)) {
+  if (
+    typeof props.artist.social_links === "object" &&
+    !Array.isArray(props.artist.social_links)
+  ) {
     return { ...defaults, ...props.artist.social_links };
   }
 
-  // Si es un array (formato antiguo), convertir a objeto
   if (Array.isArray(props.artist.social_links)) {
     const result = { ...defaults };
     props.artist.social_links.forEach((item) => {
@@ -59,13 +62,15 @@ const form = useForm({
   country: props.artist.country || "",
   genre_id: props.artist.genre_id || "",
   social_links: prepareSocialLinks(),
+
+  // 🔹 Estos son los campos reales que se envían como archivos
   banner_home_file: null,
   banner_artist_file: null,
   carousel_home_file: null,
   carousel_discography_file: null,
 });
 
-// Almacenar información de imágenes del artista
+// Imágenes actuales del artista (lo que viene de la BD / ImageKit)
 const currentImages = ref({
   banner_home: {
     url: props.artist.banner_home_url || null,
@@ -85,7 +90,7 @@ const currentImages = ref({
   },
 });
 
-// Almacenar previews de archivos cargados
+// Previews de archivos seleccionados
 const fileInputs = ref({
   banner_home_file: null,
   banner_artist_file: null,
@@ -93,25 +98,34 @@ const fileInputs = ref({
   carousel_discography_file: null,
 });
 
-// Manejar selección de archivo
+// ✅ CORRECCIÓN IMPORTANTE:
+// ImageGrid emite fieldKey = 'banner_home' | 'banner_artist' | ...
+// pero los campos reales del form se llaman 'banner_home_file', etc.
 const handleFileSelected = ({ fieldKey, file }) => {
-  form[fieldKey] = file;
+  const formField = `${fieldKey}_file`; // ej: 'banner_home_file'
 
-  // Crear preview URL
+  // Asignar el archivo al form
+  form[formField] = file;
+
+  // Crear preview para mostrar en el grid
   const reader = new FileReader();
   reader.onload = (e) => {
-    fileInputs.value[fieldKey] = {
+    fileInputs.value[formField] = {
       preview: e.target.result,
     };
   };
   reader.readAsDataURL(file);
 
-  console.log(`✅ Archivo ${fieldKey} seleccionado:`, file.name);
+  console.log(`✅ Archivo ${formField} seleccionado:`, file.name);
 };
 
-// Manejar eliminación de imagen
+// Eliminar imagen existente en ImageKit / BD
 const handleDeleteImage = async (fieldKey) => {
   if (isDeleting.value) return;
+  if (!props.artist?.id) {
+    alert("No se encontró el artista.");
+    return;
+  }
 
   isDeleting.value = true;
 
@@ -123,30 +137,35 @@ const handleDeleteImage = async (fieldKey) => {
         headers: {
           "X-Requested-With": "XMLHttpRequest",
           "Content-Type": "application/json",
-          "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
+          "X-CSRF-TOKEN": document.querySelector(
+            'meta[name="csrf-token"]'
+          )?.content,
         },
-        body: JSON.stringify({ field: fieldKey }),
+        body: JSON.stringify({ field: fieldKey }), // ej: 'banner_home'
       }
     );
 
-    if (response.ok) {
-      const data = await response.json();
-      console.log("✅ Imagen eliminada correctamente");
+    console.log("🔎 Status delete:", response.status);
 
-      // Actualizar referencias locales
-      const urlKey = `${fieldKey}_url`;
-      const idKey = `${fieldKey}_id`;
-      currentImages.value[fieldKey] = {
-        url: data.artist[urlKey],
-        id: data.artist[idKey],
-      };
-
-      // Limpiar preview
-      fileInputs.value[fieldKey] = null;
-    } else {
-      console.error("❌ Error al eliminar imagen");
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("❌ Respuesta del servidor:", text);
       alert("No se pudo eliminar la imagen");
+      return;
     }
+
+    const data = await response.json();
+    console.log("✅ Imagen eliminada correctamente", data);
+
+    const urlKey = `${fieldKey}_url`;
+    const idKey = `${fieldKey}_id`;
+
+    currentImages.value[fieldKey] = {
+      url: data.artist[urlKey],
+      id: data.artist[idKey],
+    };
+
+    fileInputs.value[`${fieldKey}_file`] = null;
   } catch (error) {
     console.error("Error:", error);
     alert("Error al eliminar la imagen");
@@ -159,7 +178,7 @@ const handleSubmit = () => {
   console.log("🟡 Enviando formulario...");
   console.log("📦 Datos actuales del form:", form.data());
 
-  const method = props.mode === "edit" ? "post" : "post";
+  const method = "post";
   const url =
     props.mode === "edit"
       ? route("admin.artists.update", props.artist.id)
@@ -169,11 +188,10 @@ const handleSubmit = () => {
     .transform((data) => ({
       ...data,
       _method: props.mode === "edit" ? "put" : "post",
-      // 🔹 Los social_links ya están en formato correcto de objeto
       social_links: data.social_links,
     }))
     .submit(method, url, {
-      forceFormData: true, // convierte automáticamente a multipart/form-data
+      forceFormData: true,
       onStart: () => console.log("🚀 Enviando request a:", url),
       onProgress: (progress) => console.log("📤 Subiendo...", progress),
       onError: (errors) => {
@@ -183,7 +201,8 @@ const handleSubmit = () => {
         }
         console.groupEnd();
       },
-      onSuccess: () => console.log("✅ Artista creado/actualizado correctamente"),
+      onSuccess: () =>
+        console.log("✅ Artista creado/actualizado correctamente"),
       onFinish: () => console.log("🏁 Proceso finalizado"),
     });
 };
@@ -201,10 +220,7 @@ const handleSubmit = () => {
           class="input"
           placeholder="Nombre artístico"
         />
-        <p
-          v-if="form.errors.name"
-          class="text-red-500 text-sm mt-1"
-        >
+        <p v-if="form.errors.name" class="text-red-500 text-sm mt-1">
           {{ form.errors.name }}
         </p>
       </div>
@@ -242,7 +258,7 @@ const handleSubmit = () => {
       ></textarea>
     </div>
 
-    <!-- Subida de imágenes con ImageGrid -->
+    <!-- Imágenes -->
     <ImageGrid
       :images="currentImages"
       :file-inputs="fileInputs"
@@ -252,8 +268,12 @@ const handleSubmit = () => {
 
     <!-- Redes sociales -->
     <div>
-      <h3 class="text-[#ffa236] font-semibold mb-2">Redes sociales / Streaming</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <h3 class="text-[#ffa236] font-semibold mb-2">
+        Redes sociales / Streaming
+      </h3>
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
         <div
           v-for="(label, key) in {
             spotify: 'Spotify',

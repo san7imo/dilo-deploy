@@ -10,13 +10,15 @@
         <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
         <meta name="language" content="{{ app()->getLocale() }}">
         <meta name="revisit-after" content="7 days">
-        
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+
+
         <!-- Preconnect para optimización de fuentes y recursos externos -->
         <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
         <link rel="preconnect" href="https://ik.imagekit.io" crossorigin>
         <link rel="dns-prefetch" href="https://fonts.bunny.net">
         <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-        
+
         <!-- Canonical URL -->
         <link rel="canonical" href="{{ url()->current() }}">
 
@@ -44,26 +46,36 @@
         <!-- Additional Meta Tags for Social Sharing -->
         <meta property="og:image:alt" content="Dilo Records - Plataforma de Música">
 
-        <!-- Title for Inertia (será reemplazado dinámicamente) -->
+        <!-- Title para Inertia (se reemplaza dinámicamente) -->
         <title inertia>{{ config('app.name', 'Dilo Records') }}</title>
 
-        <!-- Fonts with font-display=swap for better performance -->
+        <!-- Fuentes con font-display=swap -->
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700|roboto:400,500,600,700&display=swap" rel="stylesheet" />
-        
-        <!-- Font Awesome (async loading) -->
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-        <!-- Security & Performance Headers (served via server configuration) -->
+        <!-- Font Awesome -->
+        <link rel="stylesheet"
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+              integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+              crossorigin="anonymous"
+              referrerpolicy="no-referrer" />
+
+        <!-- Security & Performance Headers (CSP) -->
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         @if(app()->environment('local'))
             <!-- CSP permisivo en local para desarrollo con Vite -->
-            <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: http://localhost:5173; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: http://localhost:5173; style-src 'self' 'unsafe-inline' https: http://localhost:5173;">
+            <meta http-equiv="Content-Security-Policy"
+                  content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: http://localhost:5173;
+                           script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: http://localhost:5173;
+                           style-src 'self' 'unsafe-inline' https: http://localhost:5173;">
         @else
-            <!-- CSP restrictivo en producción -->
-            <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:; style-src 'self' 'unsafe-inline' https:;">
+            <!-- CSP más restrictivo en producción (sin localhost ni Vite dev server) -->
+            <meta http-equiv="Content-Security-Policy"
+                  content="default-src 'self' https: data:;
+                           script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:;
+                           style-src 'self' 'unsafe-inline' https:;">
         @endif
 
-        <!-- Structured Data (JSON-LD) for SEO -->
+        <!-- Structured Data (JSON-LD) para SEO -->
         <script type="application/ld+json">
         {
             "@@context": "https://schema.org",
@@ -97,11 +109,12 @@
         <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
         <link rel="apple-touch-icon" href="{{ asset('images/apple-touch-icon.png') }}">
 
-        <!-- Performance: Prefetch & Preload critical resources -->
-        <link rel="prefetch" href="{{ mix('js/app.js') }}">
-        <link rel="preload" href="{{ mix('css/app.css') }}" as="style">
+        <!-- 🔴 IMPORTANTE: quitamos cualquier uso de mix() para evitar el error del manifest -->
+        {{-- Prefetch / Preload se pueden gestionar vía HTTP headers si quieres ir más fino --}}
+        {{-- <link rel="prefetch" href="{{ mix('js/app.js') }}"> --}}
+        {{-- <link rel="preload" href="{{ mix('css/app.css') }}" as="style"> --}}
 
-        <!-- Scripts and Vite Integration -->
+        <!-- Inertia / Ziggy / Vite -->
         @routes
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @inertiaHead
@@ -116,7 +129,7 @@
             </p>
         </noscript>
 
-        <!-- Structured Data for WebSite Search -->
+        <!-- Structured Data para WebSite / Search -->
         <script type="application/ld+json">
         {
             "@@context": "https://schema.org",
@@ -134,7 +147,7 @@
         }
         </script>
 
-        <!-- Tracking & Analytics (add your tracking code here) -->
+        <!-- Tracking & Analytics (opcional) -->
         {{-- <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script> --}}
         {{-- <script>
             window.dataLayer = window.dataLayer || [];

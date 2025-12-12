@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 
 // ===============================================
 // CONTROLADORES PÚBLICOS (solo visualización)
@@ -111,3 +112,4 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
 // ===============================================
 // Las rutas de autenticación son registradas automáticamente por Fortify
 // Verifica que config/fortify.php tenga 'views' => true
+
