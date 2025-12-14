@@ -1,157 +1,136 @@
-<!-- resources/js/Components/Public/Artist/ArtistBiography.vue -->
 <script setup>
 import { ref, computed } from 'vue'
+import { Icon } from '@iconify/vue'
 
 const props = defineProps({
   artist: { type: Object, required: true },
 })
 
-// Estado para expandir/contraer biografía
+// Expandir / contraer biografía
 const isExpanded = ref(false)
 
-// Determinar si necesita botón de "Leer más"
+// ¿Necesita "Leer más"?
 const needsExpansion = computed(() => {
   return props.artist.bio && props.artist.bio.length > 300
 })
 
-// Biografía formateada con saltos de línea
+// Biografía con saltos de línea
 const formattedBio = computed(() => {
   if (!props.artist.bio) return ''
   return props.artist.bio.replace(/\n/g, '<br>')
 })
+
+// iconos de redes sociales
+const socialIconMap = {
+  instagram: 'simple-icons:instagram',
+  facebook: 'simple-icons:facebook',
+  x: 'simple-icons:x',
+  twitter: 'simple-icons:x',
+  tiktok: 'simple-icons:tiktok',
+  spotify: 'simple-icons:spotify',
+  youtube: 'simple-icons:youtube',
+  apple: 'simple-icons:applemusic',
+  amazon: 'simple-icons:amazonmusic',
+  deezer: 'simple-icons:deezer',
+  soundcloud: 'simple-icons:soundcloud',
+  tidal: 'simple-icons:tidal',
+}
 </script>
 
 <template>
   <section class="relative w-full bg-black py-16 md:py-24 overflow-hidden">
-    <!-- Decoración de fondo -->
+    <!-- Fondo decorativo -->
     <div class="absolute inset-0 opacity-10">
-      <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full filter blur-3xl"></div>
-      <div class="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full filter blur-3xl"></div>
+      <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+      <div class="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
     </div>
 
-    <!-- Contenido -->
     <div class="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Header -->
       <div class="mb-12 text-center">
-        <h2 class="text-4xl md:text-5xl font-black text-white mb-2">Sobre {{ artist.name }}</h2>
+        <h2 class="text-4xl md:text-5xl font-black text-white mb-2">
+          Sobre {{ artist.name }}
+        </h2>
         <div class="h-1 w-16 bg-white mx-auto rounded-full"></div>
       </div>
 
       <!-- Biografía -->
       <div v-if="artist.bio" class="relative">
-        <!-- Contenedor principal con gradiente de fondo -->
-        <div class="bg-gradient-to-br from-zinc-900 via-zinc-900/50 to-black rounded-2xl ring-1 ring-white/10 p-8 md:p-12 backdrop-blur-sm">
-          <!-- Icono decorativo -->
-          <div class="absolute -top-6 left-8 flex items-center justify-center w-12 h-12 bg-white text-black rounded-full font-bold text-lg">
+        <div
+          class="bg-gradient-to-br from-zinc-900 via-zinc-900/50 to-black rounded-2xl ring-1 ring-white/10 p-8 md:p-12 backdrop-blur-sm">
+          <!-- Comillas -->
+          <div
+            class="absolute -top-6 left-8 w-12 h-12 bg-white text-black rounded-full flex items-center justify-center text-2xl font-black">
             "
           </div>
 
-          <!-- Texto de biografía -->
+          <!-- Texto -->
           <div class="relative pt-4">
-            <p
-              :class="[
-                'text-zinc-200 text-base md:text-lg leading-relaxed transition-all duration-500',
-                !isExpanded && needsExpansion ? 'line-clamp-4' : ''
-              ]"
-              v-html="formattedBio"
-            ></p>
+            <p :class="[
+              'text-zinc-200 text-base md:text-lg leading-relaxed transition-all duration-500',
+              !isExpanded && needsExpansion ? 'line-clamp-4' : ''
+            ]" v-html="formattedBio"></p>
 
-            <!-- Gradiente de fade para "Leer más" -->
-            <div
-              v-if="!isExpanded && needsExpansion"
-              class="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-zinc-900 via-zinc-900/50 to-transparent pointer-events-none rounded-b-2xl"
-            ></div>
+            <!-- Fade -->
+            <div v-if="!isExpanded && needsExpansion"
+              class="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-zinc-900 to-transparent pointer-events-none rounded-b-2xl">
+            </div>
           </div>
 
-          <!-- Botón Leer más/menos -->
+          <!-- Leer más -->
           <div v-if="needsExpansion" class="mt-6 flex justify-center">
-            <button
-              @click="isExpanded = !isExpanded"
-              class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg transition-all duration-300 hover:scale-105"
-            >
-              <span>{{ isExpanded ? 'Leer menos' : 'Leer más' }}</span>
-              <svg
-                :class="['w-5 h-5 transition-transform duration-300', isExpanded ? 'rotate-180' : '']"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-              </svg>
+            <button @click="isExpanded = !isExpanded"
+              class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg transition-all hover:scale-105">
+              {{ isExpanded ? 'Leer menos' : 'Leer más' }}
+              <Icon icon="mdi:chevron-down" :class="['w-5 h-5 transition-transform', isExpanded && 'rotate-180']" />
             </button>
           </div>
         </div>
 
-        <!-- Información adicional del artista -->
+        <!-- Info extra -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
           <!-- País -->
           <div v-if="artist.country" class="text-center p-6 bg-zinc-900/50 rounded-xl ring-1 ring-white/10">
-            <p class="text-zinc-400 text-sm font-semibold uppercase mb-2">País de origen</p>
-            <p class="text-white text-2xl font-bold">{{ artist.country }}</p>
+            <p class="text-zinc-400 text-sm font-semibold uppercase mb-2">
+              País de origen
+            </p>
+            <p class="text-white text-2xl font-bold">
+              {{ artist.country }}
+            </p>
           </div>
 
-          <!-- Redes sociales -->
-          <div v-if="artist.social_links && Object.keys(artist.social_links).length > 0" class="text-center p-6 bg-zinc-900/50 rounded-xl ring-1 ring-white/10">
-            <p class="text-zinc-400 text-sm font-semibold uppercase mb-3">Sígueme en</p>
+          <!-- Redes -->
+          <div v-if="artist.social_links && Object.keys(artist.social_links).length"
+            class="text-center p-6 bg-zinc-900/50 rounded-xl ring-1 ring-white/10">
+            <p class="text-zinc-400 text-sm font-semibold uppercase mb-3">
+              Sígueme en
+            </p>
+
             <div class="flex justify-center gap-3 flex-wrap">
-              <a
-                v-for="(url, platform) in artist.social_links"
-                :key="platform"
-                :href="url"
-                target="_blank"
-                rel="noopener noreferrer"
-                :title="platform"
-                class="inline-flex items-center justify-center w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors duration-300"
-              >
-                <svg
-                  v-if="platform === 'instagram'"
-                  class="w-5 h-5"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.057-1.645.069-4.849.069-3.205 0-3.584-.012-4.849-.069-3.259-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1 1 12.324 0 6.162 6.162 0 0 1-12.324 0zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm4.965-10.322a1.44 1.44 0 1 1 2.881.001 1.44 1.44 0 0 1-2.881-.001z" />
-                </svg>
-                <svg
-                  v-else-if="platform === 'facebook'"
-                  class="w-5 h-5"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-                <svg
-                  v-else-if="platform === 'twitter'"
-                  class="w-5 h-5"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417a9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
-                </svg>
-                <svg
-                  v-else-if="platform === 'tiktok'"
-                  class="w-5 h-5"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M19.498 3.75H15.5V19.5a1.5 1.5 0 11-3 0V3.75h-3.998a1.5 1.5 0 000 3h3.998V19.5a4.5 4.5 0 109-4.5V6.75h4.5a1.5 1.5 0 000-3z" />
-                </svg>
-                <span v-else class="text-xs font-bold">{{ String(platform).charAt(0).toUpperCase() }}</span>
+              <a v-for="(url, platform) in artist.social_links" :key="platform" :href="url" target="_blank"
+                rel="noopener noreferrer" :title="platform"
+                class="inline-flex items-center justify-center w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all hover:scale-110">
+                <Icon :icon="socialIconMap[platform] || 'mdi:web'" class="w-5 h-5" />
               </a>
             </div>
           </div>
 
-          <!-- Estadísticas -->
+          <!-- Rol -->
           <div class="text-center p-6 bg-zinc-900/50 rounded-xl ring-1 ring-white/10">
-            <p class="text-zinc-400 text-sm font-semibold uppercase mb-2">En Dilo Records</p>
+            <p class="text-zinc-400 text-sm font-semibold uppercase mb-2">
+              En Dilo Records
+            </p>
             <p class="text-white text-2xl font-bold">Artista</p>
             <p class="text-zinc-400 text-xs mt-1">desde siempre</p>
           </div>
         </div>
       </div>
 
-      <!-- Si no hay biografía -->
+      <!-- Sin bio -->
       <div v-else class="text-center p-12 bg-zinc-900/50 rounded-2xl ring-1 ring-white/10">
-        <p class="text-zinc-400 text-lg">Próximamente más información sobre este artista...</p>
+        <p class="text-zinc-400 text-lg">
+          Próximamente más información sobre este artista...
+        </p>
       </div>
     </div>
   </section>
