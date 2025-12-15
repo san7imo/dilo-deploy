@@ -3,7 +3,6 @@
 import { Head } from '@inertiajs/vue3'
 import ArtistBanner from '@/Components/Public/Artist/ArtistBanner.vue'
 import ArtistLinksGrid from '@/Components/Public/Artist/ArtistLinksGrid.vue'
-import ArtistReleases from '@/Components/Public/Artist/ArtistReleases.vue'
 import ArtistBiography from '@/Components/Public/Artist/ArtistBiography.vue'
 
 // Layout público
@@ -25,11 +24,10 @@ const props = defineProps({
   <ArtistLinksGrid
     :artist="artist"
     :youtube-url="artist.youtube_url"
+    :releases="artist.releases"
   />
-
-  <!-- Carrusel de lanzamientos -->
-  <ArtistReleases :releases="artist.releases" />
 
   <!-- Biografía -->
   <ArtistBiography :artist="artist" />
+
 </template>

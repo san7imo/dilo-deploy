@@ -5,15 +5,20 @@ import ArtistVideo from './ArtistVideo.vue'
 import ArtistLinkCard from './ArtistLinkCard.vue'
 import SocialNetworksModal from './SocialNetworksModal.vue'
 import StreamingModal from './StreamingModal.vue'
+import VideoModal from './VideoModal.vue'
+import ArtistReleases from './ArtistReleases.vue'
 
 const props = defineProps({
   artist: { type: Object, required: true },
   youtubeUrl: { type: String, default: '' },
+  releases: { type: Array, default: () => [] },
 })
 
 // Modal states
 const showSocialModal = ref(false)
 const showStreamingModal = ref(false)
+const showVideoModal = ref(false)
+const showReleasesModal = ref(false)
 
 // Iconos SVG mejorados con mejor representación
 const icons = {
@@ -28,67 +33,43 @@ const icons = {
 
 <template>
   <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <!-- Grid principal: Video + Links (2 filas de 3 cards) -->
+    <!-- Grid principal: Video + Links -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <!-- Video (izquierda, media pantalla) -->
+      <!-- Video -->
       <div class="h-80 lg:h-96">
-        <ArtistVideo :youtube-url="youtubeUrl" />
+        <ArtistVideo :artist="artist" :youtube-url="youtubeUrl" />
       </div>
 
-      <!-- Grid de links (derecha, 2 filas de 3 cards) -->
+      <!-- Grid de links -->
       <div class="grid grid-cols-3 gap-4">
-        <!-- Card 1: Sígueme (Usuario) -->
-        <ArtistLinkCard
-          title="Sígueme"
-          :icon="icons.user"
-          @click="showSocialModal = true"
-        />
+        <!-- Card 1: Sígueme -->
+        <ArtistLinkCard title="Sígueme" :icon="icons.user" @click="showSocialModal = true" />
 
-        <!-- Card 2: Escucha (Auriculares) -->
-        <ArtistLinkCard
-          title="Escucha"
-          :icon="icons.headphones"
-          @click="showStreamingModal = true"
-        />
+        <!-- Card 2: Escucha -->
+        <ArtistLinkCard title="Escucha" :icon="icons.headphones" @click="showStreamingModal = true" />
 
-        <!-- Card 3: Descubre (Brújula) -->
-        <ArtistLinkCard
-          title="Descubre"
-          :icon="icons.compass"
-        />
+        <!-- Card 3: Discografía -->
+        <ArtistLinkCard title="Discografía" :icon="icons.compass" @click="showReleasesModal = true" />
 
-        <!-- Card 4: Web (Link) -->
-        <ArtistLinkCard
-          title="Web"
-          :icon="icons.link"
-        />
+        <!-- Card 4: Video -->
+        <ArtistLinkCard title="Video" :icon="icons.link" @click="showVideoModal = true" />
 
         <!-- Card 5: Kit de Prensa -->
-        <ArtistLinkCard
-          title="Kit de Prensa"
-          :icon="icons.briefcase"
-        />
+        <ArtistLinkCard title="Kit de Prensa" :icon="icons.briefcase" />
 
         <!-- Card 6: Tienda (deshabilitada) -->
-        <ArtistLinkCard
-          title="Tienda"
-          :icon="icons.shopping"
-          :is-disabled="true"
-        />
+        <ArtistLinkCard title="Tienda" :icon="icons.shopping" :is-disabled="true" />
       </div>
     </div>
   </section>
 
   <!-- Modales -->
-  <SocialNetworksModal
-    :artist="artist"
-    :is-open="showSocialModal"
-    @close="showSocialModal = false"
-  />
+  <SocialNetworksModal :artist="artist" :is-open="showSocialModal" @close="showSocialModal = false" />
 
-  <StreamingModal
-    :artist="artist"
-    :is-open="showStreamingModal"
-    @close="showStreamingModal = false"
-  />
+  <StreamingModal :artist="artist" :is-open="showStreamingModal" @close="showStreamingModal = false" />
+
+  <VideoModal :artist="artist" :youtube-url="youtubeUrl" :is-open="showVideoModal" @close="showVideoModal = false" />
+
+  <ArtistReleases :artist="artist" :releases="releases" :is-open="showReleasesModal"
+    @close="showReleasesModal = false" />
 </template>
