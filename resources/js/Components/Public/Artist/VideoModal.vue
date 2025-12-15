@@ -25,7 +25,7 @@ const handleBackdropClick = (e) => {
         <div v-if="isOpen" @click="handleBackdropClick"
             class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <transition name="modal-scale">
-                <div v-if="isOpen"
+                <div v-if="isOpen" @click.stop
                     class="relative w-full max-w-4xl bg-zinc-950 rounded-3xl ring-1 ring-white/10 shadow-2xl p-8">
                     <!-- Botón cerrar -->
                     <button @click="closeModal"
