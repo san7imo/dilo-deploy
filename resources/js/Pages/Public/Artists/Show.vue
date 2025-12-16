@@ -16,19 +16,19 @@ const props = defineProps({
 </script>
 
 <template>
+
   <Head :title="`${artist.name} — Dilo Records`" />
 
   <!-- Banner del artista -->
   <ArtistBanner :artist="artist" />
 
   <!-- Grid de links y video -->
-  <ArtistLinksGrid
-    :artist="artist"
-    :youtube-url="artist.youtube_url"
-  />
+  <ArtistLinksGrid :artist="artist" :youtube-url="artist.youtube_url" />
 
-  <!-- Carrusel de lanzamientos -->
-  <ArtistReleases :releases="artist.releases" />
+  <!-- Discografía -->
+  <div id="discography-section">
+    <ArtistReleases :releases="artist.releases || []" />
+  </div>
 
   <!-- Biografía -->
   <ArtistBiography :artist="artist" />
