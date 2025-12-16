@@ -16,6 +16,8 @@ class StoreArtistRequest extends FormRequest
     {
         return [
             'name'    => ['required', 'string', 'max:255', Rule::unique('artists', 'name')],
+            'email'   => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8'],
             'bio'     => ['nullable', 'string'],
             'country' => ['nullable', 'string', 'max:120'],
             'genre_id' => ['nullable', 'exists:genres,id'],

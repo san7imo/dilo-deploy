@@ -85,6 +85,11 @@ class Artist extends Model
             ->withTimestamps();
     }
 
+    public function user()
+    {   
+        return $this->belongsTo(User::class);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Mutadores y eventos del modelo

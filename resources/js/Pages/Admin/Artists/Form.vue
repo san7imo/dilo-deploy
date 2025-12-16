@@ -63,6 +63,10 @@ const form = useForm({
   genre_id: props.artist.genre_id || "",
   social_links: prepareSocialLinks(),
 
+  // credenciales del artista
+  email: "",
+  password: "",
+
   // 🔹 Estos son los campos reales que se envían como archivos
   banner_home_file: null,
   banner_artist_file: null,
@@ -224,6 +228,25 @@ const handleSubmit = () => {
           {{ form.errors.name }}
         </p>
       </div>
+
+      <div v-if="props.mode === 'create'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-gray-300 text-sm">Correo del artista</label>
+          <input v-model="form.email" type="email" class="input" placeholder="artista@email.com" />
+          <p v-if="form.errors.email" class="text-red-500 text-sm mt-1">
+            {{ form.errors.email }}
+          </p>
+        </div>
+
+        <div>
+          <label class="text-gray-300 text-sm">Contraseña</label>
+          <input v-model="form.password" type="password" class="input" placeholder="Mínimo 8 caracteres" />
+          <p v-if="form.errors.password" class="text-red-500 text-sm mt-1">
+            {{ form.errors.password }}
+          </p>
+        </div>
+      </div>
+      
 
       <div>
         <label class="text-gray-300 text-sm">País</label>
