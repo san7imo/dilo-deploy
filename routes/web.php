@@ -69,11 +69,22 @@ use App\Http\Controllers\Web\Admin\{
     ReleaseController as AdminReleaseController,
     TrackController as AdminTrackController
 };
+use Illuminate\Http\Request;
 
-// --- Dashboard principal (punto de entrada del panel) ---
-Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
-    ->get('/dashboard', function () {
-        return inertia('Dashboard'); // resources/js/Pages/Dashboard.vue
+// --- Dashboard principal cambia dependiendo del rol ---
+Route::middleware(['auth:sanctum', 'verified'])
+    ->get('/dashboard', function (Request $request) {
+        $user = $request->user();
+
+        if ($user->hasRole('admin')) {
+            return inertia('Dashboard'); // resources/js/Pages/Dashboard.vue
+        }
+
+        if ($user->hasRole('artist')) {
+            return inertia('Artist/Dashboard'); // resources/js/Pages/Artist/Dashboard.vue
+        }
+
+        abort(403);
     })
     ->name('admin.dashboard');
 
@@ -89,7 +100,7 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
     ->group(function () {
         // --- Artistas ---
         Route::resource('artists', AdminArtistController::class)->except(['show']);
-        
+
         // Ruta especial para eliminar una imagen del artista
         Route::delete('artists/{artist}/image', [AdminArtistController::class, 'deleteImage'])
             ->name('artists.deleteImage');
@@ -107,9 +118,37 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
         Route::resource('tracks', AdminTrackController::class)->except(['show']);
     });
 
+
+// ===============================================
+// RUTAS DE ARTISTAS (privadas)
+// ===============================================
+use App\Http\Controllers\Web\Artist\ProfileController as ArtistProfileController;
+use App\Http\Controllers\Web\Artist\EventController as ArtistEventController;
+use App\Http\Controllers\Web\Artist\DashboardController as ArtistDashboardApiController;
+
+Route::middleware(['auth:sanctum', 'verified', 'role:artist'])
+    ->prefix('artist')
+    ->name('artist.')
+    ->group(function () {
+        Route::get('/dashboard/data', [ArtistDashboardApiController::class, 'index'])->name('dashboard.data');
+
+        // Perfil
+        Route::get('/profile/data', [ArtistProfileController::class, 'showData'])->name('profile.data');
+        Route::get('/profile/edit', [ArtistProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('/profile', [ArtistProfileController::class, 'update'])->name('profile.update');
+
+        // Eventos
+        Route::get('/events', [ArtistEventController::class, 'index'])->name('events.index');
+        Route::get('/events/{id}', [ArtistEventController::class, 'show'])->name('events.show');
+    
+
+        // Tracks / Releases (si ya los tienes, quedan igual)
+        // Route::get('/tracks', ...)->name('tracks.index');
+        // Route::get('/releases', ...)->name('releases.index');
+    });
+
 // ===============================================
 // AUTENTICACIÓN (Jetstream / Fortify)
 // ===============================================
 // Las rutas de autenticación son registradas automáticamente por Fortify
 // Verifica que config/fortify.php tenga 'views' => true
-
