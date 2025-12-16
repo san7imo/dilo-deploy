@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Event;
+use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
 
@@ -14,6 +15,20 @@ class EventService
     public function getAll(int $perPage = 10): LengthAwarePaginator
     {
         return Event::with('artists')->orderBy('event_date', 'desc')->paginate($perPage);
+    }
+
+    public function getVisibleForUser(User $user, int $perPage = 10)
+    {
+        $query = Event::with(['artists', 'mainArtist'])
+            ->orderBy('event_date', 'desc');
+
+        if ($user->hasRole('artist') && $user->artist) {
+            $query->where('main_artist_id', $user->artist->id);
+        }
+
+        // admin ve todo, no se filtra
+
+        return $query->paginate($perPage);
     }
 
     /**

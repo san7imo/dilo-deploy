@@ -13,6 +13,7 @@ const form = useForm({
   location: props.event.location || "",
   event_date: props.event.event_date || "",
   artist_ids: props.event.artists ? props.event.artists.map(a => a.id) : [],
+  main_artist_id: props.event.main_artist_id || null,
   poster_file: null,
 });
 
@@ -91,7 +92,7 @@ const handleSubmit = () => {
 
     <!-- Artistas -->
     <div>
-      <label class="text-gray-300 text-sm">Artistas invitados</label>
+      <label class="text-gray-300 text-sm">Lista de artistas</label>
       <select v-model="form.artist_ids" multiple class="input">
         <option v-for="a in artists" :key="a.id" :value="a.id">{{ a.name }}</option>
       </select>
@@ -99,6 +100,20 @@ const handleSubmit = () => {
         Puedes seleccionar varios artistas (Ctrl/Cmd + click)
       </p>
     </div>
+
+    <div>
+      <label class="text-gray-300 text-sm">Artista principal</label>
+      <select v-model="form.main_artist_id" class="input">
+        <option value="" disabled>Seleccione el artista principal</option>
+        <option v-for="a in artists.filter(a => form.artist_ids.includes(a.id))" :key="a.id" :value="a.id">
+          {{ a.name }}
+        </option>
+      </select>
+      <p class="text-gray-500 text-xs mt-1">
+        selecciona el artista principal de la lista de invitados
+      </p>
+    </div>
+    
 
     <div class="flex justify-end">
       <button type="submit" class="btn-primary">

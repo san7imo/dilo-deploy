@@ -14,9 +14,9 @@ class EventController extends Controller
         $user = Auth::user();
         $artist = $user->artist()->firstOrFail();
 
-        $events = $artist->events()
-            ->select('events.id', 'events.title', 'events.event_date', 'events.location')
-            ->orderBy('events.event_date', 'asc')
+        $events = $artist->mainEvents()
+            ->select('id', 'title', 'event_date', 'location')
+            ->orderBy('event_date', 'asc')
             ->take(20)
             ->get();
 
@@ -30,10 +30,8 @@ class EventController extends Controller
         $user = Auth::user();
         $artist = $user->artist()->firstOrFail();
 
-        $event = $artist->events()
-            ->with(['artists' => function ($query) {
-                $query->select('artists.id', 'artists.name');
-            }])
+        $event = $artist->mainEvents()
+            ->with(['artists:id,name'])
             ->findOrFail($id);
 
         return Inertia::render('Artist/Events/Show', [

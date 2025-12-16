@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use App\Traits\HasImages;
+use Illuminate\Database\Eloquent\Builder;
 
 class Event extends Model
 {
@@ -25,6 +26,7 @@ class Event extends Model
         'description',
         'location',
         'event_date',
+        'main_artist_id',
         'poster_url', // Afiche individual del evento
         'poster_id',  // ID del archivo en ImageKit
     ];
@@ -49,6 +51,16 @@ class Event extends Model
     public function artists()
     {
         return $this->belongsToMany(Artist::class, 'artist_event');
+    }
+
+    public function mainArtist()
+    {
+        return $this->belongsTo(Artist::class, 'main_artist_id');
+    }
+
+    public function mainEvents()
+    {
+        return $this->hasMany(Event::class, 'main_artist_id');
     }
 
     /*
@@ -95,5 +107,17 @@ class Event extends Model
         return $this->poster_url
             ? "{$this->poster_url}?tr=w-1200,h-800,q-85,fo-auto"
             : null;
+    }
+
+    public function scopeVisibleForUser(Builder $query, $user): Builder
+    {
+        if ($user->hasRole('admin')) {
+            return $query;
+        }
+
+        if ($user->hasRole('artist') && $user->artist) {
+            return $query->where('main_artist_id', $user->artist->id);
+        }
+        return $query->whereRaw('1 = 0');
     }
 }
