@@ -26,6 +26,7 @@ class Artist extends Model
      */
     protected $fillable = [
         'name',
+        'user_id',
         'slug',
         'bio',
         'country',
