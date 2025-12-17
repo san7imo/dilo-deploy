@@ -3,11 +3,10 @@
 namespace App\Http\Controllers\Web\Artist;
 
 use App\Http\Controllers\Controller;
-use App\Models\Event;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
-class EventController extends Controller
+class FinanceController extends Controller
 {
     public function index()
     {
@@ -24,51 +23,40 @@ class EventController extends Controller
                 'amount_base'
             )
             ->orderBy('event_date', 'desc')
-            ->take(20)
             ->get();
 
-        $events = $events->map(function ($event) {
+        $summary = [
+            'currency' => 'EUR',
+            'events_count' => $events->count(),
+            'upcoming_events_count' => $events->filter(fn ($event) => $event->event_date?->isFuture())->count(),
+            'paid_events_count' => $events->filter(fn ($event) => $event->is_paid)->count(),
+            'total_paid_base' => round($events->sum('total_paid_base'), 2),
+            'artist_share_estimated_base' => round(
+                $events->sum(fn ($event) => ($event->total_paid_base ?? 0) * 0.70),
+                2
+            ),
+        ];
+
+        $eventsPayload = $events->map(function ($event) {
             $totalPaid = round($event->total_paid_base ?? 0, 2);
+            $advancePaid = round($event->advance_paid_base ?? 0, 2);
+
             return [
                 'id' => $event->id,
                 'title' => $event->title,
                 'event_date' => $event->event_date?->toDateString(),
                 'location' => $event->location,
                 'total_paid_base' => $totalPaid,
-                'advance_paid_base' => round($event->advance_paid_base ?? 0, 2),
+                'advance_paid_base' => $advancePaid,
                 'artist_share_estimated_base' => round($totalPaid * 0.70, 2),
                 'status' => $event->is_paid ? 'pagado' : 'pendiente',
                 'is_upcoming' => $event->event_date?->isFuture(),
             ];
         });
 
-        return Inertia::render('Artist/Events/Index', [
-            'events' => $events,
-        ]);
-    }
-
-    public function show($id)
-    {
-        $user = Auth::user();
-        $artist = $user->artist()->firstOrFail();
-
-        $event = $artist->mainEvents()
-            ->with([
-                'artists:id,name',
-                'payments:id,event_id,amount_base,is_advance',
-            ])
-            ->findOrFail($id);
-
-        $totalPaid = $event->payments->sum('amount_base');
-        $advancePaid = $event->payments->where('is_advance', true)->sum('amount_base');
-
-        return Inertia::render('Artist/Events/Show', [
-            'event' => $event,
-            'finance' => [
-                'total_paid_base' => round($totalPaid, 2),
-                'advance_paid_base' => round($advancePaid, 2),
-                'artist_share_estimated_base' => round($totalPaid * 0.70, 2), // por ahora sin gastos
-            ],
+        return Inertia::render('Artist/Finances/Index', [
+            'summary' => $summary,
+            'events' => $eventsPayload,
         ]);
     }
 }

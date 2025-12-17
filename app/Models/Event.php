@@ -26,6 +26,7 @@ class Event extends Model
         'description',
         'location',
         'event_date',
+        'is_paid',
         'main_artist_id',
         'poster_url', // Afiche individual del evento
         'poster_id',  // ID del archivo en ImageKit
@@ -36,6 +37,7 @@ class Event extends Model
      */
     protected $casts = [
         'event_date' => 'date',
+        'is_paid' => 'boolean',
     ];
 
     /**

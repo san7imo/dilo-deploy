@@ -45,6 +45,13 @@ const isSidebarOpen = ref(true);
                     <span v-if="isSidebarOpen">Dashboard</span>
                 </Link>
 
+                <Link v-if="route().has('artist.finances.index')" :href="route('artist.finances.index')"
+                    class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
+                    :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('artist.finances.index') }">
+                    <i class="fa-solid fa-wallet"></i>
+                    <span v-if="isSidebarOpen">Finanzas</span>
+                </Link>
+
                 <Link v-if="route().has('artist.events.index')" :href="route('artist.events.index')"
                     class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
                     :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('artist.events.*') }">

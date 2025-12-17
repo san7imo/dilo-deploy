@@ -24,6 +24,10 @@ const paymentForm = useForm({
     is_advance: false,
 });
 
+const statusForm = useForm({
+    is_paid: props.event.is_paid ?? false,
+});
+
 const normalizeCurrencyAndRate = () => {
     const cur = (paymentForm.currency || "").toUpperCase().trim();
     paymentForm.currency = cur || "EUR";
@@ -64,6 +68,15 @@ const deletePayment = (paymentId) => {
         preserveScroll: true,
     });
 };
+
+const updatePaymentStatus = () => {
+    statusForm.patch(route("admin.events.payment-status.update", props.event.id), {
+        preserveScroll: true,
+        onError: () => {
+            // no-op, errores ya mapeados en statusForm.errors
+        },
+    });
+};
 </script>
 
 <template>
@@ -95,6 +108,41 @@ const deletePayment = (paymentId) => {
                     <p class="text-gray-400 text-sm">Anticipo pagado (EUR)</p>
                     <p class="text-2xl font-bold">€ {{ (finance.advance_paid_base ?? 0).toFixed(2) }}</p>
                 </div>
+            </div>
+
+            <!-- Estado de pago manual -->
+            <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h2 class="text-lg font-semibold">Estado de pago</h2>
+                        <p class="text-sm text-gray-400">Marca si el evento se considera pagado o pendiente.</p>
+                    </div>
+                    <span
+                        :class="[
+                            'px-3 py-1 rounded-full text-xs font-semibold',
+                            statusForm.is_paid ? 'bg-green-500/20 text-green-300 border border-green-500/40' : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40',
+                        ]"
+                    >
+                        {{ statusForm.is_paid ? "Pagado" : "Pendiente" }}
+                    </span>
+                </div>
+
+                <form @submit.prevent="updatePaymentStatus" class="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <label class="flex items-center gap-2 text-sm text-gray-300">
+                        <input v-model="statusForm.is_paid" type="checkbox" class="checkbox" />
+                        Marcar como pagado
+                    </label>
+
+                    <div class="flex-1"></div>
+
+                    <button type="submit" class="btn-primary self-start sm:self-auto" :disabled="statusForm.processing">
+                        Guardar estado
+                    </button>
+                </form>
+
+                <p v-if="statusForm.errors.is_paid" class="text-red-500 text-sm mt-2">
+                    {{ statusForm.errors.is_paid }}
+                </p>
             </div>
 
             <!-- Registrar pago -->

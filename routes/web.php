@@ -114,6 +114,9 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
         Route::get('events/{event}/finance', [EventFinanceController::class, 'show'])
             ->name('events.finance');
 
+        Route::patch('events/{event}/payment-status', [EventFinanceController::class, 'updatePaymentStatus'])
+            ->name('events.payment-status.update');
+
         // ✅ PAGOS (ADMIN) -> admin.events.payments.store / admin.events.payments.destroy
         Route::post('events/{event}/payments', [EventPaymentController::class, 'store'])
             ->name('events.payments.store');
@@ -138,6 +141,7 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
 use App\Http\Controllers\Web\Artist\ProfileController as ArtistProfileController;
 use App\Http\Controllers\Web\Artist\EventController as ArtistEventController;
 use App\Http\Controllers\Web\Artist\DashboardController as ArtistDashboardApiController;
+use App\Http\Controllers\Web\Artist\FinanceController as ArtistFinanceController;
 
 Route::middleware(['auth:sanctum', 'verified', 'role:artist'])
     ->prefix('artist')
@@ -151,6 +155,9 @@ Route::middleware(['auth:sanctum', 'verified', 'role:artist'])
         Route::get('/profile/data', [ArtistProfileController::class, 'showData'])->name('profile.data');
         Route::get('/profile/edit', [ArtistProfileController::class, 'edit'])->name('profile.edit');
         Route::put('/profile', [ArtistProfileController::class, 'update'])->name('profile.update');
+
+        // Finanzas
+        Route::get('/finances', [ArtistFinanceController::class, 'index'])->name('finances.index');
 
         // Eventos
         Route::get('/events', [ArtistEventController::class, 'index'])->name('events.index');
