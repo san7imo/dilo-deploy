@@ -63,6 +63,11 @@ class Event extends Model
         return $this->hasMany(Event::class, 'main_artist_id');
     }
 
+    public function payments()
+    {
+        return $this->hasMany(EventPayment::class);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Mutadores

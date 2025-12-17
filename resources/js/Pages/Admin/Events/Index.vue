@@ -9,7 +9,8 @@ defineProps({ events: Object });
   <AdminLayout title="Eventos">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-semibold text-white">🎫 Eventos</h1>
-      <Link href="/admin/events/create" class="btn-primary">+ Nuevo evento</Link>
+      <Link :href="route('admin.events.create')" class="btn-primary">+ Nuevo evento</Link>
+      
     </div>
 
     <div class="overflow-x-auto bg-[#0f0f0f] rounded-lg shadow">
@@ -42,6 +43,10 @@ defineProps({ events: Object });
             <td class="px-4 py-3 space-x-2">
               <Link :href="route('admin.events.edit', event.id)" class="text-[#ffa236] hover:underline">
                 Editar
+              </Link>
+
+              <Link :href="route('admin.events.finance', event.id)" class="text-green-400 hover:underline">
+                Finanzas
               </Link>
             </td>
           </tr>

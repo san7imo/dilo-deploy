@@ -3,10 +3,8 @@ import ArtistLayout from '@/Layouts/ArtistLayout.vue';
 import { Link } from '@inertiajs/vue3';
 
 defineProps({
-    event: {
-        type: Object,
-        required: true
-    }
+    event: { type: Object, required: true },
+    finance: { type: Object, default: () => ({}) },
 });
 
 const formatDate = (date) => {
@@ -92,6 +90,35 @@ const formatTime = (date) => {
                                         class="px-3 py-1 bg-[#2a2a2a] rounded-full text-sm text-white">
                                         {{ artist.name }}
                                     </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Resumen financiero -->
+                        <div class="mt-6 bg-[#1d1d1b] rounded-lg border border-[#2a2a2a] p-6">
+                            <h2 class="text-xl font-semibold text-white mb-4">Resumen financiero</h2>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div class="bg-[#141414] rounded-lg p-4 border border-[#2a2a2a]">
+                                    <p class="text-gray-400 text-sm">Total pagado</p>
+                                    <p class="text-white text-lg font-bold">
+                                        € {{ (finance.total_paid_base ?? 0).toFixed(2) }}
+                                    </p>
+                                </div>
+
+                                <div class="bg-[#141414] rounded-lg p-4 border border-[#2a2a2a]">
+                                    <p class="text-gray-400 text-sm">Anticipo pagado</p>
+                                    <p class="text-white text-lg font-bold">
+                                        € {{ (finance.advance_paid_base ?? 0).toFixed(2) }}
+                                    </p>
+                                </div>
+
+                                <div class="bg-[#141414] rounded-lg p-4 border border-[#2a2a2a]">
+                                    <p class="text-gray-400 text-sm">Tu 70% estimado</p>
+                                    <p class="text-white text-lg font-bold">
+                                        € {{ (finance.artist_share_estimated_base ?? 0).toFixed(2) }}
+                                    </p>
+                                    <p class="text-gray-500 text-xs mt-1">(sin descontar gastos aún)</p>
                                 </div>
                             </div>
                         </div>

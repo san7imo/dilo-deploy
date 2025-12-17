@@ -1,12 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Http\Request;
 
 // ===============================================
 // CONTROLADORES PÚBLICOS (solo visualización)
 // ===============================================
-
 use App\Http\Controllers\Web\Public\{
     ArtistController as PublicArtistController,
     EventController as PublicEventController,
@@ -18,8 +17,7 @@ use App\Http\Controllers\Web\Public\{
 };
 
 // Página principal (landing pública)
-Route::get('/', [PublicHomeController::class, 'index'])
-    ->name('public.home');
+Route::get('/', [PublicHomeController::class, 'index'])->name('public.home');
 
 // --- Artistas ---
 Route::prefix('artistas')->name('public.artists.')->group(function () {
@@ -39,74 +37,89 @@ Route::prefix('generos')->name('public.genres.')->group(function () {
     Route::get('/{id}', [PublicGenreController::class, 'show'])->name('show');
 });
 
-// --- Lanzamientos (Releases) ---
+// --- Lanzamientos ---
 Route::prefix('releases')->name('public.releases.')->group(function () {
     Route::get('/', [PublicReleaseController::class, 'index'])->name('index');
     Route::get('/{slug}', [PublicReleaseController::class, 'show'])->name('show');
 });
 
-// --- Pistas (Tracks) ---
+// --- Pistas ---
 Route::prefix('tracks')->name('public.tracks.')->group(function () {
     Route::get('/', [PublicTrackController::class, 'index'])->name('index');
     Route::get('/{id}', [PublicTrackController::class, 'show'])->name('show');
 });
 
-// --- Sitemaps (SEO) ---
+// --- Sitemaps ---
 Route::get('/sitemap.xml', [PublicSitemapController::class, 'index'])->name('sitemap.index');
 Route::get('/sitemap-artists.xml', [PublicSitemapController::class, 'artists'])->name('sitemap.artists');
 Route::get('/sitemap-releases.xml', [PublicSitemapController::class, 'releases'])->name('sitemap.releases');
 Route::get('/sitemap-events.xml', [PublicSitemapController::class, 'events'])->name('sitemap.events');
 
-// ===============================================
-// PANEL DE ADMINISTRACIÓN
-// ===============================================
 
-use App\Http\Controllers\Web\Admin\{
-    DashboardController,
-    ArtistController as AdminArtistController,
-    EventController as AdminEventController,
-    GenreController as AdminGenreController,
-    ReleaseController as AdminReleaseController,
-    TrackController as AdminTrackController
-};
-use Illuminate\Http\Request;
-
-// --- Dashboard principal cambia dependiendo del rol ---
+// ===============================================
+// PANEL PRIVADO (Dashboard por rol)
+// ===============================================
 Route::middleware(['auth:sanctum', 'verified'])
     ->get('/dashboard', function (Request $request) {
         $user = $request->user();
 
         if ($user->hasRole('admin')) {
-            return inertia('Dashboard'); // resources/js/Pages/Dashboard.vue
+            return inertia('Dashboard');
         }
 
         if ($user->hasRole('artist')) {
-            return inertia('Artist/Dashboard'); // resources/js/Pages/Artist/Dashboard.vue
+            return inertia('Artist/Dashboard');
         }
 
         abort(403);
     })
     ->name('admin.dashboard');
 
-// --- Endpoint de datos del Dashboard ---
+
+// ===============================================
+// PANEL DE ADMINISTRACIÓN
+// ===============================================
+use App\Http\Controllers\Web\Admin\{
+    DashboardController,
+    ArtistController as AdminArtistController,
+    EventController as AdminEventController,
+    GenreController as AdminGenreController,
+    ReleaseController as AdminReleaseController,
+    TrackController as AdminTrackController,
+    EventFinanceController
+};
+
+use App\Http\Controllers\Web\EventPaymentController;
+
+// Endpoint de datos del Dashboard Admin
 Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
     ->get('/admin/dashboard/data', [DashboardController::class, 'index'])
     ->name('admin.dashboard.data');
 
-// --- Grupo de rutas protegidas (CRUDs del panel) ---
 Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
+
         // --- Artistas ---
         Route::resource('artists', AdminArtistController::class)->except(['show']);
 
-        // Ruta especial para eliminar una imagen del artista
         Route::delete('artists/{artist}/image', [AdminArtistController::class, 'deleteImage'])
             ->name('artists.deleteImage');
 
         // --- Eventos ---
         Route::resource('events', AdminEventController::class)->except(['show']);
+
+        // ✅ FINANZAS POR EVENTO (ADMIN)  -> admin.events.finance
+        Route::get('events/{event}/finance', [EventFinanceController::class, 'show'])
+            ->name('events.finance');
+
+        // ✅ PAGOS (ADMIN) -> admin.events.payments.store / admin.events.payments.destroy
+        Route::post('events/{event}/payments', [EventPaymentController::class, 'store'])
+            ->name('events.payments.store');
+
+        Route::delete('event-payments/{payment}', [EventPaymentController::class, 'destroy'])
+            ->name('events.payments.destroy');
 
         // --- Géneros ---
         Route::resource('genres', AdminGenreController::class)->except(['show']);
@@ -130,7 +143,9 @@ Route::middleware(['auth:sanctum', 'verified', 'role:artist'])
     ->prefix('artist')
     ->name('artist.')
     ->group(function () {
-        Route::get('/dashboard/data', [ArtistDashboardApiController::class, 'index'])->name('dashboard.data');
+
+        Route::get('/dashboard/data', [ArtistDashboardApiController::class, 'index'])
+            ->name('dashboard.data');
 
         // Perfil
         Route::get('/profile/data', [ArtistProfileController::class, 'showData'])->name('profile.data');
@@ -140,15 +155,10 @@ Route::middleware(['auth:sanctum', 'verified', 'role:artist'])
         // Eventos
         Route::get('/events', [ArtistEventController::class, 'index'])->name('events.index');
         Route::get('/events/{id}', [ArtistEventController::class, 'show'])->name('events.show');
-    
-
-        // Tracks / Releases (si ya los tienes, quedan igual)
-        // Route::get('/tracks', ...)->name('tracks.index');
-        // Route::get('/releases', ...)->name('releases.index');
     });
+
 
 // ===============================================
 // AUTENTICACIÓN (Jetstream / Fortify)
 // ===============================================
 // Las rutas de autenticación son registradas automáticamente por Fortify
-// Verifica que config/fortify.php tenga 'views' => true
