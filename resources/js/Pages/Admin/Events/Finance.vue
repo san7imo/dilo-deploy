@@ -1,6 +1,8 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Link, useForm } from "@inertiajs/vue3";
+import { computed } from "vue";
+import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
 
 const props = defineProps({
     event: { type: Object, required: true },
@@ -24,8 +26,29 @@ const paymentForm = useForm({
     is_advance: false,
 });
 
+const expenseForm = useForm({
+    expense_date: new Date().toISOString().slice(0, 10),
+    description: "",
+    amount_original: "",
+    currency: "EUR",
+    exchange_rate_to_base: 1,
+});
+
 const statusForm = useForm({
     is_paid: props.event.is_paid ?? false,
+});
+
+const totals = computed(() => {
+    const paid = Number(props.finance?.total_paid_base ?? 0);
+    const expenses = Number(props.finance?.total_expenses_base ?? 0);
+    const net = paid - expenses;
+    return {
+        paid,
+        expenses,
+        net,
+        shareLabel: Number(props.finance?.share_label ?? net * 0.30),
+        shareArtist: Number(props.finance?.share_artist ?? net * 0.70),
+    };
 });
 
 const normalizeCurrencyAndRate = () => {
@@ -69,6 +92,29 @@ const deletePayment = (paymentId) => {
     });
 };
 
+const submitExpense = () => {
+    const cur = (expenseForm.currency || "").toUpperCase().trim();
+    expenseForm.currency = cur || "EUR";
+
+    if (expenseForm.currency === "EUR") {
+        expenseForm.exchange_rate_to_base = 1;
+    } else if (!expenseForm.exchange_rate_to_base || Number(expenseForm.exchange_rate_to_base) <= 0) {
+        expenseForm.exchange_rate_to_base = 1;
+    }
+
+    expenseForm.post(route("admin.events.expenses.store", props.event.id), {
+        preserveScroll: true,
+        onSuccess: () => expenseForm.reset("amount_original", "description"),
+    });
+};
+
+const deleteExpense = (expenseId) => {
+    if (!confirm("¿Eliminar este gasto?")) return;
+    expenseForm.delete(route("admin.events.expenses.destroy", expenseId), {
+        preserveScroll: true,
+    });
+};
+
 const updatePaymentStatus = () => {
     statusForm.patch(route("admin.events.payment-status.update", props.event.id), {
         preserveScroll: true,
@@ -98,17 +144,7 @@ const updatePaymentStatus = () => {
             </div>
 
             <!-- Resumen -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
-                    <p class="text-gray-400 text-sm">Total pagado (EUR)</p>
-                    <p class="text-2xl font-bold">€ {{ (finance.total_paid_base ?? 0).toFixed(2) }}</p>
-                </div>
-
-                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
-                    <p class="text-gray-400 text-sm">Anticipo pagado (EUR)</p>
-                    <p class="text-2xl font-bold">€ {{ (finance.advance_paid_base ?? 0).toFixed(2) }}</p>
-                </div>
-            </div>
+            <FinanceCharts :totals="totals" currency="€" />
 
             <!-- Estado de pago manual -->
             <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
@@ -243,6 +279,103 @@ const updatePaymentStatus = () => {
                                 <td class="py-2">{{ p.is_advance ? "Sí" : "No" }}</td>
                                 <td class="py-2 text-right">
                                     <button @click="deletePayment(p.id)" class="text-red-400 hover:underline">
+                                        Eliminar
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Registrar gasto -->
+            <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
+                <h2 class="text-lg font-semibold mb-4">Registrar gasto</h2>
+
+                <form @submit.prevent="submitExpense" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-gray-300 text-sm">Fecha</label>
+                        <input v-model="expenseForm.expense_date" type="date" class="input" />
+                        <p v-if="expenseForm.errors.expense_date" class="text-red-500 text-sm mt-1">
+                            {{ expenseForm.errors.expense_date }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="text-gray-300 text-sm">Monto</label>
+                        <input v-model="expenseForm.amount_original" type="number" step="0.01" class="input" />
+                        <p v-if="expenseForm.errors.amount_original" class="text-red-500 text-sm mt-1">
+                            {{ expenseForm.errors.amount_original }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="text-gray-300 text-sm">Moneda (ISO)</label>
+                        <input v-model="expenseForm.currency" type="text" class="input" placeholder="EUR / USD / COP..." />
+                        <p class="text-gray-500 text-xs mt-1">Ej: EUR, USD, COP (3 letras).</p>
+                    </div>
+
+                    <div v-if="expenseForm.currency !== 'EUR'">
+                        <label class="text-gray-300 text-sm">Tasa a EUR</label>
+                        <input v-model="expenseForm.exchange_rate_to_base" type="number" step="0.000001" class="input" />
+                        <p class="text-gray-500 text-xs mt-1">
+                            Ej: si 1 USD = 0.92 EUR, pon 0.92
+                        </p>
+                    </div>
+
+                    <div v-else>
+                        <label class="text-gray-300 text-sm">Tasa a EUR</label>
+                        <input :value="1" disabled class="input opacity-60" />
+                        <p class="text-gray-500 text-xs mt-1">EUR no requiere tasa.</p>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="text-gray-300 text-sm">Descripción</label>
+                        <input v-model="expenseForm.description" type="text" class="input" placeholder="Ej: sonido, logística..." />
+                        <p v-if="expenseForm.errors.description" class="text-red-500 text-sm mt-1">
+                            {{ expenseForm.errors.description }}
+                        </p>
+                    </div>
+
+                    <div class="sm:col-span-2 flex justify-end mt-2">
+                        <button class="btn-primary" type="submit" :disabled="expenseForm.processing">
+                            Guardar gasto
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Lista gastos -->
+            <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
+                <h2 class="text-lg font-semibold mb-4">Gastos</h2>
+
+                <div v-if="!event.expenses || event.expenses.length === 0" class="text-gray-400">
+                    No hay gastos registrados.
+                </div>
+
+                <div v-else class="overflow-x-auto">
+                    <table class="min-w-full text-sm text-gray-300">
+                        <thead class="text-xs uppercase text-gray-400">
+                            <tr>
+                                <th class="py-2 text-left">Fecha</th>
+                                <th class="py-2 text-left">Concepto</th>
+                                <th class="py-2 text-left">Original</th>
+                                <th class="py-2 text-left">EUR</th>
+                                <th class="py-2 text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="g in event.expenses" :key="g.id" class="border-t border-[#2a2a2a]">
+                                <td class="py-2">{{ formatDateES(g.expense_date) }}</td>
+                                <td class="py-2">{{ g.description || '—' }}</td>
+                                <td class="py-2">
+                                    {{ g.currency }} {{ Number(g.amount_original).toFixed(2) }}
+                                </td>
+                                <td class="py-2">
+                                    € {{ Number(g.amount_base).toFixed(2) }}
+                                </td>
+                                <td class="py-2 text-right">
+                                    <button @click="deleteExpense(g.id)" class="text-red-400 hover:underline">
                                         Eliminar
                                     </button>
                                 </td>

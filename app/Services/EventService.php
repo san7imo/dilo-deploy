@@ -73,6 +73,10 @@ class EventService
             $artistIds = Arr::get($data, 'artist_ids', []);
             unset($data['artist_ids']);
 
+            if (!array_key_exists('is_paid', $data)) {
+                $data['is_paid'] = false;
+            }
+
             $event = Event::create($data);
 
             if (!empty($artistIds)) {

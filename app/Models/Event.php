@@ -70,6 +70,11 @@ class Event extends Model
         return $this->hasMany(EventPayment::class);
     }
 
+    public function expenses()
+    {
+        return $this->hasMany(EventExpense::class);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Mutadores

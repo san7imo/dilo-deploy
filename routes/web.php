@@ -90,6 +90,7 @@ use App\Http\Controllers\Web\Admin\{
 };
 
 use App\Http\Controllers\Web\EventPaymentController;
+use App\Http\Controllers\Web\EventExpenseController;
 
 // Endpoint de datos del Dashboard Admin
 Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
@@ -123,6 +124,12 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
 
         Route::delete('event-payments/{payment}', [EventPaymentController::class, 'destroy'])
             ->name('events.payments.destroy');
+
+        Route::post('events/{event}/expenses', [EventExpenseController::class, 'store'])
+            ->name('events.expenses.store');
+
+        Route::delete('event-expenses/{expense}', [EventExpenseController::class, 'destroy'])
+            ->name('events.expenses.destroy');
 
         // --- Géneros ---
         Route::resource('genres', AdminGenreController::class)->except(['show']);

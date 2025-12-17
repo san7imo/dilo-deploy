@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateEventRequest extends FormRequest
 {
@@ -17,14 +18,20 @@ class UpdateEventRequest extends FormRequest
             'title'       => 'sometimes|required|string|max:255',
             'description' => 'sometimes|nullable|string',
             'location'    => 'sometimes|nullable|string|max:255',
-            'event_date'  => 'sometimes|nullable|date',
+            'event_date'  => 'required|date|after_or_equal:today',
 
             // Imagen del póster (archivo)
             'poster'      => 'sometimes|nullable|image|mimes:jpeg,png,webp|max:4096',
 
             // Asociación con artistas
-            'artist_ids'   => 'sometimes|nullable|array',
+            'artist_ids'   => 'required|array|min:1',
             'artist_ids.*' => 'integer|exists:artists,id',
+            'main_artist_id' => [
+                'required',
+                'integer',
+                'exists:artists,id',
+                Rule::in($this->input('artist_ids', [])),
+            ],
         ];
     }
 
@@ -35,6 +42,11 @@ class UpdateEventRequest extends FormRequest
             'poster.image'          => 'El póster debe ser una imagen válida (JPEG, PNG o WebP).',
             'poster.max'            => 'El tamaño máximo permitido para el póster es de 4MB.',
             'artist_ids.*.exists'   => 'Uno o más artistas seleccionados no existen en el sistema.',
+            'main_artist_id.required' => 'Debes seleccionar un artista principal.',
+            'main_artist_id.in'     => 'El artista principal debe estar en la lista de artistas.',
+            'event_date.required'   => 'La fecha del evento es obligatoria.',
+            'event_date.after_or_equal' => 'La fecha del evento debe ser futura.',
         ];
     }
 }
+

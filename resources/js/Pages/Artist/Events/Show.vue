@@ -78,11 +78,26 @@ const isPaid = () => {
                             <p class="text-white text-xl font-bold">{{ formatCurrency(finance.advance_paid_base) }}</p>
                         </div>
                         <div class="bg-[#111111] rounded-lg p-4 border border-[#2a2a2a]">
-                            <p class="text-gray-400 text-sm">Tu 70% estimado</p>
-                            <p class="text-[#ffa236] text-xl font-bold">
-                                {{ formatCurrency(finance.artist_share_estimated_base) }}
-                            </p>
-                            <p class="text-gray-500 text-xs mt-1">(sin descontar gastos aún)</p>
+                            <p class="text-gray-400 text-sm">Gastos</p>
+                            <p class="text-red-400 text-xl font-bold">{{ formatCurrency(finance.total_expenses_base) }}</p>
+                        </div>
+                        <div class="bg-[#111111] rounded-lg p-4 border border-[#2a2a2a]">
+                            <p class="text-gray-400 text-sm">Resultado neto</p>
+                            <p class="text-white text-xl font-bold">{{ formatCurrency(finance.net_base) }}</p>
+                        </div>
+                        <div class="bg-[#111111] rounded-lg p-4 border border-[#2a2a2a] sm:col-span-3 grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-gray-400 text-sm">30% Dilo</p>
+                                <p class="text-gray-100 text-xl font-bold">
+                                    {{ formatCurrency(finance.label_share_estimated_base) }}
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-gray-400 text-sm">70% Artista</p>
+                                <p class="text-[#ffa236] text-xl font-bold">
+                                    {{ formatCurrency(finance.artist_share_estimated_base) }}
+                                </p>
+                            </div>
                         </div>
                     </div>
 

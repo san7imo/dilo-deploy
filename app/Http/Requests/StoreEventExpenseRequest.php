@@ -5,7 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Event;
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreEventPaymentRequest extends FormRequest
+class StoreEventExpenseRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -19,21 +19,20 @@ class StoreEventPaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'payment_date' => ['required', 'date'],
+            'expense_date' => ['nullable', 'date'],
+            'description' => ['required', 'string', 'max:255'],
             'amount_original' => ['required', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'size:3'],
             'exchange_rate_to_base' => ['nullable', 'numeric', 'gt:0'],
-            'payment_method' => ['required', 'string', 'max:255'],
-            'is_advance' => ['boolean'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'payment_method.required' => 'El método de pago es obligatorio.',
-            'payment_date.required' => 'La fecha de pago es obligatoria.',
-            'amount_original.required' => 'El monto del pago es obligatorio.',
+            'description.required' => 'La descripción del gasto es obligatoria.',
+            'amount_original.required' => 'El monto del gasto es obligatorio.',
+            'expense_date.date' => 'La fecha del gasto no es válida.',
         ];
     }
 

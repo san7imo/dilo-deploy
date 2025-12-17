@@ -78,6 +78,17 @@ const hasEvents = computed(() => Array.isArray(props.events) && props.events.len
                         </div>
                     </div>
 
+                    <div class="grid grid-cols-2 gap-3 text-xs text-gray-400">
+                        <div class="bg-[#111111] rounded-md p-3 border border-[#2a2a2a]">
+                            <p class="text-gray-400 text-[11px]">Gastos</p>
+                            <p class="text-red-400 font-semibold">{{ formatCurrency(event.total_expenses_base) }}</p>
+                        </div>
+                        <div class="bg-[#111111] rounded-md p-3 border border-[#2a2a2a]">
+                            <p class="text-gray-400 text-[11px]">Resultado neto</p>
+                            <p class="text-white font-semibold">{{ formatCurrency(event.net_base) }}</p>
+                        </div>
+                    </div>
+
                     <div class="flex items-center justify-between text-xs text-gray-400">
                         <span>Anticipo: {{ formatCurrency(event.advance_paid_base) }}</span>
                         <span class="text-gray-500">{{ event.is_upcoming ? 'Próximo' : 'Pasado' }}</span>

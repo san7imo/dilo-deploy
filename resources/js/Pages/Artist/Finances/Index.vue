@@ -1,6 +1,7 @@
 <script setup>
 import ArtistLayout from "@/Layouts/ArtistLayout.vue";
 import { computed } from "vue";
+import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
 
 const props = defineProps({
     summary: {
@@ -33,6 +34,14 @@ const formatDate = (date) => {
         year: "numeric",
     });
 };
+
+const totals = computed(() => ({
+    paid: Number(props.summary?.total_paid_base ?? 0),
+    expenses: Number(props.summary?.total_expenses_base ?? 0),
+    net: Number(props.summary?.net_base ?? 0),
+    shareLabel: Number(props.summary?.label_share_estimated_base ?? 0),
+    shareArtist: Number(props.summary?.artist_share_estimated_base ?? 0),
+}));
 </script>
 
 <template>
@@ -49,24 +58,8 @@ const formatDate = (date) => {
             </div>
 
             <!-- Resumen -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-4">
-                    <p class="text-gray-400 text-xs">Ingresos totales (EUR)</p>
-                    <p class="text-2xl font-bold">{{ formatCurrency(summary.total_paid_base) }}</p>
-                </div>
-                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-4">
-                    <p class="text-gray-400 text-xs">Tu 70% estimado</p>
-                    <p class="text-2xl font-bold text-[#ffa236]">{{ formatCurrency(summary.artist_share_estimated_base) }}</p>
-                    <p class="text-[11px] text-gray-500 mt-1">Sin descontar gastos.</p>
-                </div>
-                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-4">
-                    <p class="text-gray-400 text-xs">Eventos con pagos</p>
-                    <p class="text-xl font-semibold text-green-400">{{ summary.paid_events_count || 0 }}</p>
-                </div>
-                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-4">
-                    <p class="text-gray-400 text-xs">Pendientes de cobro</p>
-                    <p class="text-xl font-semibold text-yellow-400">{{ pendingEventsCount }}</p>
-                </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FinanceCharts :totals="totals" currency="€" />
             </div>
 
             <!-- Eventos -->
@@ -108,20 +101,31 @@ const formatDate = (date) => {
                                 <p class="text-gray-400 text-xs">Total ingresado</p>
                                 <p class="text-white font-semibold">{{ formatCurrency(event.total_paid_base) }}</p>
                             </div>
-                            <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-md p-3">
-                                <p class="text-gray-400 text-xs">Tu 70% estimado</p>
-                                <p class="text-[#ffa236] font-semibold">{{ formatCurrency(event.artist_share_estimated_base) }}</p>
-                            </div>
+                        <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-md p-3">
+                            <p class="text-gray-400 text-xs">Tu 70% estimado</p>
+                            <p class="text-[#ffa236] font-semibold">{{ formatCurrency(event.artist_share_estimated_base) }}</p>
                         </div>
+                    </div>
 
-                        <div class="flex items-center justify-between text-xs text-gray-400">
-                            <span>Anticipo: {{ formatCurrency(event.advance_paid_base) }}</span>
-                            <span class="text-gray-500" v-if="event.is_upcoming">Proximo</span>
-                            <span class="text-gray-500" v-else>Pasado</span>
+                    <div class="grid grid-cols-2 gap-3 text-xs text-gray-400">
+                        <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-md p-3">
+                            <p class="text-gray-400 text-[11px]">Gastos</p>
+                            <p class="text-red-400 font-semibold">{{ formatCurrency(event.total_expenses_base) }}</p>
                         </div>
+                        <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-md p-3">
+                            <p class="text-gray-400 text-[11px]">Resultado neto</p>
+                            <p class="text-white font-semibold">{{ formatCurrency(event.net_base) }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs text-gray-400">
+                        <span>Anticipo: {{ formatCurrency(event.advance_paid_base) }}</span>
+                        <span class="text-gray-500" v-if="event.is_upcoming">Proximo</span>
+                        <span class="text-gray-500" v-else>Pasado</span>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
     </ArtistLayout>
 </template>

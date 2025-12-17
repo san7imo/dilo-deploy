@@ -1,5 +1,6 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
+import { watch } from "vue";
 
 const props = defineProps({
   event: { type: Object, default: () => ({}) },
@@ -16,6 +17,21 @@ const form = useForm({
   main_artist_id: props.event.main_artist_id || null,
   poster_file: null,
 });
+
+watch(
+  () => form.artist_ids,
+  (artistIds) => {
+    if (Array.isArray(artistIds) && artistIds.length === 1) {
+      form.main_artist_id = artistIds[0];
+      return;
+    }
+
+    if (!artistIds?.includes(form.main_artist_id)) {
+      form.main_artist_id = null;
+    }
+  },
+  { deep: true }
+);
 
 const handleSubmit = () => {
   console.log("🎤 Enviando formulario de evento...", form.data());
