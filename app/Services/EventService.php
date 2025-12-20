@@ -36,7 +36,7 @@ class EventService
      */
     public function getUpcoming(int $perPage = 12): LengthAwarePaginator
     {
-        return Event::with('artists')
+        return Event::with(['artists', 'mainArtist'])
             ->whereDate('event_date', '>=', now())
             ->orderBy('event_date', 'asc')
             ->paginate($perPage);
@@ -47,7 +47,7 @@ class EventService
      */
     public function getPast(int $perPage = 12): LengthAwarePaginator
     {
-        return Event::with('artists')
+        return Event::with(['artists', 'mainArtist'])
             ->whereDate('event_date', '<', now())
             ->orderBy('event_date', 'desc')
             ->paginate($perPage);
@@ -58,32 +58,32 @@ class EventService
      */
     public function create(array $data): Event
     {
-            // Manejar archivo de afiche si viene como UploadedFile 'poster_file'
-            if (!empty($data['poster_file'])) {
-                $imageKit = app(\App\Services\ImageKitService::class);
-                $result = $imageKit->upload($data['poster_file'], '/events');
-                if ($result) {
-                    $data['poster_url'] = $result['url'];
-                    $data['poster_id'] = $result['file_id'];
-                }
-                unset($data['poster_file']);
+        // Manejar archivo de afiche si viene como UploadedFile 'poster_file'
+        if (!empty($data['poster_file'])) {
+            $imageKit = app(\App\Services\ImageKitService::class);
+            $result = $imageKit->upload($data['poster_file'], '/events');
+            if ($result) {
+                $data['poster_url'] = $result['url'];
+                $data['poster_id'] = $result['file_id'];
             }
+            unset($data['poster_file']);
+        }
 
-            // Se separan artist_ids si vienen
-            $artistIds = Arr::get($data, 'artist_ids', []);
-            unset($data['artist_ids']);
+        // Se separan artist_ids si vienen
+        $artistIds = Arr::get($data, 'artist_ids', []);
+        unset($data['artist_ids']);
 
-            if (!array_key_exists('is_paid', $data)) {
-                $data['is_paid'] = false;
-            }
+        if (!array_key_exists('is_paid', $data)) {
+            $data['is_paid'] = false;
+        }
 
-            $event = Event::create($data);
+        $event = Event::create($data);
 
-            if (!empty($artistIds)) {
-                $event->artists()->sync($artistIds);
-            }
+        if (!empty($artistIds)) {
+            $event->artists()->sync($artistIds);
+        }
 
-            return $event->load('artists');
+        return $event->load('artists');
     }
 
     /**
@@ -91,7 +91,17 @@ class EventService
      */
     public function getById(int $id): Event
     {
-        return Event::with('artists')->findOrFail($id);
+        return Event::with(['artists', 'mainArtist', 'payments', 'expenses'])->findOrFail($id);
+    }
+
+    /**
+     * Obtener por slug (o retornar null)
+     */
+    public function getBySlug(string $slug): ?Event
+    {
+        return Event::with(['artists', 'mainArtist', 'payments', 'expenses'])
+            ->where('slug', $slug)
+            ->first();
     }
 
     /**
@@ -99,30 +109,30 @@ class EventService
      */
     public function update(Event $event, array $data): Event
     {
-            // Si viene un nuevo poster_file, eliminar antiguo y subir el nuevo
-            if (!empty($data['poster_file'])) {
-                $imageKit = app(\App\Services\ImageKitService::class);
-                if ($event->poster_id) {
-                    $imageKit->delete($event->poster_id);
-                }
-                $result = $imageKit->upload($data['poster_file'], '/events');
-                if ($result) {
-                    $data['poster_url'] = $result['url'];
-                    $data['poster_id'] = $result['file_id'];
-                }
-                unset($data['poster_file']);
+        // Si viene un nuevo poster_file, eliminar antiguo y subir el nuevo
+        if (!empty($data['poster_file'])) {
+            $imageKit = app(\App\Services\ImageKitService::class);
+            if ($event->poster_id) {
+                $imageKit->delete($event->poster_id);
             }
-
-            $artistIds = Arr::get($data, 'artist_ids', null);
-            unset($data['artist_ids']);
-
-            $event->update($data);
-
-            if (is_array($artistIds)) {
-                $event->artists()->sync($artistIds);
+            $result = $imageKit->upload($data['poster_file'], '/events');
+            if ($result) {
+                $data['poster_url'] = $result['url'];
+                $data['poster_id'] = $result['file_id'];
             }
+            unset($data['poster_file']);
+        }
 
-            return $event->fresh('artists');
+        $artistIds = Arr::get($data, 'artist_ids', null);
+        unset($data['artist_ids']);
+
+        $event->update($data);
+
+        if (is_array($artistIds)) {
+            $event->artists()->sync($artistIds);
+        }
+
+        return $event->fresh('artists');
     }
 
     /**

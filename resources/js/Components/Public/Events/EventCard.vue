@@ -6,8 +6,6 @@ const props = defineProps({
   event: { type: Object, required: true },
 })
 
-const emit = defineEmits(['select'])
-
 // Formatear la fecha de manera legible
 const formattedDate = computed(() => {
   if (!props.event.event_date) return 'Próximamente'
@@ -28,11 +26,16 @@ const monthBadge = computed(() => {
     day: 'numeric'
   }).format(date).toUpperCase()
 })
+
+// Link a página completa
+const eventDetailLink = computed(() =>
+  route('public.events.show', props.event.slug)
+)
 </script>
 
 <template>
-  <div @click="emit('select', event)"
-    class="cursor-pointer group relative overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/10 hover:ring-white/20 transition-all duration-300 hover:shadow-xl">
+  <a :href="eventDetailLink"
+    class="block cursor-pointer group relative overflow-hidden rounded-2xl bg-zinc-900 ring-1 ring-white/10 hover:ring-white/20 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
     <!-- Imagen del póster -->
     <div class="relative h-80 overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900">
       <img v-if="event.poster_url" :src="event.poster_url" :alt="event.title"
@@ -84,5 +87,5 @@ const monthBadge = computed(() => {
         </div>
       </div>
     </div>
-  </div>
+  </a>
 </template>
