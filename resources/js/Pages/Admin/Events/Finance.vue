@@ -1,13 +1,20 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Link, useForm } from "@inertiajs/vue3";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
 
 const props = defineProps({
     event: { type: Object, required: true },
     finance: { type: Object, default: () => ({}) },
 });
+
+// Filtros básicos para admin
+const filterType = ref("all");
+const filterYear = ref(null);
+const filterMonth = ref(null);
+const filterDateFrom = ref(null);
+const filterDateTo = ref(null);
 
 const paymentMethodOptions = [
     { value: "transferencia", label: "Transferencia bancaria" },
@@ -49,6 +56,21 @@ const totals = computed(() => {
         shareLabel: Number(props.finance?.share_label ?? net * 0.30),
         shareArtist: Number(props.finance?.share_artist ?? net * 0.70),
     };
+});
+
+// Crear un array con el evento actual para FinanceCharts
+// Esto permite que FinanceCharts funcione incluso con un único evento
+const eventArray = computed(() => {
+    if (!props.event) return [];
+    return [{
+        ...props.event,
+        title: props.event.title || props.event.name || "Evento",
+        event_date: props.event.event_date || new Date().toISOString(),
+        status: props.event.is_paid ? "pagado" : "pendiente",
+        total_paid_base: props.finance?.total_paid_base ?? 0,
+        total_expenses_base: props.finance?.total_expenses_base ?? 0,
+        net_base: (props.finance?.total_paid_base ?? 0) - (props.finance?.total_expenses_base ?? 0),
+    }];
 });
 
 const normalizeCurrencyAndRate = () => {
@@ -127,7 +149,7 @@ const updatePaymentStatus = () => {
 
 <template>
     <AdminLayout title="Finanzas">
-        <div class="max-w-5xl mx-auto space-y-6 text-white">
+        <div class="space-y-6 text-white">
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-2xl font-bold">💶 Finanzas — {{ event.title }}</h1>
@@ -143,8 +165,42 @@ const updatePaymentStatus = () => {
                 </Link>
             </div>
 
+            <!-- Filtros de fecha -->
+            <div
+                class="bg-gradient-to-br from-[#1d1d1b] to-[#151512] border border-[#3a3a38] rounded-xl p-6 flex flex-wrap gap-4 shadow-lg">
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[#ffa236] text-sm mb-2 font-semibold flex items-center gap-2">
+                        Filtrar por estado
+                    </label>
+                    <select v-model="filterType"
+                        class="w-full bg-[#0f0f0d] border border-[#3a3a38] rounded-lg px-3 py-2 text-white text-sm hover:border-[#ffa236]/30 focus:border-[#ffa236] transition-colors">
+                        <option value="all">Todos</option>
+                        <option value="paid">Solo pagados</option>
+                        <option value="pending">Solo pendientes</option>
+                    </select>
+                </div>
+
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[#ffa236] text-sm mb-2 font-semibold flex items-center gap-2">
+                        Desde
+                    </label>
+                    <input v-model="filterDateFrom" type="date"
+                        class="w-full bg-[#0f0f0d] border border-[#3a3a38] rounded-lg px-3 py-2 text-white text-sm hover:border-[#ffa236]/30 focus:border-[#ffa236] transition-colors">
+                </div>
+
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[#ffa236] text-sm mb-2 font-semibold flex items-center gap-2">
+                        Hasta
+                    </label>
+                    <input v-model="filterDateTo" type="date"
+                        class="w-full bg-[#0f0f0d] border border-[#3a3a38] rounded-lg px-3 py-2 text-white text-sm hover:border-[#ffa236]/30 focus:border-[#ffa236] transition-colors">
+                </div>
+            </div>
+
             <!-- Resumen -->
-            <FinanceCharts :totals="totals" currency="€" />
+            <FinanceCharts :totals="totals" :events="eventArray" :filter-type="filterType" :filter-year="filterYear"
+                :filter-month="filterMonth" :filter-date-from="filterDateFrom" :filter-date-to="filterDateTo"
+                currency="€" />
 
             <!-- Estado de pago manual -->
             <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
@@ -153,12 +209,10 @@ const updatePaymentStatus = () => {
                         <h2 class="text-lg font-semibold">Estado de pago</h2>
                         <p class="text-sm text-gray-400">Marca si el evento se considera pagado o pendiente.</p>
                     </div>
-                    <span
-                        :class="[
-                            'px-3 py-1 rounded-full text-xs font-semibold',
-                            statusForm.is_paid ? 'bg-green-500/20 text-green-300 border border-green-500/40' : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40',
-                        ]"
-                    >
+                    <span :class="[
+                        'px-3 py-1 rounded-full text-xs font-semibold',
+                        statusForm.is_paid ? 'bg-green-500/20 text-green-300 border border-green-500/40' : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40',
+                    ]">
                         {{ statusForm.is_paid ? "Pagado" : "Pendiente" }}
                     </span>
                 </div>
@@ -311,13 +365,15 @@ const updatePaymentStatus = () => {
 
                     <div>
                         <label class="text-gray-300 text-sm">Moneda (ISO)</label>
-                        <input v-model="expenseForm.currency" type="text" class="input" placeholder="EUR / USD / COP..." />
+                        <input v-model="expenseForm.currency" type="text" class="input"
+                            placeholder="EUR / USD / COP..." />
                         <p class="text-gray-500 text-xs mt-1">Ej: EUR, USD, COP (3 letras).</p>
                     </div>
 
                     <div v-if="expenseForm.currency !== 'EUR'">
                         <label class="text-gray-300 text-sm">Tasa a EUR</label>
-                        <input v-model="expenseForm.exchange_rate_to_base" type="number" step="0.000001" class="input" />
+                        <input v-model="expenseForm.exchange_rate_to_base" type="number" step="0.000001"
+                            class="input" />
                         <p class="text-gray-500 text-xs mt-1">
                             Ej: si 1 USD = 0.92 EUR, pon 0.92
                         </p>
@@ -331,7 +387,8 @@ const updatePaymentStatus = () => {
 
                     <div class="sm:col-span-2">
                         <label class="text-gray-300 text-sm">Descripción</label>
-                        <input v-model="expenseForm.description" type="text" class="input" placeholder="Ej: sonido, logística..." />
+                        <input v-model="expenseForm.description" type="text" class="input"
+                            placeholder="Ej: sonido, logística..." />
                         <p v-if="expenseForm.errors.description" class="text-red-500 text-sm mt-1">
                             {{ expenseForm.errors.description }}
                         </p>
