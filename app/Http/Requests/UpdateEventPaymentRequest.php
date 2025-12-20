@@ -2,17 +2,17 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Event;
+use App\Models\EventPayment;
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreEventPaymentRequest extends FormRequest
+class UpdateEventPaymentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $event = $this->route('event');
+        $payment = $this->route('payment');
 
-        return $event instanceof Event
-            ? (bool) $this->user()?->can('viewFinancial', $event)
+        return $payment instanceof EventPayment
+            ? (bool) $this->user()?->can('viewFinancial', $payment->event)
             : false;
     }
 

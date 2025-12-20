@@ -10,6 +10,8 @@ class EventExpense extends Model
         'event_id',
         'expense_date',
         'description',
+        'name',
+        'category',
         'amount_original',
         'currency',
         'exchange_rate_to_base',
@@ -18,6 +20,9 @@ class EventExpense extends Model
 
     protected $casts = [
         'expense_date' => 'date',
+        'amount_original' => 'decimal:2',
+        'exchange_rate_to_base' => 'decimal:6',
+        'amount_base' => 'decimal:2',
     ];
 
     public function event()

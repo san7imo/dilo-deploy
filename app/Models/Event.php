@@ -30,6 +30,16 @@ class Event extends Model
         'main_artist_id',
         'poster_url', // Afiche individual del evento
         'poster_id',  // ID del archivo en ImageKit
+        'event_type',
+        'country',
+        'city',
+        'venue_address',
+        'show_fee_total',
+        'currency',
+        'advance_percentage',
+        'advance_expected',
+        'full_payment_due_date',
+        'status',
     ];
 
     /**
@@ -38,6 +48,10 @@ class Event extends Model
     protected $casts = [
         'event_date' => 'date',
         'is_paid' => 'boolean',
+        'advance_expected' => 'boolean',
+        'full_payment_due_date' => 'date',
+        'show_fee_total' => 'decimal:2',
+        'advance_percentage' => 'decimal:2',
     ];
 
     /**

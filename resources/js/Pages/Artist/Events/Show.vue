@@ -37,115 +37,188 @@ const isPaid = () => {
 
 <template>
     <ArtistLayout>
-        <div class="max-w-4xl mx-auto">
-            <Link
-                :href="route('artist.events.index')"
-                class="inline-flex items-center gap-2 text-[#ffa236] hover:text-[#ffb54d] mb-6 transition-colors"
-            >
-                <i class="fa-solid fa-arrow-left"></i>
-                Volver a mis eventos
+        <div class="max-w-5xl mx-auto space-y-8">
+            <Link :href="route('artist.events.index')"
+                class="inline-flex items-center gap-2 text-[#ffa236] hover:text-[#ffb54d] mb-2 transition-colors">
+                ← Volver a mis eventos
             </Link>
 
-            <div class="bg-[#1d1d1b] rounded-lg border border-[#2a2a2a] overflow-hidden">
-                <div class="p-8 space-y-6">
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <p class="text-xs text-gray-400 uppercase tracking-wide">
-                                {{ formatDate(event.event_date) }}
+            <div
+                class="rounded-2xl overflow-hidden border border-[#232323] bg-gradient-to-br from-[#161616] via-[#0f0f0f] to-[#0b0b0b] shadow-xl">
+                <div class="p-8 space-y-8">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div class="space-y-2">
+                            <p class="text-[11px] uppercase tracking-[0.2em] text-gray-500">{{
+                                formatDate(event.event_date) }}</p>
+                            <h1 class="text-3xl font-bold text-white leading-tight">{{ event.title }}</h1>
+                            <div class="flex flex-wrap gap-2 text-xs">
+                                <span :class="[
+                                    'px-3 py-1 rounded-full border text-[11px] font-semibold capitalize',
+                                    isPaid() ? 'bg-green-500/15 text-green-200 border-green-500/30' : 'bg-amber-500/15 text-amber-200 border-amber-500/30'
+                                ]">
+                                    {{ isPaid() ? 'Pagado' : 'Pendiente' }}
+                                </span>
+                                <span v-if="event.event_type"
+                                    class="px-3 py-1 rounded-full border border-[#2c2c2c] bg-[#111111] text-gray-300 capitalize">
+                                    {{ event.event_type }}
+                                </span>
+                            </div>
+                            <div class="space-y-1 text-sm text-gray-300">
+                                <p v-if="event.city || event.country" class="text-gray-300">
+                                    {{ event.city }}{{ event.city && event.country ? ',' : '' }} {{ event.country }}
+                                </p>
+                                <p v-if="event.location" class="text-gray-200">{{ event.location }}</p>
+                                <p v-if="event.venue_address" class="text-xs text-gray-500">{{ event.venue_address }}
+                                </p>
+                                <p v-else-if="!event.city && !event.country && event.location" class="text-gray-300">
+                                    {{ event.location }}
+                                </p>
+                            </div>
+                        </div>
+                        <div
+                            class="rounded-2xl border border-[#2c2c2c] bg-[#0d0d0d] px-4 py-3 text-right text-sm text-gray-300">
+                            <p class="text-xs text-gray-500">Hora</p>
+                            <p class="text-white font-semibold">{{ formatTime(event.event_date) }}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div class="rounded-xl border border-[#242424] bg-[#101010] p-4">
+                            <p class="text-gray-500 text-xs">Total pagado</p>
+                            <p class="text-white text-xl font-semibold">{{ formatCurrency(finance.total_paid_base) }}
                             </p>
-                            <h1 class="text-3xl font-bold text-white mt-1">{{ event.title }}</h1>
-                            <p v-if="event.location" class="text-sm text-gray-400 mt-1">{{ event.location }}</p>
                         </div>
-                        <span
-                            :class="[
-                                'px-3 py-1 text-xs font-semibold rounded-full capitalize',
-                                isPaid()
-                                    ? 'bg-green-500/20 text-green-300 border border-green-500/40'
-                                    : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40',
-                            ]"
-                        >
-                            {{ isPaid() ? 'Pagado' : 'Pendiente' }}
-                        </span>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div class="bg-[#111111] rounded-lg p-4 border border-[#2a2a2a]">
-                            <p class="text-gray-400 text-sm">Total pagado</p>
-                            <p class="text-white text-xl font-bold">{{ formatCurrency(finance.total_paid_base) }}</p>
+                        <div class="rounded-xl border border-[#242424] bg-[#101010] p-4">
+                            <p class="text-gray-500 text-xs">Anticipo pagado</p>
+                            <p class="text-white text-xl font-semibold">{{ formatCurrency(finance.advance_paid_base) }}
+                            </p>
                         </div>
-                        <div class="bg-[#111111] rounded-lg p-4 border border-[#2a2a2a]">
-                            <p class="text-gray-400 text-sm">Anticipo pagado</p>
-                            <p class="text-white text-xl font-bold">{{ formatCurrency(finance.advance_paid_base) }}</p>
+                        <div class="rounded-xl border border-[#242424] bg-[#101010] p-4">
+                            <p class="text-gray-500 text-xs">Gastos</p>
+                            <p class="text-red-400 text-xl font-semibold">{{ formatCurrency(finance.total_expenses_base)
+                            }}</p>
                         </div>
-                        <div class="bg-[#111111] rounded-lg p-4 border border-[#2a2a2a]">
-                            <p class="text-gray-400 text-sm">Gastos</p>
-                            <p class="text-red-400 text-xl font-bold">{{ formatCurrency(finance.total_expenses_base) }}</p>
+                        <div class="rounded-xl border border-[#242424] bg-[#101010] p-4">
+                            <p class="text-gray-500 text-xs">Resultado neto</p>
+                            <p class="text-white text-xl font-semibold">{{ formatCurrency(finance.net_base) }}</p>
                         </div>
-                        <div class="bg-[#111111] rounded-lg p-4 border border-[#2a2a2a]">
-                            <p class="text-gray-400 text-sm">Resultado neto</p>
-                            <p class="text-white text-xl font-bold">{{ formatCurrency(finance.net_base) }}</p>
+                        <div class="rounded-xl border border-[#242424] bg-[#101010] p-4 sm:col-span-2">
+                            <p class="text-gray-500 text-xs">30% Dilo</p>
+                            <p class="text-gray-100 text-xl font-semibold">{{
+                                formatCurrency(finance.label_share_estimated_base) }}</p>
                         </div>
-                        <div class="bg-[#111111] rounded-lg p-4 border border-[#2a2a2a] sm:col-span-3 grid grid-cols-2 gap-4">
-                            <div>
-                                <p class="text-gray-400 text-sm">30% Dilo</p>
-                                <p class="text-gray-100 text-xl font-bold">
-                                    {{ formatCurrency(finance.label_share_estimated_base) }}
-                                </p>
-                            </div>
-                            <div>
-                                <p class="text-gray-400 text-sm">70% Artista</p>
-                                <p class="text-[#ffa236] text-xl font-bold">
-                                    {{ formatCurrency(finance.artist_share_estimated_base) }}
-                                </p>
-                            </div>
+                        <div class="rounded-xl border border-[#242424] bg-[#101010] p-4 sm:col-span-2">
+                            <p class="text-gray-500 text-xs">70% Artista</p>
+                            <p class="text-[#ffa236] text-xl font-semibold">{{
+                                formatCurrency(finance.artist_share_estimated_base) }}</p>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-4">
-                            <div class="flex items-start gap-3">
-                                <div class="flex-shrink-0 w-10 h-10 bg-[#ffa236] rounded-lg flex items-center justify-center">
-                                    <i class="fa-solid fa-calendar text-black text-lg"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-400">Fecha</p>
-                                    <p class="text-white font-medium">{{ formatDate(event.event_date) }}</p>
-                                    <p class="text-gray-300">{{ formatTime(event.event_date) }}</p>
-                                </div>
+                            <div class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4">
+                                <p class="text-xs text-gray-500">Fecha</p>
+                                <p class="text-white font-medium">{{ formatDate(event.event_date) }}</p>
+                                <p class="text-gray-400 text-sm">{{ formatTime(event.event_date) }}</p>
                             </div>
 
-                            <div v-if="event.location" class="flex items-start gap-3">
-                                <div class="flex-shrink-0 w-10 h-10 bg-[#ffa236] rounded-lg flex items-center justify-center">
-                                    <i class="fa-solid fa-location-dot text-black text-lg"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-400">Ubicación</p>
-                                    <p class="text-white font-medium">{{ event.location }}</p>
-                                </div>
+                            <div v-if="event.location || event.city || event.country"
+                                class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4 space-y-1">
+                                <p class="text-xs text-gray-500">Ubicación</p>
+                                <p v-if="event.city || event.country" class="text-white font-medium">
+                                    {{ event.city }}{{ event.city && event.country ? ',' : '' }} {{ event.country }}
+                                </p>
+                                <p v-if="event.location" class="text-gray-300">{{ event.location }}</p>
                             </div>
 
-                            <div v-if="event.description" class="flex items-start gap-3">
-                                <div class="flex-shrink-0 w-10 h-10 bg-[#ffa236] rounded-lg flex items-center justify-center">
-                                    <i class="fa-solid fa-align-left text-black text-lg"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-sm text-gray-400 mb-1">Descripción</p>
-                                    <p class="text-white whitespace-pre-line">{{ event.description }}</p>
-                                </div>
+                            <div v-if="event.venue_address" class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4">
+                                <p class="text-xs text-gray-500">Venue</p>
+                                <p class="text-white font-medium">{{ event.venue_address }}</p>
+                            </div>
+
+                            <div v-if="event.description" class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4">
+                                <p class="text-xs text-gray-500 mb-1">Descripción</p>
+                                <p class="text-white whitespace-pre-line">{{ event.description }}</p>
+                            </div>
+
+                            <div v-if="event.show_fee_total"
+                                class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4 space-y-1">
+                                <p class="text-xs text-gray-500">Fee del show</p>
+                                <p class="text-white font-medium">{{ event.currency || 'EUR' }} {{
+                                    Number(event.show_fee_total).toFixed(2) }}</p>
+                                <p v-if="event.advance_percentage" class="text-xs text-gray-500">Anticipo: {{
+                                    event.advance_percentage }}%</p>
                             </div>
                         </div>
 
-                        <div v-if="event.artists && event.artists.length" class="bg-[#111111] rounded-lg border border-[#2a2a2a] p-4">
-                            <p class="text-sm text-gray-400 mb-3">Artistas participantes</p>
+                        <div v-if="event.artists && event.artists.length"
+                            class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4 space-y-3">
+                            <p class="text-sm text-gray-400">Artistas participantes</p>
                             <div class="flex flex-wrap gap-2">
-                                <span
-                                    v-for="artist in event.artists"
-                                    :key="artist.id"
-                                    class="px-3 py-1 bg-[#2a2a2a] rounded-full text-sm text-white"
-                                >
+                                <span v-for="artist in event.artists" :key="artist.id"
+                                    class="px-3 py-1 bg-[#1b1b1b] border border-[#2a2a2a] rounded-full text-sm text-white">
                                     {{ artist.name }}
                                 </span>
                             </div>
+                        </div>
+                    </div>
+
+                    <div v-if="event.payments && event.payments.length" class="space-y-3">
+                        <h3 class="text-lg font-semibold text-white">Pagos registrados</h3>
+                        <div class="rounded-xl border border-[#242424] bg-[#0f0f0f] overflow-hidden">
+                            <table class="w-full text-sm">
+                                <thead class="border-b border-[#2a2a2a] bg-[#0c0c0c]">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-gray-400">Fecha</th>
+                                        <th class="px-4 py-3 text-left text-gray-400">Monto</th>
+                                        <th class="px-4 py-3 text-left text-gray-400">Anticipo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="payment in event.payments" :key="payment.id"
+                                        class="border-t border-[#1f1f1f]">
+                                        <td class="px-4 py-3">{{ new
+                                            Date(payment.payment_date).toLocaleDateString('es-ES') }}</td>
+                                        <td class="px-4 py-3">{{ payment.currency }} {{
+                                            Number(payment.amount_original).toFixed(2) }}</td>
+                                        <td class="px-4 py-3">
+                                            <span v-if="payment.is_advance" class="text-green-400">Sí</span>
+                                            <span v-else class="text-gray-500">—</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div v-if="event.expenses && event.expenses.length" class="space-y-3">
+                        <h3 class="text-lg font-semibold text-white">Gastos del evento</h3>
+                        <div class="rounded-xl border border-[#242424] bg-[#0f0f0f] overflow-hidden">
+                            <table class="w-full text-sm">
+                                <thead class="border-b border-[#2a2a2a] bg-[#0c0c0c]">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-gray-400">Concepto</th>
+                                        <th class="px-4 py-3 text-left text-gray-400">Categoría</th>
+                                        <th class="px-4 py-3 text-left text-gray-400">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="expense in event.expenses" :key="expense.id"
+                                        class="border-t border-[#1f1f1f]">
+                                        <td class="px-4 py-3 font-medium">{{ expense.name || expense.description || '—'
+                                        }}</td>
+                                        <td class="px-4 py-3">
+                                            <span v-if="expense.category"
+                                                class="bg-[#1b1b1b] text-gray-300 px-2 py-1 rounded text-xs border border-[#2a2a2a]">
+                                                {{ expense.category }}
+                                            </span>
+                                            <span v-else class="text-gray-500">—</span>
+                                        </td>
+                                        <td class="px-4 py-3 text-red-400">{{ expense.currency }} {{
+                                            Number(expense.amount_original).toFixed(2) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

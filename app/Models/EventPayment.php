@@ -15,6 +15,7 @@ class EventPayment extends Model
         'amount_base',
         'payment_method',
         'is_advance',
+        'notes',
     ];
 
     protected $casts = [
@@ -27,7 +28,7 @@ class EventPayment extends Model
     | Relaciones
     |--------------------------------------------------------------------------
     */
-    
+
     public function event()
     {
         return $this->belongsTo(Event::class);

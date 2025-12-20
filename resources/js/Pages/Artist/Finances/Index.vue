@@ -190,7 +190,19 @@ const handleYearChange = () => {
                                     {{ formatDate(event.event_date) }}
                                 </p>
                                 <h3 class="text-white font-semibold text-lg">{{ event.title }}</h3>
-                                <p v-if="event.location" class="text-gray-500 text-sm">{{ event.location }}</p>
+                                <div class="space-y-1 text-sm">
+                                    <p v-if="event.city || event.country" class="text-gray-500">
+                                        {{ event.city }}{{ event.city && event.country ? ',' : '' }} {{ event.country
+                                        }}
+                                    </p>
+                                    <p v-if="event.location" class="text-gray-400">{{ event.location }}</p>
+                                    <p v-if="event.venue_address" class="text-xs text-gray-500">{{ event.venue_address
+                                        }}</p>
+                                    <p v-else-if="!event.city && !event.country && event.location"
+                                        class="text-gray-500">
+                                        {{ event.location }}
+                                    </p>
+                                </div>
                             </div>
                             <span :class="[
                                 'px-3 py-1 text-xs font-semibold rounded-full capitalize',

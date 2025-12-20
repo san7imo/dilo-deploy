@@ -31,11 +31,14 @@ const paymentForm = useForm({
     exchange_rate_to_base: 1,
     payment_method: "",
     is_advance: false,
+    notes: "",
 });
 
 const expenseForm = useForm({
     expense_date: new Date().toISOString().slice(0, 10),
+    name: "",
     description: "",
+    category: "",
     amount_original: "",
     currency: "EUR",
     exchange_rate_to_base: 1,
@@ -103,7 +106,7 @@ const submitPayment = () => {
 
     paymentForm.post(route("admin.events.payments.store", props.event.id), {
         preserveScroll: true,
-        onSuccess: () => paymentForm.reset("amount_original", "payment_method", "is_advance"),
+        onSuccess: () => paymentForm.reset("amount_original", "payment_method", "is_advance", "notes"),
     });
 };
 
@@ -126,7 +129,7 @@ const submitExpense = () => {
 
     expenseForm.post(route("admin.events.expenses.store", props.event.id), {
         preserveScroll: true,
-        onSuccess: () => expenseForm.reset("amount_original", "description"),
+        onSuccess: () => expenseForm.reset("amount_original", "name", "description", "category"),
     });
 };
 
@@ -153,16 +156,90 @@ const updatePaymentStatus = () => {
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-2xl font-bold">💶 Finanzas — {{ event.title }}</h1>
-                    <p class="text-gray-400 text-sm">
-                        Artista principal:
-                        <span class="text-white">
-                            {{ event.main_artist?.name || event.mainArtist?.name || "—" }}
-                        </span>
-                    </p>
+                    <div class="text-gray-400 text-sm mt-2 space-y-1">
+                        <p>
+                            Artista principal:
+                            <span class="text-white">
+                                {{ event.main_artist?.name || event.mainArtist?.name || "—" }}
+                            </span>
+                        </p>
+                        <p>
+                            Ubicación:
+                            <span class="text-white">
+                                <span v-if="event.city || event.country">
+                                    {{ event.city }}{{ event.city && event.country ? ',' : '' }} {{ event.country }}
+                                    <span v-if="event.location" class="block text-gray-400 text-s">{{ event.location
+                                        }}</span>
+                                    <span v-if="event.venue_address" class="block text-gray-500 text-s">{{
+                                        event.venue_address }}</span>
+                                </span>
+                                <span v-else>
+                                    <span class="text-white">{{ event.location || "—" }}</span>
+                                    <span v-if="event.venue_address" class="block text-gray-500 text-s">{{
+                                        event.venue_address }}</span>
+                                </span>
+                            </span>
+                        </p>
+                        <p v-if="event.event_type" class="capitalize">
+                            Tipo: <span class="text-white">{{ event.event_type }}</span>
+                        </p>
+                        <p v-if="event.status" class="capitalize">
+                            Estado: <span class="text-white">{{ event.status }}</span>
+                        </p>
+                    </div>
                 </div>
                 <Link :href="route('admin.events.index')" class="text-[#ffa236] hover:underline">
                     ← Volver
                 </Link>
+            </div>
+
+            <!-- Datos generales del evento (campos nuevos) -->
+            <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
+                <h2 class="text-lg font-semibold mb-4">Datos del evento</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                    <div class="bg-[#111111] border border-[#2a2a2a] rounded-md p-3">
+                        <p class="text-gray-400">Ubicación</p>
+                        <p class="text-white font-semibold">
+                            <span v-if="event.city || event.country">
+                                {{ event.city }}{{ event.city && event.country ? ',' : '' }} {{ event.country }}
+                                <span v-if="event.location" class="block text-gray-400 text-xs">{{ event.location
+                                    }}</span>
+                            </span>
+                            <span v-else>{{ event.location || "—" }}</span>
+                        </p>
+                        <p v-if="event.venue_address" class="text-gray-500 text-xs mt-1">{{ event.venue_address }}</p>
+                    </div>
+
+                    <div class="bg-[#111111] border border-[#2a2a2a] rounded-md p-3">
+                        <p class="text-gray-400">Tipo</p>
+                        <p class="text-white font-semibold capitalize">{{ event.event_type || '—' }}</p>
+                        <p class="text-gray-400 mt-2">Estado</p>
+                        <p class="text-white font-semibold capitalize">{{ event.status || '—' }}</p>
+                    </div>
+
+                    <div class="bg-[#111111] border border-[#2a2a2a] rounded-md p-3">
+                        <p class="text-gray-400">Fee del show</p>
+                        <p class="text-white font-semibold">
+                            <span>{{ event.currency || 'EUR' }}</span>
+                            <span class="ml-1">{{ Number(event.show_fee_total ?? 0).toFixed(2) }}</span>
+                        </p>
+                        <p class="text-gray-400 mt-2">Moneda</p>
+                        <p class="text-white font-semibold">{{ event.currency || 'EUR' }}</p>
+                    </div>
+
+                    <div class="bg-[#111111] border border-[#2a2a2a] rounded-md p-3">
+                        <p class="text-gray-400">% Anticipo</p>
+                        <p class="text-white font-semibold">{{ event.advance_percentage ?? 50 }}%</p>
+                        <p class="text-gray-400 mt-2">¿Se espera anticipo?</p>
+                        <p class="text-white font-semibold">{{ event.advance_expected ? 'Sí' : 'No' }}</p>
+                    </div>
+
+                    <div class="bg-[#111111] border border-[#2a2a2a] rounded-md p-3">
+                        <p class="text-gray-400">Fecha pago final</p>
+                        <p class="text-white font-semibold">{{ event.full_payment_due_date ?
+                            formatDateES(event.full_payment_due_date) : '—' }}</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Filtros de fecha -->
@@ -294,6 +371,12 @@ const updatePaymentStatus = () => {
                         <span class="text-gray-300 text-sm">¿Es anticipo?</span>
                     </div>
 
+                    <div class="sm:col-span-2">
+                        <label class="text-gray-300 text-sm">Notas</label>
+                        <textarea v-model="paymentForm.notes" rows="2" class="input"
+                            placeholder="Notas adicionales sobre este pago..."></textarea>
+                    </div>
+
                     <div class="sm:col-span-2 flex justify-end mt-2">
                         <button class="btn-primary" type="submit" :disabled="paymentForm.processing">
                             Guardar pago
@@ -356,6 +439,34 @@ const updatePaymentStatus = () => {
                     </div>
 
                     <div>
+                        <label class="text-gray-300 text-sm">Nombre del gasto *</label>
+                        <input v-model="expenseForm.name" type="text" class="input" placeholder="Ej: Vuelo, Hotel..." />
+                        <p v-if="expenseForm.errors.name" class="text-red-500 text-sm mt-1">
+                            {{ expenseForm.errors.name }}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="text-gray-300 text-sm">Categoría</label>
+                        <select v-model="expenseForm.category" class="input">
+                            <option value="">Selecciona una categoría</option>
+                            <option value="transporte">Transporte</option>
+                            <option value="hospedaje">Hospedaje</option>
+                            <option value="alimentacion">Alimentación</option>
+                            <option value="sonido">Sonido</option>
+                            <option value="iluminacion">Iluminación</option>
+                            <option value="seguridad">Seguridad</option>
+                            <option value="marketing">Marketing</option>
+                            <option value="fotografo">Fotógrafo</option>
+                            <option value="filmmaker">Filmmaker</option>
+                            <option value="visa">Visa</option>
+                            <option value="ropa">Ropa</option>
+                            <option value="impuestos">Impuestos</option>
+                            <option value="otros">Otros</option>
+                        </select>
+                    </div>
+
+                    <div>
                         <label class="text-gray-300 text-sm">Monto</label>
                         <input v-model="expenseForm.amount_original" type="number" step="0.01" class="input" />
                         <p v-if="expenseForm.errors.amount_original" class="text-red-500 text-sm mt-1">
@@ -387,8 +498,8 @@ const updatePaymentStatus = () => {
 
                     <div class="sm:col-span-2">
                         <label class="text-gray-300 text-sm">Descripción</label>
-                        <input v-model="expenseForm.description" type="text" class="input"
-                            placeholder="Ej: sonido, logística..." />
+                        <textarea v-model="expenseForm.description" rows="2" class="input"
+                            placeholder="Detalles adicionales del gasto..."></textarea>
                         <p v-if="expenseForm.errors.description" class="text-red-500 text-sm mt-1">
                             {{ expenseForm.errors.description }}
                         </p>
@@ -415,7 +526,8 @@ const updatePaymentStatus = () => {
                         <thead class="text-xs uppercase text-gray-400">
                             <tr>
                                 <th class="py-2 text-left">Fecha</th>
-                                <th class="py-2 text-left">Concepto</th>
+                                <th class="py-2 text-left">Nombre</th>
+                                <th class="py-2 text-left">Categoría</th>
                                 <th class="py-2 text-left">Original</th>
                                 <th class="py-2 text-left">EUR</th>
                                 <th class="py-2 text-right">Acciones</th>
@@ -424,7 +536,14 @@ const updatePaymentStatus = () => {
                         <tbody>
                             <tr v-for="g in event.expenses" :key="g.id" class="border-t border-[#2a2a2a]">
                                 <td class="py-2">{{ formatDateES(g.expense_date) }}</td>
-                                <td class="py-2">{{ g.description || '—' }}</td>
+                                <td class="py-2 font-semibold">{{ g.name || '—' }}</td>
+                                <td class="py-2">
+                                    <span v-if="g.category"
+                                        class="bg-[#2a2a2a] text-gray-300 px-2 py-1 rounded text-xs">
+                                        {{ g.category }}
+                                    </span>
+                                    <span v-else class="text-gray-500">—</span>
+                                </td>
                                 <td class="py-2">
                                     {{ g.currency }} {{ Number(g.amount_original).toFixed(2) }}
                                 </td>

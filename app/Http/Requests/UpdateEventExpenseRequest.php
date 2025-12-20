@@ -2,39 +2,39 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Event;
+use App\Models\EventExpense;
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreEventPaymentRequest extends FormRequest
+class UpdateEventExpenseRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $event = $this->route('event');
+        $expense = $this->route('expense');
 
-        return $event instanceof Event
-            ? (bool) $this->user()?->can('viewFinancial', $event)
+        return $expense instanceof EventExpense
+            ? (bool) $this->user()?->can('viewFinancial', $expense->event)
             : false;
     }
 
     public function rules(): array
     {
         return [
-            'payment_date' => ['required', 'date'],
+            'expense_date' => ['nullable', 'date'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'category' => ['nullable', 'string', 'max:100'],
             'amount_original' => ['required', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'size:3'],
             'exchange_rate_to_base' => ['nullable', 'numeric', 'gt:0'],
-            'payment_method' => ['required', 'string', 'max:255'],
-            'is_advance' => ['boolean'],
-            'notes' => ['nullable', 'string', 'max:500'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'payment_method.required' => 'El método de pago es obligatorio.',
-            'payment_date.required' => 'La fecha de pago es obligatoria.',
-            'amount_original.required' => 'El monto del pago es obligatorio.',
+            'name.required' => 'El nombre del gasto es obligatorio.',
+            'amount_original.required' => 'El monto del gasto es obligatorio.',
+            'expense_date.date' => 'La fecha del gasto no es válida.',
         ];
     }
 

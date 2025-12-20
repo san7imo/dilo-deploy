@@ -43,35 +43,19 @@ const closeEventModal = () => {
 </script>
 
 <template>
+
   <Head title="Eventos — Dilo Records" />
 
   <!-- Banner -->
-  <EventBanner
-    :title="banner.title ?? 'Únete a nuestros'"
-    :highlight="banner.highlight ?? 'EVENTOS'"
-    :cta="banner.cta ?? 'Descubre más'"
-    :image="banner.image ?? '/images/events-banner.webp'"
-  />
+  <EventBanner :title="banner.title ?? 'Únete a nuestros'" :highlight="banner.highlight ?? 'EVENTOS'"
+    :cta="banner.cta ?? 'Descubre más'" :image="banner.image ?? '/images/events-banner.webp'" />
 
   <!-- Próximos eventos -->
-  <EventCarousel
-    :events="upcomingEvents"
-    title="Próximos Eventos"
-    @select="openEventModal"
-  />
+  <EventCarousel :events="upcomingEvents" title="Próximos Eventos" @select="openEventModal" />
 
   <!-- Eventos anteriores -->
-  <EventCarousel
-    :events="pastEvents"
-    title="Eventos Anteriores"
-    @select="openEventModal"
-  />
+  <EventCarousel :events="pastEvents" title="Eventos Anteriores" @select="openEventModal" />
 
   <!-- Modal de evento -->
-  <EventModal
-    v-if="selectedEvent"
-    :event="selectedEvent"
-    :is-open="showModal"
-    @close="closeEventModal"
-  />
+  <EventModal :event="selectedEvent ?? {}" :is-open="showModal" @close="closeEventModal" />
 </template>

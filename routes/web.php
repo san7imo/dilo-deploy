@@ -122,14 +122,25 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
         Route::post('events/{event}/payments', [EventPaymentController::class, 'store'])
             ->name('events.payments.store');
 
+        Route::put('event-payments/{payment}', [EventPaymentController::class, 'update'])
+            ->name('events.payments.update');
+
         Route::delete('event-payments/{payment}', [EventPaymentController::class, 'destroy'])
             ->name('events.payments.destroy');
 
+        // ✅ GASTOS (ADMIN) -> admin.events.expenses.store / admin.events.expenses.destroy
         Route::post('events/{event}/expenses', [EventExpenseController::class, 'store'])
             ->name('events.expenses.store');
 
+        Route::put('event-expenses/{expense}', [EventExpenseController::class, 'update'])
+            ->name('events.expenses.update');
+
         Route::delete('event-expenses/{expense}', [EventExpenseController::class, 'destroy'])
             ->name('events.expenses.destroy');
+
+        // ✅ SINCRONIZACIÓN DE GASTOS (ADMIN)
+        Route::put('events/{event}/expenses-sync', [EventFinanceController::class, 'syncExpenses'])
+            ->name('events.expenses.sync');
 
         // --- Géneros ---
         Route::resource('genres', AdminGenreController::class)->except(['show']);

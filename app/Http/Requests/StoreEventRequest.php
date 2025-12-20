@@ -19,9 +19,19 @@ class StoreEventRequest extends FormRequest
             'description' => 'nullable|string',
             'location'    => 'nullable|string|max:255',
             'event_date'  => 'required|date|after_or_equal:today',
+            'event_type'  => 'nullable|string|max:100',
+            'country'     => 'nullable|string|max:100',
+            'city'        => 'nullable|string|max:100',
+            'venue_address' => 'nullable|string|max:255',
+            'status'      => 'nullable|string|max:100',
+            'show_fee_total' => 'nullable|numeric|min:0',
+            'currency'    => 'nullable|string|size:3',
+            'advance_percentage' => 'nullable|numeric|min:0|max:100',
+            'advance_expected' => 'boolean',
+            'full_payment_due_date' => 'nullable|date',
 
             // Imagen del póster (archivo)
-            'poster'      => 'nullable|image|mimes:jpeg,png,webp|max:4096',
+            'poster_file'      => 'nullable|image|mimes:jpeg,png,webp|max:4096',
 
             // Asociación con artistas
             'artist_ids'   => 'required|array|min:1',
@@ -49,4 +59,3 @@ class StoreEventRequest extends FormRequest
         ];
     }
 }
-

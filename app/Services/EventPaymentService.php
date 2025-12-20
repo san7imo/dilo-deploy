@@ -31,6 +31,34 @@ class EventPaymentService
         return $payment;
     }
 
+    /**
+     * Actualizar un pago existente
+     */
+    public function update(EventPayment $payment, array $data): EventPayment
+    {
+        $event = $payment->event;
+
+        // Si la moneda es EUR, el monto base es el mismo
+        if ($data['currency'] === 'EUR') {
+            $data['exchange_rate_to_base'] = 1;
+            $data['amount_base'] = $data['amount_original'];
+        } else {
+            // amount_original / rate = EUR
+            $data['amount_base'] = round(
+                $data['amount_original'] / $data['exchange_rate_to_base'],
+                2
+            );
+        }
+
+        $payment->update($data);
+
+        if ($event) {
+            $this->refreshPaidStatus($event);
+        }
+
+        return $payment;
+    }
+
     public function delete(EventPayment $payment): void
     {
         $event = $payment->event;

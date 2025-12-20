@@ -13,6 +13,16 @@ const form = useForm({
   description: props.event.description || "",
   location: props.event.location || "",
   event_date: props.event.event_date || "",
+  event_type: props.event.event_type || "",
+  country: props.event.country || "",
+  city: props.event.city || "",
+  venue_address: props.event.venue_address || "",
+  show_fee_total: props.event.show_fee_total || "",
+  currency: props.event.currency || "EUR",
+  advance_percentage: props.event.advance_percentage || 50,
+  advance_expected: props.event.advance_expected ?? true,
+  full_payment_due_date: props.event.full_payment_due_date || "",
+  status: props.event.status || "",
   artist_ids: props.event.artists ? props.event.artists.map(a => a.id) : [],
   main_artist_id: props.event.main_artist_id || null,
   poster_file: null,
@@ -84,6 +94,48 @@ const handleSubmit = () => {
       <input v-model="form.location" type="text" class="input" placeholder="Ciudad, país o venue" />
     </div>
 
+    <!-- Nuevo: Localización  -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div>
+        <label class="text-gray-300 text-sm">País</label>
+        <input v-model="form.country" type="text" class="input" placeholder="País" />
+      </div>
+      <div>
+        <label class="text-gray-300 text-sm">Ciudad</label>
+        <input v-model="form.city" type="text" class="input" placeholder="Ciudad" />
+      </div>
+      <div>
+        <label class="text-gray-300 text-sm">Dirección del venue</label>
+        <input v-model="form.venue_address" type="text" class="input" placeholder="Dirección" />
+      </div>
+    </div>
+
+    <!-- Nuevo: Tipo de evento y estado -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="text-gray-300 text-sm">Tipo de evento</label>
+        <select v-model="form.event_type" class="input">
+          <option value="">Selecciona un tipo</option>
+          <option value="masivo">Masivo</option>
+          <option value="publico">Público</option>
+          <option value="discoteca">Discoteca</option>
+          <option value="privado">Privado</option>
+          <option value="meet_and_greet">Meet & Greet</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-gray-300 text-sm">Estado</label>
+        <select v-model="form.status" class="input">
+          <option value="">Selecciona un estado</option>
+          <option value="cotizado">Cotizado</option>
+          <option value="reservado">Reservado</option>
+          <option value="confirmado">Confirmado</option>
+          <option value="pagado">Pagado</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+    </div>
+
     <!-- Descripción -->
     <div>
       <label class="text-gray-300 text-sm">Descripción</label>
@@ -93,17 +145,40 @@ const handleSubmit = () => {
     <!-- Póster -->
     <div>
       <label class="text-gray-300 text-sm">Póster / Afiche</label>
-      <input
-        type="file"
-        class="input-file"
-        @change="(e) => {
-          form.poster_file = e.target.files[0];
-          console.log('🖼 Archivo seleccionado:', e.target.files[0]);
-        }"
-      />
+      <input type="file" class="input-file" @change="(e) => {
+        form.poster_file = e.target.files[0];
+        console.log('🖼 Archivo seleccionado:', e.target.files[0]);
+      }" />
       <p v-if="form.errors.poster_file" class="text-red-500 text-sm mt-1">
         {{ form.errors.poster_file }}
       </p>
+    </div>
+
+    <!-- Artistas -->
+    <div>
+      <label class="text-gray-300 text-sm">Finanzas del evento</label>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-gray-300 text-sm">Fee total (show)</label>
+          <input v-model="form.show_fee_total" type="number" step="0.01" class="input" placeholder="0.00" />
+        </div>
+        <div>
+          <label class="text-gray-300 text-sm">Moneda</label>
+          <input v-model="form.currency" type="text" class="input" placeholder="EUR" maxlength="3" />
+        </div>
+        <div>
+          <label class="text-gray-300 text-sm">% Anticipo</label>
+          <input v-model="form.advance_percentage" type="number" step="0.01" class="input" placeholder="50" />
+        </div>
+        <div>
+          <label class="text-gray-300 text-sm">Fecha pago final</label>
+          <input v-model="form.full_payment_due_date" type="date" class="input" />
+        </div>
+      </div>
+      <div class="mt-3 flex items-center gap-2">
+        <input v-model="form.advance_expected" type="checkbox" class="checkbox" />
+        <span class="text-gray-300 text-sm">¿Se espera anticipo?</span>
+      </div>
     </div>
 
     <!-- Artistas -->
@@ -129,7 +204,7 @@ const handleSubmit = () => {
         selecciona el artista principal de la lista de invitados
       </p>
     </div>
-    
+
 
     <div class="flex justify-end">
       <button type="submit" class="btn-primary">
@@ -143,10 +218,16 @@ const handleSubmit = () => {
 .input {
   @apply w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white focus:border-[#ffa236] focus:ring-[#ffa236];
 }
+
 .input-file {
   @apply block w-full text-sm text-gray-400 border border-[#2a2a2a] rounded-md cursor-pointer bg-[#0f0f0f] file:bg-[#ffa236] file:text-black file:px-3 file:py-1;
 }
+
 .btn-primary {
   @apply bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors;
+}
+
+.checkbox {
+  @apply w-4 h-4 rounded bg-[#0f0f0f] border border-[#2a2a2a] text-[#ffa236] focus:ring-[#ffa236];
 }
 </style>
