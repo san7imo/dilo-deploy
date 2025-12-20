@@ -27,6 +27,9 @@ class StoreArtistRequest extends FormRequest
             'carousel_home'        => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'carousel_discography' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
 
+            // Video de presentación
+            'presentation_video_url' => ['nullable', 'url'],
+
             // social_links es un objeto con claves de plataformas
             'social_links'           => ['nullable', 'array'],
             'social_links.spotify'   => ['sometimes', 'nullable', 'url'],

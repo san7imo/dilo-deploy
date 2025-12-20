@@ -42,7 +42,7 @@ const handleBackdropClick = (e) => {
 
                     <!-- Video -->
                     <div class="w-full aspect-video rounded-2xl overflow-hidden">
-                        <ArtistVideo :youtube-url="youtubeUrl" />
+                        <ArtistVideo :artist="artist" :youtube-url="youtubeUrl" />
                     </div>
                 </div>
             </transition>
