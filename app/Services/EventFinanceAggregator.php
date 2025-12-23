@@ -148,14 +148,44 @@ class EventFinanceAggregator
     {
         $event->load([
             'artists:id,name',
-            'payments:id,event_id,amount_base,is_advance',
-            'expenses:id,event_id,amount_base',
+            // Load original amounts, currency and dates so frontend can display them
+            'payments:id,event_id,amount_base,amount_original,currency,payment_date,is_advance',
+            'expenses:id,event_id,amount_base,amount_original,currency,expense_date,name,description,category',
         ]);
 
         $totals = $this->computeTotals($event);
+        // Normalize event payload: convert dates to simple ISO strings (no microseconds)
+        $eventPayload = $event->toArray();
+        $eventPayload['event_date'] = $event->event_date?->toDateString();
+
+        $eventPayload['payments'] = $event->payments->map(function ($p) {
+            return [
+                'id' => $p->id,
+                'event_id' => $p->event_id,
+                'amount_base' => is_null($p->amount_base) ? 0 : (float) $p->amount_base,
+                'amount_original' => is_null($p->amount_original) ? 0 : (float) $p->amount_original,
+                'currency' => $p->currency,
+                'payment_date' => $p->payment_date?->toDateString(),
+                'is_advance' => (bool) $p->is_advance,
+            ];
+        })->toArray();
+
+        $eventPayload['expenses'] = $event->expenses->map(function ($e) {
+            return [
+                'id' => $e->id,
+                'event_id' => $e->event_id,
+                'amount_base' => is_null($e->amount_base) ? 0 : (float) $e->amount_base,
+                'amount_original' => is_null($e->amount_original) ? 0 : (float) $e->amount_original,
+                'currency' => $e->currency,
+                'expense_date' => $e->expense_date?->toDateString(),
+                'name' => $e->name,
+                'description' => $e->description,
+                'category' => $e->category,
+            ];
+        })->toArray();
 
         return [
-            'event' => $event,
+            'event' => $eventPayload,
             'finance' => [
                 'total_paid_base' => $totals['total_paid_base'],
                 'advance_paid_base' => $totals['advance_paid_base'],

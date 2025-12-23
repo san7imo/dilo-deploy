@@ -1,16 +1,82 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Link } from "@inertiajs/vue3";
+import { computed } from 'vue'
 
-defineProps({ events: Object });
+const props = defineProps({ events: Object });
+
+const formatMoney = (value, currency = 'EUR') => {
+  const n = Number(value ?? 0)
+  if (Number.isNaN(n)) return `${currency} 0,00`
+  try {
+    return new Intl.NumberFormat('es-ES', { style: 'currency', currency }).format(n)
+  } catch (e) {
+    return `${currency} ${n.toFixed(2)}`
+  }
+}
+
+const totals = computed(() => {
+  const items = (props.events && props.events.data) ? props.events.data : (props.events || [])
+  let totalPaid = 0
+  let totalExpenses = 0
+  let artistShare = 0
+  let labelShare = 0
+
+  for (const ev of items) {
+    totalPaid += Number(ev.total_paid_base ?? ev.totalPaid ?? ev.total_paid ?? 0)
+    totalExpenses += Number(ev.total_expenses_base ?? ev.totalExpenses ?? ev.total_expenses ?? 0)
+    artistShare += Number(ev.artist_share_estimated_base ?? ev.artist_share_estimated ?? ev.artist_share ?? 0)
+    labelShare += Number(ev.label_share_estimated_base ?? ev.label_share_estimated ?? ev.label_share ?? 0)
+  }
+
+  const net = totalPaid - totalExpenses
+  const artistPct = net !== 0 ? (artistShare / (net || 1)) * 100 : 0
+  const labelPct = net !== 0 ? (labelShare / (net || 1)) * 100 : 0
+
+  return {
+    totalPaid,
+    totalExpenses,
+    net,
+    artistShare,
+    labelShare,
+    artistPct,
+    labelPct,
+  }
+})
 </script>
 
 <template>
   <AdminLayout title="Eventos">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-semibold text-white">🎫 Eventos</h1>
-      <Link :href="route('admin.events.create')" class="btn-primary">+ Nuevo evento</Link>
+      <Link :href="route('admin.events.create')" class="bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors">+ Nuevo evento</Link>
 
+    </div>
+
+    <!-- Financial summary -->
+    <div class="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-6">
+      <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
+        <p class="text-xs text-gray-400">Ingresos totales</p>
+        <p class="text-xl font-semibold text-white">{{ formatMoney(totals.totalPaid, 'EUR') }}</p>
+      </div>
+      <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
+        <p class="text-xs text-gray-400">Gastos totales</p>
+        <p class="text-xl font-semibold text-red-400">{{ formatMoney(totals.totalExpenses, 'EUR') }}</p>
+      </div>
+      <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
+        <p class="text-xs text-gray-400">Resultado neto</p>
+        <p class="text-xl font-semibold text-white">{{ formatMoney(totals.net, 'EUR') }}</p>
+      </div>
+      <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
+        <p class="text-xs text-gray-400">70% Artista</p>
+        <p class="text-xl font-semibold text-[#ffa236]">{{ formatMoney(totals.artistShare, 'EUR') }}</p>
+        <p class="text-xs text-gray-400">{{ Math.round(totals.artistPct) }}%</p>
+      </div>
+      <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
+        <p class="text-xs text-gray-400">30% Compañía</p>
+        <p class="text-xl font-semibold text-gray-100">{{ formatMoney(totals.labelShare, 'EUR') }}</p>
+        <p class="text-xs text-gray-400">{{ Math.round(totals.labelPct) }}%</p>
+      </div>
     </div>
 
     <div class="overflow-x-auto bg-[#0f0f0f] rounded-lg shadow">
@@ -101,6 +167,14 @@ defineProps({ events: Object });
 
 <style scoped>
 .btn-primary {
-  @apply bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors;
+  background-color: #ffa236;
+  color: #000000;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  transition: background-color .2s;
+}
+.btn-primary:hover {
+  background-color: #ffb54d;
 }
 </style>

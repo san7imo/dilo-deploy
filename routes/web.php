@@ -170,9 +170,10 @@ Route::middleware(['auth:sanctum', 'verified', 'role:artist'])
             ->name('dashboard.data');
 
         // Perfil
-        Route::get('/profile/data', [ArtistProfileController::class, 'showData'])->name('profile.data');
-        Route::get('/profile/edit', [ArtistProfileController::class, 'edit'])->name('profile.edit');
-        Route::put('/profile', [ArtistProfileController::class, 'update'])->name('profile.update');
+    Route::get('/profile/data', [ArtistProfileController::class, 'showData'])->name('profile.data');
+    Route::get('/profile', [ArtistProfileController::class, 'show'])->name('profile.show');
+    Route::get('/profile/edit', [ArtistProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ArtistProfileController::class, 'update'])->name('profile.update');
 
         // Finanzas
         Route::get('/finances', [ArtistFinanceController::class, 'index'])->name('finances.index');

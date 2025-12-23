@@ -7,6 +7,7 @@ type EventItem = {
   title: string
   slug: string
   poster_url?: string | null
+  poster?: string | null
   event_date?: string
   city?: string
   country?: string
@@ -91,7 +92,7 @@ async function share(item: EventItem) {
               <!-- Poster -->
               <a :href="hrefFor(e.slug)" class="block flex-shrink-0">
                 <div class="relative aspect-[16/12] bg-black overflow-hidden">
-                  <img :src="e.poster_url || '/placeholder.webp'" :alt="e.title"
+                  <img :src="(e.poster || e.poster_url) || '/placeholder.webp'" :alt="e.title"
                     class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                     loading="lazy" decoding="async" draggable="false" />
                 </div>

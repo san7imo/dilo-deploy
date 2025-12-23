@@ -8,7 +8,10 @@ const props = defineProps({
 });
 
 const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('es-ES', {
+    if (!date) return '—';
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('es-ES', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -16,15 +19,33 @@ const formatDate = (date) => {
     });
 };
 
+const formatShortDate = (date) => {
+    if (!date) return '—';
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('es-ES');
+};
+
 const formatTime = (date) => {
-    return new Date(date).toLocaleTimeString('es-ES', {
+    if (!date) return '—';
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleTimeString('es-ES', {
         hour: '2-digit',
         minute: '2-digit',
     });
 };
 
-const formatCurrency = (value) => {
-    return `EUR ${Number(value ?? 0).toFixed(2)}`;
+const formatCurrency = (value, currency = 'EUR') => {
+    const number = Number(value ?? 0);
+    if (Number.isNaN(number)) return `${currency} 0.00`;
+    // Use Intl.NumberFormat for locale-aware formatting. This will show currency symbol for common codes.
+    try {
+        return new Intl.NumberFormat('es-ES', { style: 'currency', currency }).format(number);
+    } catch (e) {
+        // Fallback to a simple formatted string if Intl doesn't support the currency code
+        return `${currency} ${number.toFixed(2)}`;
+    }
 };
 
 const isPaid = () => {
@@ -144,8 +165,7 @@ const isPaid = () => {
                             <div v-if="event.show_fee_total"
                                 class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4 space-y-1">
                                 <p class="text-xs text-gray-500">Fee del show</p>
-                                <p class="text-white font-medium">{{ event.currency || 'EUR' }} {{
-                                    Number(event.show_fee_total).toFixed(2) }}</p>
+                                <p class="text-white font-medium">{{ formatCurrency(event.show_fee_total, event.currency || 'EUR') }}</p>
                                 <p v-if="event.advance_percentage" class="text-xs text-gray-500">Anticipo: {{
                                     event.advance_percentage }}%</p>
                             </div>
@@ -177,10 +197,8 @@ const isPaid = () => {
                                 <tbody>
                                     <tr v-for="payment in event.payments" :key="payment.id"
                                         class="border-t border-[#1f1f1f]">
-                                        <td class="px-4 py-3">{{ new
-                                            Date(payment.payment_date).toLocaleDateString('es-ES') }}</td>
-                                        <td class="px-4 py-3">{{ payment.currency }} {{
-                                            Number(payment.amount_original).toFixed(2) }}</td>
+                                        <td class="px-4 py-3">{{ formatShortDate(payment.payment_date) }}</td>
+                                        <td class="px-4 py-3">{{ formatCurrency(payment.amount_original, payment.currency || 'EUR') }}</td>
                                         <td class="px-4 py-3">
                                             <span v-if="payment.is_advance" class="text-green-400">Sí</span>
                                             <span v-else class="text-gray-500">—</span>
@@ -214,8 +232,7 @@ const isPaid = () => {
                                             </span>
                                             <span v-else class="text-gray-500">—</span>
                                         </td>
-                                        <td class="px-4 py-3 text-red-400">{{ expense.currency }} {{
-                                            Number(expense.amount_original).toFixed(2) }}</td>
+                                        <td class="px-4 py-3 text-red-400">{{ formatCurrency(expense.amount_original, expense.currency || 'EUR') }}</td>
                                     </tr>
                                 </tbody>
                             </table>

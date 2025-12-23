@@ -15,29 +15,38 @@ const isSidebarOpen = ref(true);
             'transition-all duration-300 ease-in-out bg-[#1d1d1b] border-r border-[#2a2a2a] flex flex-col',
             isSidebarOpen ? 'w-64' : 'w-20'
         ]">
-            <!-- Logo -->
-            <div class="flex items-center justify-between p-4 border-b border-[#2a2a2a]">
-                <Link :href="route('admin.dashboard')" class="flex items-center gap-2">
-                    <img :src="logoBlanco" alt="Dilo Records" width="60" height="60"
-                        class="h-10 w-auto object-contain" />
-                </Link>
-                <button @click="isSidebarOpen = !isSidebarOpen"
-                    class="text-[#ffa236] hover:text-[#ffb54d] transition-colors">
-                    <svg v-if="isSidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 6h16M4 12h8m-8 6h16" />
-                    </svg>
-                </button>
+            <!-- Logo + Artist preview -->
+            <div class="p-4 border-b border-[#2a2a2a]">
+                <div class="flex items-center justify-between">
+                    <Link :href="route('admin.dashboard')" class="flex items-center gap-2">
+                        <img :src="logoBlanco" alt="Dilo Records" width="60" height="60"
+                            class="h-10 w-auto object-contain" />
+                    </Link>
+                    <button @click="isSidebarOpen = !isSidebarOpen"
+                        class="text-[#ffa236] hover:text-[#ffb54d] transition-colors">
+                        <svg v-if="isSidebarOpen" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h8m-8 6h16" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <!-- Navegación -->
             <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                <Link v-if="route().has('artist.profile.show')" :href="route('artist.profile.show')"
+                    class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
+                    :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('artist.profile.*') }">
+                    <i class="fa-solid fa-user"></i>
+                    <span v-if="isSidebarOpen">Mi perfil</span>
+                </Link>
+
                 <Link :href="route('admin.dashboard')"
                     class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
                     :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.dashboard') }">
@@ -71,13 +80,6 @@ const isSidebarOpen = ref(true);
                     :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('artist.releases.*') }">
                     <i class="fa-solid fa-compact-disc"></i>
                     <span v-if="isSidebarOpen">Mis lanzamientos</span>
-                </Link>
-
-                <Link v-if="route().has('artist.profile.edit')" :href="route('artist.profile.edit')"
-                    class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
-                    :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('artist.profile.*') }">
-                    <i class="fa-solid fa-user"></i>
-                    <span v-if="isSidebarOpen">Mi perfil</span>
                 </Link>
             </nav>
 

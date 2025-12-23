@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import logoBlanco from '@/Assets/Images/Logos/logo-blanco.webp'
+import { Icon } from '@iconify/vue'
 const emit = defineEmits<{ (e: 'toggle'): void }>()
 </script>
 
@@ -18,12 +19,16 @@ const emit = defineEmits<{ (e: 'toggle'): void }>()
       <span class="sr-only">Inicio</span>
     </a>
 
-    <!-- Botón hamburguesa sin borde -->
-    <button
-      @click="emit('toggle')"
-      class="group inline-flex items-center justify-center h-10 w-10 focus:outline-none"
-      aria-label="Abrir menú"
-    >
+    <!-- Icono usuario (login) y botón hamburguesa -->
+    <div class="flex items-center gap-3">
+      <a href="/login" class="inline-flex items-center justify-center h-10 w-10 rounded-md hover:bg-white/5 transition" aria-label="Iniciar sesión">
+        <Icon icon="mdi:account" class="h-5 w-5 text-white" />
+      </a>
+      <button
+        @click="emit('toggle')"
+        class="group inline-flex items-center justify-center h-10 w-10 focus:outline-none"
+        aria-label="Abrir menú"
+      >
       <span class="block relative h-4 w-5">
         <span
           class="absolute inset-x-0 top-0 h-0.5 bg-white rounded transition-all group-hover:translate-y-0.5"
@@ -35,6 +40,7 @@ const emit = defineEmits<{ (e: 'toggle'): void }>()
           class="absolute inset-x-0 bottom-0 h-0.5 bg-white rounded transition-all group-hover:-translate-y-0.5"
         ></span>
       </span>
-    </button>
+      </button>
+    </div>
   </header>
 </template>
