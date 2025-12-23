@@ -62,6 +62,11 @@ const form = useForm({
   country: props.artist.country || "",
   genre_id: props.artist.genre_id || "",
   social_links: prepareSocialLinks(),
+  presentation_video_url: props.artist.presentation_video_url || "",
+
+  // credenciales del artista
+  email: "",
+  password: "",
 
   // 🔹 Estos son los campos reales que se envían como archivos
   banner_home_file: null,
@@ -214,25 +219,34 @@ const handleSubmit = () => {
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label class="text-gray-300 text-sm">Nombre del artista</label>
-        <input
-          v-model="form.name"
-          type="text"
-          class="input"
-          placeholder="Nombre artístico"
-        />
+        <input v-model="form.name" type="text" class="input" placeholder="Nombre artístico" />
         <p v-if="form.errors.name" class="text-red-500 text-sm mt-1">
           {{ form.errors.name }}
         </p>
       </div>
 
+      <div v-if="props.mode === 'create'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-gray-300 text-sm">Correo del artista</label>
+          <input v-model="form.email" type="email" class="input" placeholder="artista@email.com" />
+          <p v-if="form.errors.email" class="text-red-500 text-sm mt-1">
+            {{ form.errors.email }}
+          </p>
+        </div>
+
+        <div>
+          <label class="text-gray-300 text-sm">Contraseña</label>
+          <input v-model="form.password" type="password" class="input" placeholder="Mínimo 8 caracteres" />
+          <p v-if="form.errors.password" class="text-red-500 text-sm mt-1">
+            {{ form.errors.password }}
+          </p>
+        </div>
+      </div>
+
+
       <div>
         <label class="text-gray-300 text-sm">País</label>
-        <input
-          v-model="form.country"
-          type="text"
-          class="input"
-          placeholder="Ej: Colombia"
-        />
+        <input v-model="form.country" type="text" class="input" placeholder="Ej: Colombia" />
       </div>
     </div>
 
@@ -250,50 +264,61 @@ const handleSubmit = () => {
     <!-- Biografía -->
     <div>
       <label class="text-gray-300 text-sm">Biografía</label>
-      <textarea
-        v-model="form.bio"
-        rows="4"
-        class="input"
-        placeholder="Breve descripción del artista..."
-      ></textarea>
+      <textarea v-model="form.bio" rows="4" class="input" placeholder="Breve descripción del artista..."></textarea>
     </div>
 
     <!-- Imágenes -->
-    <ImageGrid
-      :images="currentImages"
-      :file-inputs="fileInputs"
-      @file-selected="handleFileSelected"
-      @delete-image="handleDeleteImage"
-    />
+    <ImageGrid :images="currentImages" :file-inputs="fileInputs" @file-selected="handleFileSelected"
+      @delete-image="handleDeleteImage" />
+
+    <!-- Video de Presentación -->
+    <div>
+      <h3 class="text-[#ffa236] font-semibold mb-2">
+        Video de Presentación
+      </h3>
+      <label class="text-gray-300 text-sm">URL del Video (YouTube/Vimeo)</label>
+      <input v-model="form.presentation_video_url" type="url" class="input"
+        placeholder="https://www.youtube.com/watch?v=... o https://vimeo.com/..." />
+      <p class="text-gray-500 text-xs mt-2">
+        Soporta YouTube y Vimeo. Se mostrará en el perfil público del artista.
+      </p>
+      <!-- Preview opcional -->
+      <div v-if="form.presentation_video_url" class="mt-4">
+        <p class="text-gray-300 text-sm mb-2">Vista previa:</p>
+        <div class="w-full aspect-video rounded-lg overflow-hidden bg-black/50 border border-[#2a2a2a]">
+          <iframe v-if="form.presentation_video_url.includes('youtube')"
+            :src="`https://www.youtube.com/embed/${form.presentation_video_url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/)?.[1]}`"
+            class="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen></iframe>
+          <iframe v-else-if="form.presentation_video_url.includes('vimeo')"
+            :src="`https://player.vimeo.com/video/${form.presentation_video_url.match(/vimeo\.com\/(\d+)/)?.[1]}`"
+            class="w-full h-full" allow="autoplay; fullscreen" allowfullscreen></iframe>
+          <p v-else class="text-gray-400 p-4">
+            URL no válida. Usa YouTube o Vimeo.
+          </p>
+        </div>
+      </div>
+    </div>
 
     <!-- Redes sociales -->
     <div>
       <h3 class="text-[#ffa236] font-semibold mb-2">
         Redes sociales / Streaming
       </h3>
-      <div
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-      >
-        <div
-          v-for="(label, key) in {
-            spotify: 'Spotify',
-            youtube: 'YouTube',
-            instagram: 'Instagram',
-            tiktok: 'TikTok',
-            facebook: 'Facebook',
-            x: 'X / Twitter',
-            apple: 'Apple Music',
-            amazon: 'Amazon Music',
-          }"
-          :key="key"
-        >
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div v-for="(label, key) in {
+          spotify: 'Spotify',
+          youtube: 'YouTube',
+          instagram: 'Instagram',
+          tiktok: 'TikTok',
+          facebook: 'Facebook',
+          x: 'X / Twitter',
+          apple: 'Apple Music',
+          amazon: 'Amazon Music',
+        }" :key="key">
           <label class="text-gray-300 text-sm">{{ label }}</label>
-          <input
-            v-model="form.social_links[key]"
-            type="url"
-            class="input"
-            placeholder="https://..."
-          />
+          <input v-model="form.social_links[key]" type="url" class="input" placeholder="https://..." />
         </div>
       </div>
       <p class="text-gray-500 text-xs mt-2">
@@ -312,8 +337,7 @@ const handleSubmit = () => {
 
 <style scoped>
 .input {
-  @apply w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white
-  focus:border-[#ffa236] focus:ring-[#ffa236];
+  @apply w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white focus:border-[#ffa236] focus:ring-[#ffa236];
 }
 
 .btn-primary {

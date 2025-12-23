@@ -26,17 +26,23 @@ class Artist extends Model
      */
     protected $fillable = [
         'name',
+        'user_id',
         'slug',
         'bio',
         'country',
         'genre_id',
         'youtube_url',
+        'presentation_video_url',
 
         // Imágenes
-        'banner_home_url', 'banner_home_id',
-        'banner_artist_url', 'banner_artist_id',
-        'carousel_home_url', 'carousel_home_id',
-        'carousel_discography_url', 'carousel_discography_id',
+        'banner_home_url',
+        'banner_home_id',
+        'banner_artist_url',
+        'banner_artist_id',
+        'carousel_home_url',
+        'carousel_home_id',
+        'carousel_discography_url',
+        'carousel_discography_id',
 
         // Redes sociales (JSON)
         'social_links',
@@ -83,6 +89,16 @@ class Artist extends Model
     {
         return $this->belongsToMany(Event::class, 'artist_event', 'artist_id', 'event_id')
             ->withTimestamps();
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function mainEvents()
+    {
+        return $this->hasMany(Event::class, 'main_artist_id');
     }
 
     /*

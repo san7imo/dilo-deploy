@@ -3,11 +3,14 @@
 namespace App\Services;
 
 use App\Models\Artist;
+use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class ArtistService
 {
@@ -186,25 +189,52 @@ class ArtistService
     /** Crear un nuevo artista */
     public function create(array $data): Artist
     {
-        Log::info('🎨 [ArtistService] Iniciando creación de artista', ['data' => array_keys($data)]);
+        Log::info('🎨 [ArtistService] Iniciando creación de artista', [
+            'data' => array_keys($data)
+        ]);
 
-        // slug por nombre
-        $data['slug'] = Str::slug($data['name']);
+        return DB::transaction(function () use ($data) {
 
-        // Manejo de imágenes (ImageKit)
-        $this->handleUploads($data);
+            // slug
+            $data['slug'] = Str::slug($data['name']);
 
-        try {
-            $artist = Artist::create($data);
-            Log::info('✅ [ArtistService] Artista creado', ['id' => $artist->id, 'name' => $artist->name]);
+            // crear usuario
+            $user = User::create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+            ]);
+
+            $user->assignRole('artist');
+
+            Log::info('✅ [ArtistService] Usuario creado', [
+                'id' => $user->id,
+                'email' => $user->email,
+            ]);
+
+            // limpiar campos que no van a artists
+            unset($data['email'], $data['password']);
+
+            // uploads
+            $this->handleUploads($data);
+
+            // crear artista 
+            $artist = Artist::create([
+                ...$data,
+                'user_id' => $user->id,
+            ]);
+
+            Log::info('✅ [ArtistService] Artista creado', [
+                'id' => $artist->id,
+                'name' => $artist->name,
+            ]);
 
             $this->flushPublicCaches();
+
             return $artist;
-        } catch (\Throwable $e) {
-            Log::error('❌ [ArtistService] Error al crear artista', ['error' => $e->getMessage()]);
-            throw $e;
-        }
+        });
     }
+
 
     /** Actualizar artista existente (acepta modelo o id) */
     public function update(Artist|int $artist, array $data): Artist

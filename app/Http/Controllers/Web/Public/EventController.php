@@ -36,11 +36,16 @@ class EventController extends Controller
     }
 
     /**
-     * Mostrar detalle de un evento (por slug o id)
+     * Mostrar detalle de un evento (por slug)
      */
     public function show(string $slug)
     {
-        $event = $this->eventService->getById((int) $slug);
+        $event = $this->eventService->getBySlug($slug);
+
+        if (!$event) {
+            abort(404);
+        }
+
         return Inertia::render('Public/Events/Show', [
             'event' => $event,
         ]);

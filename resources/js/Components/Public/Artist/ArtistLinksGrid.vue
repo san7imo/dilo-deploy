@@ -42,7 +42,7 @@ const icons = {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Video -->
       <div class="h-80 lg:h-96">
-        <ArtistVideo :artist="artist" :youtube-url="youtubeUrl" />
+        <ArtistVideo :artist="artist" :youtube-url="artist.presentation_video_url || youtubeUrl" />
       </div>
 
       <!-- Grid de links -->
@@ -53,7 +53,7 @@ const icons = {
         <!-- Card 2: Escucha -->
         <ArtistLinkCard title="Escucha" :icon="icons.headphones" @click="showStreamingModal = true" />
 
-        
+
         <!-- Card 3: Discografía -->
         <ArtistLinkCard title="Discografía" :icon="icons.disc" @click="scrollToDiscography" />
 
@@ -74,5 +74,6 @@ const icons = {
 
   <StreamingModal :artist="artist" :is-open="showStreamingModal" @close="showStreamingModal = false" />
 
-  <VideoModal :artist="artist" :youtube-url="youtubeUrl" :is-open="showVideoModal" @close="showVideoModal = false" />
+  <VideoModal :artist="artist" :youtube-url="artist.presentation_video_url" :is-open="showVideoModal"
+    @close="showVideoModal = false" />
 </template>

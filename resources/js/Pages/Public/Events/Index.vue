@@ -16,9 +16,9 @@ const props = defineProps({
   banner: { type: Object, default: () => ({}) },
 })
 
-// Modal state
-const showModal = ref(false)
-const selectedEvent = ref(null)
+// Modal state (no longer needed)
+// const showModal = ref(false)
+// const selectedEvent = ref(null)
 
 // Separar eventos en próximos y pasados
 const upcomingList = computed(() => {
@@ -29,49 +29,33 @@ const pastList = computed(() => {
   return Array.isArray(props.pastEvents) ? props.pastEvents : (props.pastEvents.data ?? [])
 })
 
-// Abrir modal
-const openEventModal = (event) => {
-  selectedEvent.value = event
-  showModal.value = true
-}
+// Abrir modal (no longer needed)
+// const openEventModal = (event) => {
+//   selectedEvent.value = event
+//   showModal.value = true
+// }
 
-// Cerrar modal
-const closeEventModal = () => {
-  showModal.value = false
-  selectedEvent.value = null
-}
+// Cerrar modal (no longer needed)
+// const closeEventModal = () => {
+//   showModal.value = false
+//   selectedEvent.value = null
+// }
 </script>
 
 <template>
+
   <Head title="Eventos — Dilo Records" />
 
   <!-- Banner -->
-  <EventBanner
-    :title="banner.title ?? 'Únete a nuestros'"
-    :highlight="banner.highlight ?? 'EVENTOS'"
-    :cta="banner.cta ?? 'Descubre más'"
-    :image="banner.image ?? '/images/events-banner.webp'"
-  />
+  <EventBanner :title="banner.title ?? 'Únete a nuestros'" :highlight="banner.highlight ?? 'EVENTOS'"
+    :cta="banner.cta ?? 'Descubre más'" :image="banner.image ?? '/images/events-banner.webp'" />
 
   <!-- Próximos eventos -->
-  <EventCarousel
-    :events="upcomingEvents"
-    title="Próximos Eventos"
-    @select="openEventModal"
-  />
+  <EventCarousel :events="upcomingEvents" title="Próximos Eventos" />
 
   <!-- Eventos anteriores -->
-  <EventCarousel
-    :events="pastEvents"
-    title="Eventos Anteriores"
-    @select="openEventModal"
-  />
+  <EventCarousel :events="pastEvents" title="Eventos Anteriores" />
 
-  <!-- Modal de evento -->
-  <EventModal
-    v-if="selectedEvent"
-    :event="selectedEvent"
-    :is-open="showModal"
-    @close="closeEventModal"
-  />
+  <!-- Modal de evento (deshabilitado - navegación directa) -->
+  <!-- <EventModal :event="selectedEvent ?? {}" :is-open="showModal" @close="closeEventModal" -->
 </template>

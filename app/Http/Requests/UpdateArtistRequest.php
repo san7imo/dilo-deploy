@@ -16,7 +16,10 @@ class UpdateArtistRequest extends FormRequest
     {
         return [
             'name'    => [
-                'sometimes', 'required', 'string', 'max:255',
+                'sometimes',
+                'required',
+                'string',
+                'max:255',
                 Rule::unique('artists', 'name')->ignore($this->route('artist')->id),
             ],
             'bio'     => ['sometimes', 'nullable', 'string'],
@@ -27,6 +30,9 @@ class UpdateArtistRequest extends FormRequest
             'banner_artist'        => ['sometimes', 'nullable', 'image', 'mimes:jpeg,png,webp', 'max:4096'],
             'carousel_home'        => ['sometimes', 'nullable', 'image', 'mimes:jpeg,png,webp', 'max:4096'],
             'carousel_discography' => ['sometimes', 'nullable', 'image', 'mimes:jpeg,png,webp', 'max:4096'],
+
+            // Video de presentación
+            'presentation_video_url' => ['sometimes', 'nullable', 'url'],
 
             // social_links es un objeto con claves de plataformas
             'social_links'           => ['sometimes', 'nullable', 'array'],

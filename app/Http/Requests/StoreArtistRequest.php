@@ -16,6 +16,8 @@ class StoreArtistRequest extends FormRequest
     {
         return [
             'name'    => ['required', 'string', 'max:255', Rule::unique('artists', 'name')],
+            'email'   => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8'],
             'bio'     => ['nullable', 'string'],
             'country' => ['nullable', 'string', 'max:120'],
             'genre_id' => ['nullable', 'exists:genres,id'],
@@ -24,6 +26,9 @@ class StoreArtistRequest extends FormRequest
             'banner_artist'        => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'carousel_home'        => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'carousel_discography' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+
+            // Video de presentación
+            'presentation_video_url' => ['nullable', 'url'],
 
             // social_links es un objeto con claves de plataformas
             'social_links'           => ['nullable', 'array'],
