@@ -1,7 +1,7 @@
 <script setup>
 import ArtistLayout from '@/Layouts/ArtistLayout.vue';
 import { Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     events: {
@@ -9,6 +9,8 @@ const props = defineProps({
         default: () => [],
     },
 });
+
+const filterType = ref('todos');
 
 const formatDate = (date) => {
     return new Date(date).toLocaleDateString('es-ES', {
@@ -22,7 +24,18 @@ const formatCurrency = (value) => {
     return `EUR ${Number(value ?? 0).toFixed(2)}`;
 };
 
-const hasEvents = computed(() => Array.isArray(props.events) && props.events.length > 0);
+const filteredEvents = computed(() => {
+    if (filterType.value === 'todos') {
+        return props.events;
+    } else if (filterType.value === 'proximos') {
+        return props.events.filter(event => event.is_upcoming);
+    } else if (filterType.value === 'pasados') {
+        return props.events.filter(event => !event.is_upcoming);
+    }
+    return props.events;
+});
+
+const hasEvents = computed(() => Array.isArray(filteredEvents.value) && filteredEvents.value.length > 0);
 </script>
 
 <template>
@@ -39,10 +52,37 @@ const hasEvents = computed(() => Array.isArray(props.events) && props.events.len
                     <div class="flex items-center gap-3">
                         <span
                             class="px-3 py-1 rounded-full text-xs font-semibold bg-[#ffa236]/10 text-[#ffa236] border border-[#ffa236]/30">
-                            {{ props.events.length }} evento{{ props.events.length === 1 ? '' : 's' }}
+                            {{ filteredEvents.length }} evento{{ filteredEvents.length === 1 ? '' : 's' }}
                         </span>
                     </div>
                 </div>
+            </div>
+
+            <div class="flex items-center gap-2 bg-[#111111] rounded-2xl p-2 border border-[#2a2a2a] w-fit">
+                <button @click="filterType = 'todos'" :class="[
+                    'px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200',
+                    filterType === 'todos'
+                        ? 'bg-[#ffa236] text-black shadow-lg'
+                        : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]',
+                ]">
+                    Todos
+                </button>
+                <button @click="filterType = 'proximos'" :class="[
+                    'px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200',
+                    filterType === 'proximos'
+                        ? 'bg-[#ffa236] text-black shadow-lg'
+                        : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]',
+                ]">
+                    Próximos
+                </button>
+                <button @click="filterType = 'pasados'" :class="[
+                    'px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200',
+                    filterType === 'pasados'
+                        ? 'bg-[#ffa236] text-black shadow-lg'
+                        : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]',
+                ]">
+                    Pasados
+                </button>
             </div>
 
             <div v-if="!hasEvents" class="bg-[#111111] rounded-2xl p-10 border border-[#2a2a2a] text-center">
@@ -55,12 +95,12 @@ const hasEvents = computed(() => Array.isArray(props.events) && props.events.len
             </div>
 
             <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Link v-for="event in props.events" :key="event.id" :href="route('artist.events.show', event.id)"
+                <Link v-for="event in filteredEvents" :key="event.id" :href="route('artist.events.show', event.id)"
                     class="group bg-gradient-to-br from-[#141414] via-[#0f0f0f] to-[#0b0b0b] rounded-2xl p-5 border border-[#222222] hover:border-[#ffa236]/60 hover:shadow-xl transition-all duration-200 flex flex-col gap-4">
                     <div class="flex items-start justify-between gap-3">
                         <div class="space-y-1">
                             <p class="text-[11px] tracking-wide uppercase text-gray-500">{{ formatDate(event.event_date)
-                            }}</p>
+                                }}</p>
                             <h3 class="text-lg font-semibold text-white leading-tight group-hover:text-[#ffa236]">{{
                                 event.title }}</h3>
                             <div class="space-y-1 text-sm">
@@ -96,7 +136,7 @@ const hasEvents = computed(() => Array.isArray(props.events) && props.events.len
                         <div class="rounded-xl p-3 border border-[#222222] bg-[#0e0e0e]">
                             <p class="text-gray-500 text-[11px]">Tu 70% estimado</p>
                             <p class="text-[#ffa236] font-semibold">{{ formatCurrency(event.artist_share_estimated_base)
-                            }}</p>
+                                }}</p>
                         </div>
                     </div>
 

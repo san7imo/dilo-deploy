@@ -153,7 +153,7 @@ const isPaid = () => {
                             </div>
 
                             <div v-if="event.venue_address" class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4">
-                                <p class="text-xs text-gray-500">Venue</p>
+                                <p class="text-xs text-gray-500">Direccion</p>
                                 <p class="text-white font-medium">{{ event.venue_address }}</p>
                             </div>
 

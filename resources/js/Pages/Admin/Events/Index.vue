@@ -1,9 +1,14 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Link } from "@inertiajs/vue3";
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
-const props = defineProps({ events: Object });
+const props = defineProps({
+  events: Object,
+  artists: Array
+});
+
+const selectedArtist = ref('todos');
 
 const formatMoney = (value, currency = 'EUR') => {
   const n = Number(value ?? 0)
@@ -15,14 +20,26 @@ const formatMoney = (value, currency = 'EUR') => {
   }
 }
 
-const totals = computed(() => {
+const filteredEvents = computed(() => {
   const items = (props.events && props.events.data) ? props.events.data : (props.events || [])
+
+  if (selectedArtist.value === 'todos') {
+    return items
+  }
+
+  return items.filter(ev => {
+    const mainArtistId = ev.main_artist?.id || ev.mainArtist?.id || ev.main_artist_id
+    return mainArtistId == selectedArtist.value
+  })
+})
+
+const totals = computed(() => {
   let totalPaid = 0
   let totalExpenses = 0
   let artistShare = 0
   let labelShare = 0
 
-  for (const ev of items) {
+  for (const ev of filteredEvents.value) {
     totalPaid += Number(ev.total_paid_base ?? ev.totalPaid ?? ev.total_paid ?? 0)
     totalExpenses += Number(ev.total_expenses_base ?? ev.totalExpenses ?? ev.total_expenses ?? 0)
     artistShare += Number(ev.artist_share_estimated_base ?? ev.artist_share_estimated ?? ev.artist_share ?? 0)
@@ -48,9 +65,22 @@ const totals = computed(() => {
 <template>
   <AdminLayout title="Eventos">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-semibold text-white">🎫 Eventos</h1>
-      <Link :href="route('admin.events.create')" class="bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors">+ Nuevo evento</Link>
-
+      <div>
+        <h1 class="text-2xl font-semibold text-white mb-3">🎫 Eventos</h1>
+        <div class="flex items-center gap-3">
+          <label class="text-sm text-gray-400">Filtrar por artista:</label>
+          <select v-model="selectedArtist"
+            class="bg-[#1c1c1c] text-white border border-[#2a2a2a] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ffa236]">
+            <option value="todos">Todos los artistas</option>
+            <option v-for="artist in artists" :key="artist.id" :value="artist.id">
+              {{ artist.name }}
+            </option>
+          </select>
+        </div>
+      </div>
+      <Link :href="route('admin.events.create')"
+        class="bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors">+ Nuevo
+        evento</Link>
     </div>
 
     <!-- Financial summary -->
@@ -96,7 +126,7 @@ const totals = computed(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="event in events.data" :key="event.id" class="border-b border-[#2a2a2a] hover:bg-[#181818]">
+          <tr v-for="event in filteredEvents" :key="event.id" class="border-b border-[#2a2a2a] hover:bg-[#181818]">
             <td class="px-4 py-3 font-medium">{{ event.title }}</td>
             <td class="px-4 py-3">
               {{ event.event_date ? new Date(event.event_date).toLocaleDateString('es-ES') : "-" }}
@@ -174,6 +204,7 @@ const totals = computed(() => {
   border-radius: 0.375rem;
   transition: background-color .2s;
 }
+
 .btn-primary:hover {
   background-color: #ffb54d;
 }

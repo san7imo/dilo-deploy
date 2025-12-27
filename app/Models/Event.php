@@ -57,7 +57,14 @@ class Event extends Model
     /**
      * Atributos que siempre se incluyen en la serialización.
      */
-    protected $appends = ['is_upcoming', 'is_past', 'poster_optimized_url'];
+    protected $appends = [
+        'is_upcoming',
+        'is_past',
+        'poster_optimized_url',
+        'net_base',
+        'artist_share_estimated_base',
+        'label_share_estimated_base'
+    ];
 
     /*
     |--------------------------------------------------------------------------
@@ -133,6 +140,32 @@ class Event extends Model
         return $this->poster_url
             ? "{$this->poster_url}?tr=w-1200,h-800,q-85,fo-auto"
             : null;
+    }
+
+    /**
+     * Resultado neto del evento (ingresos - gastos).
+     */
+    public function getNetBaseAttribute(): float
+    {
+        $totalPaid = $this->total_paid_base ?? 0;
+        $totalExpenses = $this->total_expenses_base ?? 0;
+        return round($totalPaid - $totalExpenses, 2);
+    }
+
+    /**
+     * 70% del resultado neto para el artista.
+     */
+    public function getArtistShareEstimatedBaseAttribute(): float
+    {
+        return round($this->net_base * 0.70, 2);
+    }
+
+    /**
+     * 30% del resultado neto para la compañía.
+     */
+    public function getLabelShareEstimatedBaseAttribute(): float
+    {
+        return round($this->net_base * 0.30, 2);
     }
 
     public function scopeVisibleForUser(Builder $query, $user): Builder

@@ -14,7 +14,17 @@ class EventService
      */
     public function getAll(int $perPage = 10): LengthAwarePaginator
     {
-        return Event::with('artists')->orderBy('event_date', 'desc')->paginate($perPage);
+        return Event::with(['artists', 'mainArtist'])
+            ->withSum('payments as total_paid_base', 'amount_base')
+            ->withSum(
+                ['payments as advance_paid_base' => function ($query) {
+                    $query->where('is_advance', true);
+                }],
+                'amount_base'
+            )
+            ->withSum('expenses as total_expenses_base', 'amount_base')
+            ->orderBy('event_date', 'desc')
+            ->paginate($perPage);
     }
 
     public function getVisibleForUser(User $user, int $perPage = 10)

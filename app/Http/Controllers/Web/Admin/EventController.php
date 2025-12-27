@@ -25,9 +25,11 @@ class EventController extends Controller
     public function index(Request $request)
     {
         $events = $this->eventService->getAll(10);
+        $artists = Artist::select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('Admin/Events/Index', [
             'events' => $events,
+            'artists' => $artists,
         ]);
     }
 
