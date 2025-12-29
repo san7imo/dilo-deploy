@@ -62,9 +62,10 @@
         <!-- Security & Performance Headers (CSP) -->
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         @if(app()->environment('local'))
-            <!-- CSP permisivo en local para desarrollo con Vite -->
+            <!-- CSP permisivo en local para desarrollo con Vite (incluye websocket para HMR) -->
             <meta http-equiv="Content-Security-Policy"
-                  content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: http://localhost:5173;
+                  content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: http://localhost:5173 ws://localhost:5173 wss://localhost:5173;
+                           connect-src 'self' ws://localhost:5173 wss://localhost:5173 http://localhost:5173 https: data:;
                            script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: http://localhost:5173;
                            style-src 'self' 'unsafe-inline' https: http://localhost:5173;">
         @else

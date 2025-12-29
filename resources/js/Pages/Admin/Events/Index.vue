@@ -1,6 +1,11 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
+<<<<<<< Updated upstream
 import { Link } from "@inertiajs/vue3";
+=======
+import { Link, useForm } from "@inertiajs/vue3";
+import axios from 'axios'
+>>>>>>> Stashed changes
 import { computed, ref } from 'vue'
 
 const props = defineProps({
@@ -60,6 +65,55 @@ const totals = computed(() => {
     labelPct,
   }
 })
+
+// Form helper to perform deletes (pattern used elsewhere in the app)
+// Local reactive copy of the events list so we can perform optimistic updates
+const localEvents = ref((props.events && props.events.data) ? [...props.events.data] : []);
+
+// Keep localEvents in sync if the props change (e.g., pagination or Inertia reload)
+import { watch } from 'vue'
+watch(() => props.events, (newVal) => {
+  localEvents.value = (newVal && newVal.data) ? [...newVal.data] : (newVal || []);
+});
+
+// Keep the paginator object in sync if present (we'll rely on Inertia for full reloads)
+const getIndexInLocal = (id) => localEvents.value.findIndex(e => e.id === id);
+
+const deleteEvent = async (eventId) => {
+  if (!confirm('¿Eliminar este evento? Esta acción no se puede deshacer.')) return;
+
+  const idx = getIndexInLocal(eventId);
+  if (idx === -1) return;
+
+  // Keep a backup to revert in case of failure
+  const backup = [...localEvents.value];
+
+  // Optimistic removal from local list
+  localEvents.value.splice(idx, 1);
+
+  try {
+    // Send DELETE request via axios. Laravel may redirect; we ignore redirect and
+    // treat non-2xx as failure.
+    const res = await axios.delete(route('admin.events.destroy', eventId));
+
+    // If server returns a redirect (302) the browser won't follow it for XHR, but
+    // typically a successful deletion will return a 200/204 or redirect. If the
+    // server redirected back to index, we might prefer to force a client reload.
+    if (res.status >= 200 && res.status < 300) {
+      // Success: optionally show a small alert
+      // We rely on server flash messages or you can implement a toast here.
+    } else {
+      throw new Error('Server returned unexpected status: ' + res.status);
+    }
+  } catch (err) {
+    // Revert optimistic update
+    localEvents.value = backup;
+
+    // Show a simple alert on failure. Could be replaced with a nicer toast.
+    alert('No fue posible eliminar el evento. Intenta nuevamente.');
+    console.error('Error deleting event', err);
+  }
+}
 </script>
 
 <template>
@@ -126,7 +180,7 @@ const totals = computed(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="event in filteredEvents" :key="event.id" class="border-b border-[#2a2a2a] hover:bg-[#181818]">
+          <tr v-for="event in localEvents" :key="event.id" class="border-b border-[#2a2a2a] hover:bg-[#181818]">
             <td class="px-4 py-3 font-medium">{{ event.title }}</td>
             <td class="px-4 py-3">
               {{ event.event_date ? new Date(event.event_date).toLocaleDateString('es-ES') : "-" }}
@@ -187,6 +241,14 @@ const totals = computed(() => {
               <Link :href="route('admin.events.finance', event.id)" class="text-green-400 hover:underline text-sm">
                 Finanzas
               </Link>
+
+              <button
+                type="button"
+                class="text-red-400 hover:underline text-sm"
+                @click.prevent="deleteEvent(event.id)"
+              >
+                Eliminar
+              </button>
             </td>
           </tr>
         </tbody>
