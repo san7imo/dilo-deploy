@@ -5,6 +5,7 @@ import { watch } from "vue";
 const props = defineProps({
   event: { type: Object, default: () => ({}) },
   artists: { type: Array, default: () => [] },
+  roadManagers: { type: Array, default: () => [] },
   mode: { type: String, default: "create" },
 });
 
@@ -18,13 +19,14 @@ const form = useForm({
   city: props.event.city || "",
   venue_address: props.event.venue_address || "",
   show_fee_total: props.event.show_fee_total || "",
-  currency: props.event.currency || "EUR",
+  currency: props.event.currency || "USD",
   advance_percentage: props.event.advance_percentage || 50,
   advance_expected: props.event.advance_expected ?? true,
   full_payment_due_date: props.event.full_payment_due_date || "",
   status: props.event.status || "",
   artist_ids: props.event.artists ? props.event.artists.map(a => a.id) : [],
   main_artist_id: props.event.main_artist_id || null,
+  road_manager_ids: props.event.road_managers ? props.event.road_managers.map(r => r.id) : [],
   poster_file: null,
 });
 
@@ -130,9 +132,13 @@ const handleSubmit = () => {
           <option value="cotizado">Cotizado</option>
           <option value="reservado">Reservado</option>
           <option value="confirmado">Confirmado</option>
+          <option value="pospuesto">Pospuesto</option>
           <option value="pagado">Pagado</option>
           <option value="cancelado">Cancelado</option>
         </select>
+        <p class="text-gray-500 text-xs mt-1">
+          Pagado solo aplica cuando los pagos cubren el fee del show.
+        </p>
       </div>
     </div>
 
@@ -164,7 +170,7 @@ const handleSubmit = () => {
         </div>
         <div>
           <label class="text-gray-300 text-sm">Moneda</label>
-          <input v-model="form.currency" type="text" class="input" placeholder="EUR" maxlength="3" />
+          <input v-model="form.currency" type="text" class="input" placeholder="USD" maxlength="3" />
         </div>
         <div>
           <label class="text-gray-300 text-sm">% Anticipo</label>
@@ -189,6 +195,18 @@ const handleSubmit = () => {
       </select>
       <p class="text-gray-500 text-xs mt-1">
         Puedes seleccionar varios artistas (Ctrl/Cmd + click)
+      </p>
+    </div>
+
+    <div>
+      <label class="text-gray-300 text-sm">Road managers asignados</label>
+      <select v-model="form.road_manager_ids" multiple class="input">
+        <option v-for="rm in roadManagers" :key="rm.id" :value="rm.id">
+          {{ rm.name }} ({{ rm.email }})
+        </option>
+      </select>
+      <p class="text-gray-500 text-xs mt-1">
+        Selecciona los road managers que podran ver y reportar finanzas de este evento.
       </p>
     </div>
 

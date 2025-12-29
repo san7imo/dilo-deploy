@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Notifications\ResetPasswordNotification;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
@@ -74,5 +75,20 @@ class User extends Authenticatable
     public function artist()
     {
         return $this->hasOne(Artist::class);
+    }
+
+    public function roadManagedEvents()
+    {
+        return $this->belongsToMany(Event::class, 'event_road_manager')
+            ->withPivot('payment_confirmed_at')
+            ->withTimestamps();
+    }
+
+    /**
+     * Send the password reset notification.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }

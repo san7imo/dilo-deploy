@@ -1,34 +1,38 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-import Modal from "@/Components/Modal.vue";
-import { Link, useForm } from "@inertiajs/vue3";
-import { computed, ref } from "vue";
+import { Link, useForm, usePage } from "@inertiajs/vue3";
+import { computed, ref, watch } from "vue";
 import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
+import PaymentModal from "@/Components/Finance/PaymentModal.vue";
+import ExpenseModal from "@/Components/Finance/ExpenseModal.vue";
+import PaymentsTable from "@/Components/Finance/PaymentsTable.vue";
+import ExpensesTable from "@/Components/Finance/ExpensesTable.vue";
+import AnalysisFilters from "@/Components/Finance/AnalysisFilters.vue";
+import { formatDateES } from "@/utils/date";
 
 const props = defineProps({
     event: { type: Object, required: true },
     finance: { type: Object, default: () => ({}) },
 });
 
-/**
- * UI State
- */
+const { props: pageProps } = usePage();
+const roleNames = computed(() => pageProps.auth?.user?.role_names || []);
+const isAdmin = computed(() => roleNames.value.includes("admin"));
+const isRoadManager = computed(() => roleNames.value.includes("roadmanager"));
+
+// UI State
 const activeTab = ref("resumen"); // resumen | pagos | gastos | analisis
 const showPaymentModal = ref(false);
 const showExpenseModal = ref(false);
 
-/**
- * Filtros (para el tab de análisis)
- */
+// Filtros (análisis)
 const filterType = ref("all");
 const filterYear = ref(null);
 const filterMonth = ref(null);
 const filterDateFrom = ref(null);
 const filterDateTo = ref(null);
 
-/**
- * Opciones
- */
+// Opciones
 const paymentMethodOptions = [
     { value: "transferencia", label: "Transferencia bancaria" },
     { value: "efectivo", label: "Efectivo" },
@@ -37,13 +41,11 @@ const paymentMethodOptions = [
     { value: "otro", label: "Otro" },
 ];
 
-/**
- * Forms
- */
+// Forms
 const paymentForm = useForm({
     payment_date: new Date().toISOString().slice(0, 10),
     amount_original: "",
-    currency: "EUR",
+    currency: "USD",
     exchange_rate_to_base: 1,
     payment_method: "",
     is_advance: false,
@@ -55,8 +57,9 @@ const expenseForm = useForm({
     name: "",
     description: "",
     category: "",
+    receipt_file: null,
     amount_original: "",
-    currency: "EUR",
+    currency: "USD",
     exchange_rate_to_base: 1,
 });
 
@@ -64,9 +67,50 @@ const statusForm = useForm({
     is_paid: props.event.is_paid ?? false,
 });
 
-/**
- * Totales
- */
+const eventMetaForm = useForm({
+    status: props.event.status || "",
+    event_date: props.event.event_date || "",
+    full_payment_due_date: props.event.full_payment_due_date || "",
+});
+
+const confirmForm = useForm({
+    confirmed: true,
+});
+
+const roadManagers = computed(() => {
+    return props.event.road_managers || props.event.roadManagers || [];
+});
+
+const currentRoadManager = computed(() => {
+    if (!isRoadManager.value) return null;
+    const userId = pageProps.auth?.user?.id;
+    return roadManagers.value.find((rm) => rm.id === userId) || null;
+});
+
+const roadManagerConfirmedAt = computed(() => {
+    return currentRoadManager.value?.pivot?.payment_confirmed_at || null;
+});
+
+const roadManagerDue = computed(() => {
+    const fee = Number(props.event.show_fee_total ?? 0);
+    const advancePct = Number(props.event.advance_percentage ?? 0);
+    const pct = Number.isFinite(advancePct) ? advancePct : 0;
+    const normalizedPct = Math.min(Math.max(pct, 0), 100);
+    const due = fee * (1 - normalizedPct / 100);
+    return Number.isFinite(due) ? due : 0;
+});
+
+watch(
+    isAdmin,
+    (value) => {
+        if (!value) {
+            activeTab.value = "pagos";
+        }
+    },
+    { immediate: true }
+);
+
+// Totales
 const totals = computed(() => {
     const paid = Number(props.finance?.total_paid_base ?? 0);
     const expenses = Number(props.finance?.total_expenses_base ?? 0);
@@ -76,14 +120,86 @@ const totals = computed(() => {
         paid,
         expenses,
         net,
-        shareLabel: Number(props.finance?.share_label ?? net * 0.30),
-        shareArtist: Number(props.finance?.share_artist ?? net * 0.70),
+        shareLabel: Number(props.finance?.share_label ?? net * 0.3),
+        shareArtist: Number(props.finance?.share_artist ?? net * 0.7),
     };
 });
 
-/**
- * Adaptador para FinanceCharts
- */
+const totalPaidBase = computed(() => Number(props.finance?.total_paid_base ?? 0));
+const showFeeTotal = computed(() => Number(props.event.show_fee_total ?? 0));
+const canMarkPaid = computed(() => showFeeTotal.value > 0 && totalPaidBase.value >= showFeeTotal.value);
+const paidShortfall = computed(() => {
+    if (showFeeTotal.value <= 0) return 0;
+    return Math.max(showFeeTotal.value - totalPaidBase.value, 0);
+});
+const paidStatusAlert = computed(() => {
+    if (showFeeTotal.value <= 0) {
+        return "Define el fee del show para poder marcarlo como pagado.";
+    }
+    if (!canMarkPaid.value) {
+        return `Faltan $${paidShortfall.value.toFixed(2)} USD para marcarlo como pagado.`;
+    }
+    return "";
+});
+
+const eventStatusValue = computed(() => {
+    const raw = eventMetaForm.status || props.event.status || "";
+    return raw.toString().trim().toLowerCase();
+});
+
+const eventStatusBadge = computed(() => {
+    const status = eventStatusValue.value;
+    if (!status) {
+        return {
+            label: "Sin estado",
+            className: "bg-gray-500/20 text-gray-300 border border-gray-500/30",
+        };
+    }
+
+    const labels = {
+        cotizado: "Cotizado",
+        reservado: "Reservado",
+        confirmado: "Confirmado",
+        pospuesto: "Pospuesto",
+        pagado: "Pagado",
+        cancelado: "Cancelado",
+    };
+
+    const classes = {
+        cotizado: "bg-gray-500/20 text-gray-200 border border-gray-500/30",
+        reservado: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30",
+        confirmado: "bg-blue-500/20 text-blue-300 border border-blue-500/30",
+        pospuesto: "bg-orange-500/20 text-orange-300 border border-orange-500/30",
+        pagado: "bg-green-500/20 text-green-300 border border-green-500/30",
+        cancelado: "bg-red-500/20 text-red-300 border border-red-500/30",
+    };
+
+    return {
+        label: labels[status] || status,
+        className: classes[status] || "bg-gray-500/20 text-gray-300 border border-gray-500/30",
+    };
+});
+
+const statusAlert = computed(() => {
+    const status = eventStatusValue.value;
+    if (status === "pospuesto") {
+        return {
+            title: "Evento pospuesto",
+            message: "Actualiza la nueva fecha y confirma el plan con el equipo.",
+            className: "bg-orange-500/10 border border-orange-500/30 text-orange-200",
+        };
+    }
+    if (status === "cancelado") {
+        return {
+            title: "Evento cancelado",
+            message: "Revisa pagos y gastos para cerrar la contabilidad.",
+            className: "bg-red-500/10 border border-red-500/30 text-red-200",
+        };
+    }
+    return null;
+});
+
+// Adaptador para FinanceCharts
 const eventArray = computed(() => {
     if (!props.event) return [];
     return [
@@ -101,55 +217,30 @@ const eventArray = computed(() => {
     ];
 });
 
-/**
- * Helpers
- */
-const formatDateES = (dateStr) => {
-    if (!dateStr) return "—";
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("es-ES", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-    });
-};
-
+// Helpers
 const normalizePaymentCurrencyAndRate = () => {
     const cur = (paymentForm.currency || "").toUpperCase().trim();
-    paymentForm.currency = cur || "EUR";
+    paymentForm.currency = cur || "USD";
 
-    if (paymentForm.currency === "EUR") {
+    if (paymentForm.currency === "USD") {
         paymentForm.exchange_rate_to_base = 1;
-    } else {
-        if (
-            !paymentForm.exchange_rate_to_base ||
-            Number(paymentForm.exchange_rate_to_base) <= 0
-        ) {
-            paymentForm.exchange_rate_to_base = 1;
-        }
+    } else if (!paymentForm.exchange_rate_to_base || Number(paymentForm.exchange_rate_to_base) <= 0) {
+        paymentForm.exchange_rate_to_base = 1;
     }
 };
 
 const normalizeExpenseCurrencyAndRate = () => {
     const cur = (expenseForm.currency || "").toUpperCase().trim();
-    expenseForm.currency = cur || "EUR";
+    expenseForm.currency = cur || "USD";
 
-    if (expenseForm.currency === "EUR") {
+    if (expenseForm.currency === "USD") {
         expenseForm.exchange_rate_to_base = 1;
-    } else {
-        if (
-            !expenseForm.exchange_rate_to_base ||
-            Number(expenseForm.exchange_rate_to_base) <= 0
-        ) {
-            expenseForm.exchange_rate_to_base = 1;
-        }
+    } else if (!expenseForm.exchange_rate_to_base || Number(expenseForm.exchange_rate_to_base) <= 0) {
+        expenseForm.exchange_rate_to_base = 1;
     }
 };
 
-/**
- * Actions
- */
+// Actions
 const submitPayment = () => {
     normalizePaymentCurrencyAndRate();
 
@@ -164,6 +255,7 @@ const submitPayment = () => {
 };
 
 const deletePayment = (paymentId) => {
+    if (!isAdmin.value) return;
     if (!confirm("¿Eliminar este pago?")) return;
 
     paymentForm.delete(route("admin.events.payments.destroy", paymentId), {
@@ -175,9 +267,10 @@ const submitExpense = () => {
     normalizeExpenseCurrencyAndRate();
 
     expenseForm.post(route("admin.events.expenses.store", props.event.id), {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
-            expenseForm.reset("amount_original", "name", "description", "category");
+            expenseForm.reset("amount_original", "name", "description", "category", "receipt_file");
             showExpenseModal.value = false;
             activeTab.value = "gastos";
         },
@@ -185,6 +278,7 @@ const submitExpense = () => {
 };
 
 const deleteExpense = (expenseId) => {
+    if (!isAdmin.value) return;
     if (!confirm("¿Eliminar este gasto?")) return;
 
     expenseForm.delete(route("admin.events.expenses.destroy", expenseId), {
@@ -198,9 +292,22 @@ const updatePaymentStatus = () => {
     });
 };
 
-/**
- * Quick computed for UI
- */
+const updateEventDetails = () => {
+    eventMetaForm.patch(route("admin.events.details.update", props.event.id), {
+        preserveScroll: true,
+    });
+};
+
+const confirmRoadManagerPayment = () => {
+    if (confirmForm.processing) return;
+    if (roadManagerConfirmedAt.value) return;
+
+    confirmForm.patch(route("admin.events.roadmanager-payment.update", props.event.id), {
+        preserveScroll: true,
+    });
+};
+
+// Quick computed for UI
 const statusBadge = computed(() => {
     const paid = !!statusForm.is_paid;
     return {
@@ -211,18 +318,20 @@ const statusBadge = computed(() => {
     };
 });
 
+const canSubmitPaymentStatus = computed(() => !statusForm.is_paid || canMarkPaid.value);
+const canSubmitEventDetails = computed(() => eventStatusValue.value !== "pagado" || canMarkPaid.value);
+
 const openPaymentModal = () => {
-    // valores por defecto útiles
     paymentForm.payment_date = new Date().toISOString().slice(0, 10);
-    paymentForm.currency = (paymentForm.currency || "EUR").toUpperCase().trim() || "EUR";
-    if (paymentForm.currency === "EUR") paymentForm.exchange_rate_to_base = 1;
+    paymentForm.currency = (paymentForm.currency || "USD").toUpperCase().trim() || "USD";
+    if (paymentForm.currency === "USD") paymentForm.exchange_rate_to_base = 1;
     showPaymentModal.value = true;
 };
 
 const openExpenseModal = () => {
     expenseForm.expense_date = new Date().toISOString().slice(0, 10);
-    expenseForm.currency = (expenseForm.currency || "EUR").toUpperCase().trim() || "EUR";
-    if (expenseForm.currency === "EUR") expenseForm.exchange_rate_to_base = 1;
+    expenseForm.currency = (expenseForm.currency || "USD").toUpperCase().trim() || "USD";
+    if (expenseForm.currency === "USD") expenseForm.exchange_rate_to_base = 1;
     showExpenseModal.value = true;
 };
 </script>
@@ -230,7 +339,6 @@ const openExpenseModal = () => {
 <template>
     <AdminLayout title="Finanzas">
         <div class="space-y-6 text-white">
-            <!-- Header -->
             <div class="flex items-center justify-between gap-4">
                 <div>
                     <h1 class="text-2xl font-bold">Finanzas — {{ event.title }}</h1>
@@ -241,31 +349,26 @@ const openExpenseModal = () => {
                                 {{ event.main_artist?.name || event.mainArtist?.name || "—" }}
                             </span>
                         </p>
-
                         <p>
                             Ubicación:
                             <span class="text-white">
                                 <span v-if="event.city || event.country">
                                     {{ event.city }}{{ event.city && event.country ? "," : "" }}
                                     {{ event.country }}
-                                    <span v-if="event.location" class="block text-gray-400 text-xs">
-                                        {{ event.location }}
-                                    </span>
-                                    <span v-if="event.venue_address" class="block text-gray-500 text-xs">
-                                        {{ event.venue_address }}
-                                    </span>
+                                    <span v-if="event.location" class="block text-gray-400 text-xs">{{ event.location
+                                        }}</span>
+                                    <span v-if="event.venue_address" class="block text-gray-500 text-xs">{{
+                                        event.venue_address }}</span>
                                 </span>
                                 <span v-else>
                                     <span class="text-white">{{ event.location || "—" }}</span>
-                                    <span v-if="event.venue_address" class="block text-gray-500 text-xs">
-                                        {{ event.venue_address }}
-                                    </span>
+                                    <span v-if="event.venue_address" class="block text-gray-500 text-xs">{{
+                                        event.venue_address }}</span>
                                 </span>
                             </span>
                         </p>
                     </div>
                 </div>
-
                 <div class="flex items-center gap-3">
                     <Link :href="route('admin.events.index')" class="text-[#ffa236] hover:underline">
                         ← Volver
@@ -273,113 +376,194 @@ const openExpenseModal = () => {
                 </div>
             </div>
 
-            <!-- Tabs -->
-            <div class="flex flex-wrap gap-2 border-b border-[#2a2a2a] pb-3">
-                <button
-                    type="button"
-                    class="tab-btn"
-                    :class="activeTab === 'resumen' ? 'tab-btn--active' : 'tab-btn--idle'"
-                    @click="activeTab = 'resumen'"
-                >
-                    Resumen
-                </button>
-                <button
-                    type="button"
-                    class="tab-btn"
-                    :class="activeTab === 'pagos' ? 'tab-btn--active' : 'tab-btn--idle'"
-                    @click="activeTab = 'pagos'"
-                >
-                    Pagos
-                </button>
-                <button
-                    type="button"
-                    class="tab-btn"
-                    :class="activeTab === 'gastos' ? 'tab-btn--active' : 'tab-btn--idle'"
-                    @click="activeTab = 'gastos'"
-                >
-                    Gastos
-                </button>
-                <button
-                    type="button"
-                    class="tab-btn"
-                    :class="activeTab === 'analisis' ? 'tab-btn--active' : 'tab-btn--idle'"
-                    @click="activeTab = 'analisis'"
-                >
-                    Análisis
-                </button>
-
-                <div class="flex-1"></div>
-
-                <div class="flex gap-2">
-                    <button type="button" class="btn-primary" @click="openPaymentModal">
-                        + Nuevo pago
-                    </button>
-                    <button type="button" class="btn-secondary" @click="openExpenseModal">
-                        + Nuevo gasto
-                    </button>
+            <div v-if="isRoadManager" class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-semibold">Pago pendiente al road manager</h2>
+                        <p class="text-sm text-gray-400">
+                            Corresponde al porcentaje restante despues del adelanto.
+                        </p>
+                        <p class="text-2xl font-semibold text-[#ffa236] mt-2">
+                            {{ event.currency || "USD" }} {{ roadManagerDue.toFixed(2) }}
+                        </p>
+                    </div>
+                    <div class="text-sm text-gray-300">
+                        <button
+                            v-if="!roadManagerConfirmedAt"
+                            type="button"
+                            class="btn-primary"
+                            :disabled="confirmForm.processing"
+                            @click="confirmRoadManagerPayment"
+                        >
+                            Confirmar pago recibido
+                        </button>
+                        <div v-else class="text-green-400 font-semibold">
+                            Pago confirmado
+                            <span v-if="roadManagerConfirmedAt" class="block text-xs text-gray-400 mt-1">
+                                {{ formatDateES(roadManagerConfirmedAt) }}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- TAB: RESUMEN -->
-            <div v-if="activeTab === 'resumen'" class="space-y-6">
-                <!-- KPI cards -->
+            <div v-if="statusAlert" :class="['rounded-lg p-4 text-sm', statusAlert.className]">
+                <p class="font-semibold">{{ statusAlert.title }}</p>
+                <p class="opacity-90 mt-1">{{ statusAlert.message }}</p>
+            </div>
+
+            <div class="flex flex-wrap gap-2 border-b border-[#2a2a2a] pb-3">
+                <button v-if="isAdmin" type="button" class="tab-btn"
+                    :class="activeTab === 'resumen' ? 'tab-btn--active' : 'tab-btn--idle'"
+                    @click="activeTab = 'resumen'">
+                    Resumen
+                </button>
+                <button type="button" class="tab-btn"
+                    :class="activeTab === 'pagos' ? 'tab-btn--active' : 'tab-btn--idle'" @click="activeTab = 'pagos'">
+                    Pagos
+                </button>
+                <button type="button" class="tab-btn"
+                    :class="activeTab === 'gastos' ? 'tab-btn--active' : 'tab-btn--idle'" @click="activeTab = 'gastos'">
+                    Gastos
+                </button>
+                <button v-if="isAdmin" type="button" class="tab-btn"
+                    :class="activeTab === 'analisis' ? 'tab-btn--active' : 'tab-btn--idle'"
+                    @click="activeTab = 'analisis'">
+                    Análisis
+                </button>
+                <div class="flex-1"></div>
+                <div class="flex gap-2">
+                    <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
+                    <button type="button" class="btn-secondary" @click="openExpenseModal">+ Nuevo gasto</button>
+                </div>
+            </div>
+
+            <div v-if="isAdmin && activeTab === 'resumen'" class="space-y-6">
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div class="card">
                         <p class="text-gray-400 text-sm">Total pagado</p>
-                        <p class="text-white text-xl font-semibold">€ {{ totals.paid.toFixed(2) }}</p>
-                        <p class="text-gray-500 text-xs mt-1">Suma de pagos (convertidos a EUR).</p>
+                        <p class="text-white text-xl font-semibold">$ {{ totals.paid.toFixed(2) }}</p>
+                        <p class="text-gray-500 text-xs mt-1">Suma de pagos (convertidos a USD).</p>
                     </div>
-
                     <div class="card">
                         <p class="text-gray-400 text-sm">Total gastos</p>
-                        <p class="text-white text-xl font-semibold">€ {{ totals.expenses.toFixed(2) }}</p>
-                        <p class="text-gray-500 text-xs mt-1">Suma de gastos (convertidos a EUR).</p>
+                        <p class="text-white text-xl font-semibold">$ {{ totals.expenses.toFixed(2) }}</p>
+                        <p class="text-gray-500 text-xs mt-1">Suma de gastos (convertidos a USD).</p>
                     </div>
-
                     <div class="card">
                         <p class="text-gray-400 text-sm">Neto</p>
-                        <p class="text-white text-xl font-semibold">€ {{ totals.net.toFixed(2) }}</p>
+                        <p class="text-white text-xl font-semibold">$ {{ totals.net.toFixed(2) }}</p>
                         <p class="text-gray-500 text-xs mt-1">Pagos − gastos.</p>
                     </div>
                 </div>
 
-                <!-- Estado de pago -->
                 <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
                     <div class="flex items-center justify-between mb-3">
                         <div>
                             <h2 class="text-lg font-semibold">Estado de pago</h2>
-                            <p class="text-sm text-gray-400">
-                                Marca si el evento se considera pagado o pendiente.
-                            </p>
+                            <p class="text-sm text-gray-400">Marca si el evento se considera pagado o pendiente.</p>
                         </div>
-
-                        <span :class="['px-3 py-1 rounded-full text-xs font-semibold', statusBadge.className]">
-                            {{ statusBadge.label }}
-                        </span>
+                        <span :class="['px-3 py-1 rounded-full text-xs font-semibold', statusBadge.className]">{{
+                            statusBadge.label }}</span>
                     </div>
-
                     <form @submit.prevent="updatePaymentStatus" class="flex flex-col sm:flex-row sm:items-center gap-4">
                         <label class="flex items-center gap-2 text-sm text-gray-300">
-                            <input v-model="statusForm.is_paid" type="checkbox" class="checkbox" />
+                            <input v-model="statusForm.is_paid" type="checkbox" class="checkbox"
+                                :disabled="!canMarkPaid && !statusForm.is_paid" />
                             Marcar como pagado
                         </label>
-
                         <div class="flex-1"></div>
-
-                        <button type="submit" class="btn-primary self-start sm:self-auto" :disabled="statusForm.processing">
-                            Guardar estado
-                        </button>
+                        <button type="submit" class="btn-primary self-start sm:self-auto"
+                            :disabled="statusForm.processing || !canSubmitPaymentStatus">Guardar estado</button>
                     </form>
-
+                    <p v-if="paidStatusAlert" class="text-amber-300 text-sm mt-3">
+                        {{ paidStatusAlert }}
+                    </p>
                     <p v-if="statusForm.errors.is_paid" class="text-red-500 text-sm mt-2">
                         {{ statusForm.errors.is_paid }}
                     </p>
                 </div>
 
-                <!-- Datos del evento (compacto) -->
+                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-lg font-semibold">Estado y fechas</h2>
+                            <p class="text-sm text-gray-400">Actualiza el estado del evento y fechas clave.</p>
+                        </div>
+                        <span :class="['px-3 py-1 rounded-full text-xs font-semibold border', eventStatusBadge.className]">
+                            {{ eventStatusBadge.label }}
+                        </span>
+                    </div>
+                    <form @submit.prevent="updateEventDetails" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="text-gray-300 text-sm">Estado</label>
+                            <select v-model="eventMetaForm.status" class="input">
+                                <option value="">Selecciona un estado</option>
+                                <option value="cotizado">Cotizado</option>
+                                <option value="reservado">Reservado</option>
+                                <option value="confirmado">Confirmado</option>
+                                <option value="pospuesto">Pospuesto</option>
+                                <option value="pagado" :disabled="!canMarkPaid">Pagado</option>
+                                <option value="cancelado">Cancelado</option>
+                            </select>
+                            <p v-if="eventMetaForm.errors.status" class="text-red-500 text-sm mt-1">
+                                {{ eventMetaForm.errors.status }}
+                            </p>
+                            <p v-else-if="eventStatusValue === 'pagado' && paidStatusAlert"
+                                class="text-amber-300 text-xs mt-1">
+                                {{ paidStatusAlert }}
+                            </p>
+                        </div>
+                        <div>
+                            <label class="text-gray-300 text-sm">Fecha del evento</label>
+                            <input v-model="eventMetaForm.event_date" type="date" class="input" />
+                            <p v-if="eventMetaForm.errors.event_date" class="text-red-500 text-sm mt-1">
+                                {{ eventMetaForm.errors.event_date }}
+                            </p>
+                        </div>
+                        <div>
+                            <label class="text-gray-300 text-sm">Fecha pago final</label>
+                            <input v-model="eventMetaForm.full_payment_due_date" type="date" class="input" />
+                            <p v-if="eventMetaForm.errors.full_payment_due_date" class="text-red-500 text-sm mt-1">
+                                {{ eventMetaForm.errors.full_payment_due_date }}
+                            </p>
+                        </div>
+                        <div class="sm:col-span-3 flex justify-end">
+                            <button type="submit" class="btn-primary"
+                                :disabled="eventMetaForm.processing || !canSubmitEventDetails">
+                                Guardar cambios
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div v-if="roadManagers.length" class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
+                    <h2 class="text-lg font-semibold mb-4">Confirmacion road managers</h2>
+                    <div class="space-y-3 text-sm">
+                        <div
+                            v-for="rm in roadManagers"
+                            :key="rm.id"
+                            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#2a2a2a] pb-2"
+                        >
+                            <div>
+                                <p class="text-white font-semibold">{{ rm.name }}</p>
+                                <p class="text-gray-400 text-xs">{{ rm.email }}</p>
+                            </div>
+                            <div class="text-sm">
+                                <span v-if="rm.pivot?.payment_confirmed_at" class="text-green-400 font-semibold">
+                                    Confirmado
+                                    <span class="block text-xs text-gray-400">
+                                        {{ formatDateES(rm.pivot.payment_confirmed_at) }}
+                                    </span>
+                                </span>
+                                <span v-else class="text-yellow-400 font-semibold">Pendiente</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
                     <h2 class="text-lg font-semibold mb-4">Datos del evento</h2>
-
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                         <div class="mini-card">
                             <p class="text-gray-400">Ubicación</p>
@@ -390,476 +574,100 @@ const openExpenseModal = () => {
                                 <span v-else>{{ event.location || "—" }}</span>
                             </p>
                             <p v-if="event.location" class="text-gray-400 text-xs mt-1">{{ event.location }}</p>
-                            <p v-if="event.venue_address" class="text-gray-500 text-xs mt-1">{{ event.venue_address }}</p>
+                            <p v-if="event.venue_address" class="text-gray-500 text-xs mt-1">{{ event.venue_address }}
+                            </p>
                         </div>
-
                         <div class="mini-card">
                             <p class="text-gray-400">Tipo</p>
                             <p class="text-white font-semibold capitalize">{{ event.event_type || "—" }}</p>
                             <p class="text-gray-400 mt-2">Estado</p>
-                            <p class="text-white font-semibold capitalize">{{ event.status || "—" }}</p>
+                            <span :class="['inline-flex px-2 py-1 rounded-full text-xs font-semibold border mt-1', eventStatusBadge.className]">
+                                {{ eventStatusBadge.label }}
+                            </span>
                         </div>
-
                         <div class="mini-card">
                             <p class="text-gray-400">Fee del show</p>
                             <p class="text-white font-semibold">
-                                <span>{{ event.currency || "EUR" }}</span>
+                                <span>{{ event.currency || "USD" }}</span>
                                 <span class="ml-1">{{ Number(event.show_fee_total ?? 0).toFixed(2) }}</span>
                             </p>
                             <p class="text-gray-400 mt-2">Moneda</p>
-                            <p class="text-white font-semibold">{{ event.currency || "EUR" }}</p>
+                            <p class="text-white font-semibold">{{ event.currency || "USD" }}</p>
                         </div>
-
                         <div class="mini-card">
                             <p class="text-gray-400">% Anticipo</p>
                             <p class="text-white font-semibold">{{ event.advance_percentage ?? 50 }}%</p>
                             <p class="text-gray-400 mt-2">¿Se espera anticipo?</p>
                             <p class="text-white font-semibold">{{ event.advance_expected ? "Sí" : "No" }}</p>
                         </div>
-
                         <div class="mini-card">
                             <p class="text-gray-400">Fecha pago final</p>
-                            <p class="text-white font-semibold">
-                                {{ event.full_payment_due_date ? formatDateES(event.full_payment_due_date) : "—" }}
-                            </p>
+                            <p class="text-white font-semibold">{{ event.full_payment_due_date ?
+                                formatDateES(event.full_payment_due_date) : "—" }}</p>
                         </div>
-
                         <div class="mini-card">
                             <p class="text-gray-400">Reparto (neto)</p>
                             <div class="mt-1 space-y-1">
-                                <p class="text-white font-semibold">Label: € {{ totals.shareLabel.toFixed(2) }}</p>
-                                <p class="text-white font-semibold">Artista: € {{ totals.shareArtist.toFixed(2) }}</p>
+                                <p class="text-white font-semibold">Label: $ {{ totals.shareLabel.toFixed(2) }}</p>
+                                <p class="text-white font-semibold">Artista: $ {{ totals.shareArtist.toFixed(2) }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB: PAGOS -->
             <div v-else-if="activeTab === 'pagos'" class="space-y-4">
-                <div class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
+                <div
+                    class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
                     <div>
                         <h2 class="text-lg font-semibold">Pagos</h2>
-                        <p class="text-sm text-gray-400">Total: € {{ totals.paid.toFixed(2) }}</p>
+                        <p class="text-sm text-gray-400">Total: $ {{ totals.paid.toFixed(2) }}</p>
                     </div>
-                    <button type="button" class="btn-primary" @click="openPaymentModal">
-                        + Nuevo pago
-                    </button>
+                    <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
                 </div>
-
-                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
-                    <div v-if="!event.payments || event.payments.length === 0" class="text-gray-400">
-                        No hay pagos todavía.
-                    </div>
-
-                    <div v-else class="overflow-x-auto">
-                        <table class="min-w-full text-sm text-gray-300">
-                            <thead class="text-xs uppercase text-gray-400">
-                                <tr>
-                                    <th class="py-2 text-left">Fecha</th>
-                                    <th class="py-2 text-left">Original</th>
-                                    <th class="py-2 text-left">EUR</th>
-                                    <th class="py-2 text-left">Método</th>
-                                    <th class="py-2 text-left">Anticipo</th>
-                                    <th class="py-2 text-left">Notas</th>
-                                    <th class="py-2 text-right">Acciones</th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                <tr
-                                    v-for="p in event.payments"
-                                    :key="p.id"
-                                    class="border-t border-[#2a2a2a]"
-                                >
-                                    <td class="py-2 whitespace-nowrap">{{ formatDateES(p.payment_date) }}</td>
-
-                                    <td class="py-2 whitespace-nowrap">
-                                        {{ p.currency }} {{ Number(p.amount_original ?? 0).toFixed(2) }}
-                                    </td>
-
-                                    <td class="py-2 whitespace-nowrap">
-                                        € {{ Number(p.amount_base ?? 0).toFixed(2) }}
-                                    </td>
-
-                                    <td class="py-2 whitespace-nowrap capitalize">
-                                        {{ p.payment_method || "—" }}
-                                    </td>
-
-                                    <td class="py-2 whitespace-nowrap">
-                                        <span
-                                            :class="[
-                                                'px-2 py-1 rounded text-xs',
-                                                p.is_advance
-                                                    ? 'bg-[#ffa236]/15 text-[#ffa236] border border-[#ffa236]/30'
-                                                    : 'bg-[#2a2a2a] text-gray-300'
-                                            ]"
-                                        >
-                                            {{ p.is_advance ? "Sí" : "No" }}
-                                        </span>
-                                    </td>
-
-                                    <td class="py-2 max-w-[280px]">
-                                        <span class="text-gray-300">
-                                            {{ (p.notes || "").trim() || "—" }}
-                                        </span>
-                                    </td>
-
-                                    <td class="py-2 text-right whitespace-nowrap">
-                                        <button @click="deletePayment(p.id)" class="text-red-400 hover:underline">
-                                            Eliminar
-                                        </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB: GASTOS -->
-            <div v-else-if="activeTab === 'gastos'" class="space-y-4">
-                <div class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
-                    <div>
-                        <h2 class="text-lg font-semibold">Gastos</h2>
-                        <p class="text-sm text-gray-400">Total: € {{ totals.expenses.toFixed(2) }}</p>
-                    </div>
-
-                    <button type="button" class="btn-secondary" @click="openExpenseModal">
-                        + Nuevo gasto
-                    </button>
-                </div>
-
-                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
-                    <div v-if="!event.expenses || event.expenses.length === 0" class="text-gray-400">
-                        No hay gastos registrados.
-                    </div>
-
-                    <div v-else class="overflow-x-auto">
-                        <table class="min-w-full text-sm text-gray-300">
-                            <thead class="text-xs uppercase text-gray-400">
-                                <tr>
-                                    <th class="py-2 text-left">Fecha</th>
-                                    <th class="py-2 text-left">Nombre</th>
-                                    <th class="py-2 text-left">Categoría</th>
-                                    <th class="py-2 text-left">Original</th>
-                                    <th class="py-2 text-left">EUR</th>
-                                    <th class="py-2 text-left">Descripción</th>
-                                    <th class="py-2 text-right">Acciones</th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                <tr
-                                    v-for="g in event.expenses"
-                                    :key="g.id"
-                                    class="border-t border-[#2a2a2a]"
-                                >
-                                    <td class="py-2 whitespace-nowrap">{{ formatDateES(g.expense_date) }}</td>
-
-                                    <td class="py-2 font-semibold whitespace-nowrap">
-                                        {{ g.name || "—" }}
-                                    </td>
-
-                                    <td class="py-2 whitespace-nowrap">
-                                        <span
-                                            v-if="g.category"
-                                            class="bg-[#2a2a2a] text-gray-300 px-2 py-1 rounded text-xs capitalize"
-                                        >
-                                            {{ g.category }}
-                                        </span>
-                                        <span v-else class="text-gray-500">—</span>
-                                    </td>
-
-                                    <td class="py-2 whitespace-nowrap">
-                                        {{ g.currency }} {{ Number(g.amount_original ?? 0).toFixed(2) }}
-                                    </td>
-
-                                    <td class="py-2 whitespace-nowrap">
-                                        € {{ Number(g.amount_base ?? 0).toFixed(2) }}
-                                    </td>
-
-                                    <td class="py-2 max-w-[280px]">
-                                        <span class="text-gray-300">
-                                            {{ (g.description || "").trim() || "—" }}
-                                        </span>
-                                    </td>
-
-                                    <td class="py-2 text-right whitespace-nowrap">
-                                        <button @click="deleteExpense(g.id)" class="text-red-400 hover:underline">
-                                            Eliminar
-                                        </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB: ANÁLISIS -->
-            <div v-else class="space-y-6">
-                <!-- Filtros -->
-                <div class="bg-gradient-to-br from-[#1d1d1b] to-[#151512] border border-[#3a3a38] rounded-xl p-6 flex flex-wrap gap-4 shadow-lg">
-                    <div class="flex-1 min-w-[200px]">
-                        <label class="text-[#ffa236] text-sm mb-2 font-semibold">
-                            Filtrar por estado
-                        </label>
-                        <select
-                            v-model="filterType"
-                            class="w-full bg-[#0f0f0d] border border-[#3a3a38] rounded-lg px-3 py-2 text-white text-sm hover:border-[#ffa236]/30 focus:border-[#ffa236] transition-colors"
-                        >
-                            <option value="all">Todos</option>
-                            <option value="paid">Solo pagados</option>
-                            <option value="pending">Solo pendientes</option>
-                        </select>
-                    </div>
-
-                    <div class="flex-1 min-w-[200px]">
-                        <label class="text-[#ffa236] text-sm mb-2 font-semibold">Desde</label>
-                        <input
-                            v-model="filterDateFrom"
-                            type="date"
-                            class="w-full bg-[#0f0f0d] border border-[#3a3a38] rounded-lg px-3 py-2 text-white text-sm hover:border-[#ffa236]/30 focus:border-[#ffa236] transition-colors"
-                        />
-                    </div>
-
-                    <div class="flex-1 min-w-[200px]">
-                        <label class="text-[#ffa236] text-sm mb-2 font-semibold">Hasta</label>
-                        <input
-                            v-model="filterDateTo"
-                            type="date"
-                            class="w-full bg-[#0f0f0d] border border-[#3a3a38] rounded-lg px-3 py-2 text-white text-sm hover:border-[#ffa236]/30 focus:border-[#ffa236] transition-colors"
-                        />
-                    </div>
-                </div>
-
-                <!-- Charts -->
-                <FinanceCharts
-                    :totals="totals"
-                    :events="eventArray"
-                    :filter-type="filterType"
-                    :filter-year="filterYear"
-                    :filter-month="filterMonth"
-                    :filter-date-from="filterDateFrom"
-                    :filter-date-to="filterDateTo"
-                    currency="€"
+                <PaymentsTable
+                    :payments="event.payments || []"
+                    :can-delete="isAdmin"
+                    @delete="deletePayment"
                 />
             </div>
 
-            <!-- MODAL: Registrar pago -->
-            <Modal :show="showPaymentModal" @close="showPaymentModal = false">
-                <div class="p-6 space-y-5 text-white">
-                    <div class="flex items-center justify-between gap-4">
-                        <div>
-                            <h2 class="text-lg font-semibold">Registrar pago</h2>
-                            <p class="text-sm text-gray-400">Registra un pago y se convertirá a EUR según la tasa.</p>
-                        </div>
-                        <button type="button" class="text-gray-300 hover:text-white" @click="showPaymentModal = false">
-                            Cerrar
-                        </button>
+            <div v-else-if="activeTab === 'gastos'" class="space-y-4">
+                <div
+                    class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
+                    <div>
+                        <h2 class="text-lg font-semibold">Gastos</h2>
+                        <p class="text-sm text-gray-400">Total: $ {{ totals.expenses.toFixed(2) }}</p>
                     </div>
-
-                    <form @submit.prevent="submitPayment" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-gray-300 text-sm">Fecha</label>
-                            <input v-model="paymentForm.payment_date" type="date" class="input" />
-                            <p v-if="paymentForm.errors.payment_date" class="text-red-500 text-sm mt-1">
-                                {{ paymentForm.errors.payment_date }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label class="text-gray-300 text-sm">Monto</label>
-                            <input v-model="paymentForm.amount_original" type="number" step="0.01" class="input" />
-                            <p v-if="paymentForm.errors.amount_original" class="text-red-500 text-sm mt-1">
-                                {{ paymentForm.errors.amount_original }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label class="text-gray-300 text-sm">Moneda (ISO)</label>
-                            <input
-                                v-model="paymentForm.currency"
-                                @blur="normalizePaymentCurrencyAndRate"
-                                type="text"
-                                class="input"
-                                placeholder="EUR / USD / COP..."
-                            />
-                            <p class="text-gray-500 text-xs mt-1">Ej: EUR, USD, COP (3 letras).</p>
-                        </div>
-
-                        <div v-if="paymentForm.currency !== 'EUR'">
-                            <label class="text-gray-300 text-sm">Tasa a EUR</label>
-                            <input v-model="paymentForm.exchange_rate_to_base" type="number" step="0.000001" class="input" />
-                            <p class="text-gray-500 text-xs mt-1">Ej: si 1 USD = 0.92 EUR, pon 0.92</p>
-                        </div>
-
-                        <div v-else>
-                            <label class="text-gray-300 text-sm">Tasa a EUR</label>
-                            <input :value="1" disabled class="input opacity-60" />
-                            <p class="text-gray-500 text-xs mt-1">EUR no requiere tasa.</p>
-                        </div>
-
-                        <div>
-                            <label class="text-gray-300 text-sm">Método de pago</label>
-                            <select v-model="paymentForm.payment_method" class="input">
-                                <option value="" disabled>Selecciona un método</option>
-                                <option v-for="opt in paymentMethodOptions" :key="opt.value" :value="opt.value">
-                                    {{ opt.label }}
-                                </option>
-                            </select>
-
-                            <p v-if="paymentForm.errors.payment_method" class="text-red-500 text-sm mt-1">
-                                {{ paymentForm.errors.payment_method }}
-                            </p>
-                        </div>
-
-                        <div class="flex items-center gap-2 mt-6">
-                            <input v-model="paymentForm.is_advance" type="checkbox" class="checkbox" />
-                            <span class="text-gray-300 text-sm">¿Es anticipo?</span>
-                        </div>
-
-                        <div class="sm:col-span-2">
-                            <label class="text-gray-300 text-sm">Notas</label>
-                            <textarea
-                                v-model="paymentForm.notes"
-                                rows="3"
-                                class="input"
-                                placeholder="Notas adicionales sobre este pago..."
-                            />
-                            <p v-if="paymentForm.errors.notes" class="text-red-500 text-sm mt-1">
-                                {{ paymentForm.errors.notes }}
-                            </p>
-                        </div>
-
-                        <div class="sm:col-span-2 flex justify-end gap-2 mt-2">
-                            <button type="button" class="btn-ghost" @click="showPaymentModal = false">
-                                Cancelar
-                            </button>
-                            <button class="btn-primary" type="submit" :disabled="paymentForm.processing">
-                                Guardar pago
-                            </button>
-                        </div>
-                    </form>
+                    <button type="button" class="btn-secondary" @click="openExpenseModal">+ Nuevo gasto</button>
                 </div>
-            </Modal>
+                <ExpensesTable
+                    :expenses="event.expenses || []"
+                    :can-delete="isAdmin"
+                    @delete="deleteExpense"
+                />
+            </div>
 
-            <!-- MODAL: Registrar gasto -->
-            <Modal :show="showExpenseModal" @close="showExpenseModal = false">
-                <div class="p-6 space-y-5 text-white">
-                    <div class="flex items-center justify-between gap-4">
-                        <div>
-                            <h2 class="text-lg font-semibold">Registrar gasto</h2>
-                            <p class="text-sm text-gray-400">Registra un gasto y se convertirá a EUR según la tasa.</p>
-                        </div>
-                        <button type="button" class="text-gray-300 hover:text-white" @click="showExpenseModal = false">
-                            Cerrar
-                        </button>
-                    </div>
+            <div v-else-if="isAdmin" class="space-y-6">
+                <AnalysisFilters v-model:filter-type="filterType" v-model:filter-date-from="filterDateFrom"
+                    v-model:filter-date-to="filterDateTo" v-model:filter-year="filterYear"
+                    v-model:filter-month="filterMonth" />
+                <FinanceCharts :totals="totals" :events="eventArray" :filter-type="filterType" :filter-year="filterYear"
+                    :filter-month="filterMonth" :filter-date-from="filterDateFrom" :filter-date-to="filterDateTo"
+                    currency="$" />
+            </div>
 
-                    <form @submit.prevent="submitExpense" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="text-gray-300 text-sm">Fecha</label>
-                            <input v-model="expenseForm.expense_date" type="date" class="input" />
-                            <p v-if="expenseForm.errors.expense_date" class="text-red-500 text-sm mt-1">
-                                {{ expenseForm.errors.expense_date }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label class="text-gray-300 text-sm">Nombre del gasto *</label>
-                            <input v-model="expenseForm.name" type="text" class="input" placeholder="Ej: Vuelo, Hotel..." />
-                            <p v-if="expenseForm.errors.name" class="text-red-500 text-sm mt-1">
-                                {{ expenseForm.errors.name }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label class="text-gray-300 text-sm">Categoría</label>
-                            <select v-model="expenseForm.category" class="input">
-                                <option value="">Selecciona una categoría</option>
-                                <option value="transporte">Transporte</option>
-                                <option value="hospedaje">Hospedaje</option>
-                                <option value="alimentacion">Alimentación</option>
-                                <option value="sonido">Sonido</option>
-                                <option value="iluminacion">Iluminación</option>
-                                <option value="seguridad">Seguridad</option>
-                                <option value="marketing">Marketing</option>
-                                <option value="fotografo">Fotógrafo</option>
-                                <option value="filmmaker">Filmmaker</option>
-                                <option value="visa">Visa</option>
-                                <option value="ropa">Ropa</option>
-                                <option value="impuestos">Impuestos</option>
-                                <option value="otros">Otros</option>
-                            </select>
-                            <p v-if="expenseForm.errors.category" class="text-red-500 text-sm mt-1">
-                                {{ expenseForm.errors.category }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label class="text-gray-300 text-sm">Monto</label>
-                            <input v-model="expenseForm.amount_original" type="number" step="0.01" class="input" />
-                            <p v-if="expenseForm.errors.amount_original" class="text-red-500 text-sm mt-1">
-                                {{ expenseForm.errors.amount_original }}
-                            </p>
-                        </div>
-
-                        <div>
-                            <label class="text-gray-300 text-sm">Moneda (ISO)</label>
-                            <input
-                                v-model="expenseForm.currency"
-                                @blur="normalizeExpenseCurrencyAndRate"
-                                type="text"
-                                class="input"
-                                placeholder="EUR / USD / COP..."
-                            />
-                            <p class="text-gray-500 text-xs mt-1">Ej: EUR, USD, COP (3 letras).</p>
-                        </div>
-
-                        <div v-if="expenseForm.currency !== 'EUR'">
-                            <label class="text-gray-300 text-sm">Tasa a EUR</label>
-                            <input v-model="expenseForm.exchange_rate_to_base" type="number" step="0.000001" class="input" />
-                            <p class="text-gray-500 text-xs mt-1">Ej: si 1 USD = 0.92 EUR, pon 0.92</p>
-                        </div>
-
-                        <div v-else>
-                            <label class="text-gray-300 text-sm">Tasa a EUR</label>
-                            <input :value="1" disabled class="input opacity-60" />
-                            <p class="text-gray-500 text-xs mt-1">EUR no requiere tasa.</p>
-                        </div>
-
-                        <div class="sm:col-span-2">
-                            <label class="text-gray-300 text-sm">Descripción</label>
-                            <textarea
-                                v-model="expenseForm.description"
-                                rows="3"
-                                class="input"
-                                placeholder="Detalles adicionales del gasto..."
-                            />
-                            <p v-if="expenseForm.errors.description" class="text-red-500 text-sm mt-1">
-                                {{ expenseForm.errors.description }}
-                            </p>
-                        </div>
-
-                        <div class="sm:col-span-2 flex justify-end gap-2 mt-2">
-                            <button type="button" class="btn-ghost" @click="showExpenseModal = false">
-                                Cancelar
-                            </button>
-                            <button class="btn-secondary" type="submit" :disabled="expenseForm.processing">
-                                Guardar gasto
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </Modal>
+            <PaymentModal :show="showPaymentModal" :form="paymentForm" :payment-method-options="paymentMethodOptions"
+                :normalize-currency="normalizePaymentCurrencyAndRate" @close="showPaymentModal = false"
+                @submit="submitPayment" />
+            <ExpenseModal :show="showExpenseModal" :form="expenseForm"
+                :normalize-currency="normalizeExpenseCurrencyAndRate" @close="showExpenseModal = false"
+                @submit="submitExpense" />
         </div>
     </AdminLayout>
 </template>
 
 <style scoped>
-/* Inputs / Buttons (manteniendo tu estilo) */
 .input {
     @apply w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white focus:border-[#ffa236] focus:ring-[#ffa236];
 }
@@ -880,7 +688,6 @@ const openExpenseModal = () => {
     @apply w-4 h-4 rounded bg-[#0f0f0f] border border-[#2a2a2a] text-[#ffa236] focus:ring-[#ffa236];
 }
 
-/* Cards */
 .card {
     @apply bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5;
 }
@@ -889,7 +696,6 @@ const openExpenseModal = () => {
     @apply bg-[#111111] border border-[#2a2a2a] rounded-md p-3;
 }
 
-/* Tabs */
 .tab-btn {
     @apply px-3 py-2 rounded-md text-sm transition-colors border;
 }

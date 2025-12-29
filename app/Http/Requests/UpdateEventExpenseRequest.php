@@ -23,6 +23,7 @@ class UpdateEventExpenseRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:500'],
             'category' => ['nullable', 'string', 'max:100'],
+            'receipt_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'amount_original' => ['required', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'size:3'],
             'exchange_rate_to_base' => ['nullable', 'numeric', 'gt:0'],
@@ -43,7 +44,7 @@ class UpdateEventExpenseRequest extends FormRequest
         $currency = strtoupper(trim((string) $this->input('currency', '')));
 
         $this->merge([
-            'currency' => $currency ?: 'EUR',
+            'currency' => $currency ?: 'USD',
         ]);
     }
 }

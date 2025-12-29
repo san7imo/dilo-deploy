@@ -73,7 +73,7 @@ class ArtistController extends Controller
         $genres = Genre::select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('Admin/Artists/Edit', [
-            'artist' => $artist->load('genre', 'releases'),
+            'artist' => $artist->load('genre', 'releases', 'user'),
             'genres' => $genres,
         ]);
     }

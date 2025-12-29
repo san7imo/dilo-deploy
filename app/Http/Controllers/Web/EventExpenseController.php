@@ -21,7 +21,11 @@ class EventExpenseController extends Controller
     ) {
         $data = $request->validated();
 
-        if ($data['currency'] === 'EUR') {
+        if ($request->hasFile('receipt_file')) {
+            $data['receipt_file'] = $request->file('receipt_file');
+        }
+
+        if ($data['currency'] === 'USD') {
             $data['exchange_rate_to_base'] = 1;
         }
 
@@ -40,7 +44,11 @@ class EventExpenseController extends Controller
     ) {
         $data = $request->validated();
 
-        if ($data['currency'] === 'EUR') {
+        if ($request->hasFile('receipt_file')) {
+            $data['receipt_file'] = $request->file('receipt_file');
+        }
+
+        if ($data['currency'] === 'USD') {
             $data['exchange_rate_to_base'] = 1;
         }
 
@@ -52,11 +60,11 @@ class EventExpenseController extends Controller
     /**
      * Eliminar un gasto
      */
-    public function destroy(EventExpense $expense)
+    public function destroy(EventExpense $expense, EventExpenseService $service)
     {
         $this->authorize('viewFinancial', $expense->event);
 
-        $expense->delete();
+        $service->delete($expense);
 
         return back()->with('success', 'Gasto eliminado correctamente');
     }

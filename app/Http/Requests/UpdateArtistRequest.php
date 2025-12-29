@@ -14,6 +14,9 @@ class UpdateArtistRequest extends FormRequest
 
     public function rules(): array
     {
+        $artist = $this->route('artist');
+        $userId = $artist?->user_id;
+
         return [
             'name'    => [
                 'sometimes',
@@ -22,6 +25,14 @@ class UpdateArtistRequest extends FormRequest
                 'max:255',
                 Rule::unique('artists', 'name')->ignore($this->route('artist')->id),
             ],
+            'email' => [
+                'sometimes',
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($userId),
+            ],
+            'password' => ['nullable', 'string', 'min:8'],
             'bio'     => ['sometimes', 'nullable', 'string'],
             'country' => ['sometimes', 'nullable', 'string', 'max:120'],
             'genre_id' => ['sometimes', 'nullable', 'exists:genres,id'],
@@ -52,6 +63,9 @@ class UpdateArtistRequest extends FormRequest
         return [
             'name.required' => 'El nombre del artista es obligatorio.',
             'name.unique'   => 'Ya existe un artista con este nombre.',
+            'email.required' => 'El correo es obligatorio.',
+            'email.unique' => 'El correo ya esta en uso.',
+            'password.min' => 'La contrasena debe tener al menos 8 caracteres.',
             'social_links.*.url.url' => 'Cada enlace social debe tener una URL válida.',
         ];
     }

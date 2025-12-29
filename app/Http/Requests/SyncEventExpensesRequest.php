@@ -50,7 +50,7 @@ class SyncEventExpensesRequest extends FormRequest
                 if (isset($expense['currency'])) {
                     $expense['currency'] = strtoupper(trim((string) $expense['currency']));
                     if (empty($expense['currency'])) {
-                        $expense['currency'] = 'EUR';
+                        $expense['currency'] = 'USD';
                     }
                 }
             }

@@ -36,7 +36,7 @@ const formatTime = (date) => {
     });
 };
 
-const formatCurrency = (value, currency = 'EUR') => {
+const formatCurrency = (value, currency = 'USD') => {
     const number = Number(value ?? 0);
     if (Number.isNaN(number)) return `${currency} 0.00`;
     // Use Intl.NumberFormat for locale-aware formatting. This will show currency symbol for common codes.
@@ -153,7 +153,7 @@ const isPaid = () => {
                             </div>
 
                             <div v-if="event.venue_address" class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4">
-                                <p class="text-xs text-gray-500">Venue</p>
+                                <p class="text-xs text-gray-500">Direccion</p>
                                 <p class="text-white font-medium">{{ event.venue_address }}</p>
                             </div>
 
@@ -165,7 +165,7 @@ const isPaid = () => {
                             <div v-if="event.show_fee_total"
                                 class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4 space-y-1">
                                 <p class="text-xs text-gray-500">Fee del show</p>
-                                <p class="text-white font-medium">{{ formatCurrency(event.show_fee_total, event.currency || 'EUR') }}</p>
+                                <p class="text-white font-medium">{{ formatCurrency(event.show_fee_total, event.currency || 'USD') }}</p>
                                 <p v-if="event.advance_percentage" class="text-xs text-gray-500">Anticipo: {{
                                     event.advance_percentage }}%</p>
                             </div>
@@ -198,7 +198,7 @@ const isPaid = () => {
                                     <tr v-for="payment in event.payments" :key="payment.id"
                                         class="border-t border-[#1f1f1f]">
                                         <td class="px-4 py-3">{{ formatShortDate(payment.payment_date) }}</td>
-                                        <td class="px-4 py-3">{{ formatCurrency(payment.amount_original, payment.currency || 'EUR') }}</td>
+                                        <td class="px-4 py-3">{{ formatCurrency(payment.amount_original, payment.currency || 'USD') }}</td>
                                         <td class="px-4 py-3">
                                             <span v-if="payment.is_advance" class="text-green-400">Sí</span>
                                             <span v-else class="text-gray-500">—</span>
@@ -232,7 +232,7 @@ const isPaid = () => {
                                             </span>
                                             <span v-else class="text-gray-500">—</span>
                                         </td>
-                                        <td class="px-4 py-3 text-red-400">{{ formatCurrency(expense.amount_original, expense.currency || 'EUR') }}</td>
+                                        <td class="px-4 py-3 text-red-400">{{ formatCurrency(expense.amount_original, expense.currency || 'USD') }}</td>
                                     </tr>
                                 </tbody>
                             </table>

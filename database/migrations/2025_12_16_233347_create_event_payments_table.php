@@ -22,11 +22,11 @@ return new class extends Migration
 
             // Monto original
             $table->decimal('amount_original', 14, 2);
-            $table->string('currency', 3); // EUR, USD, COP, MXN, etc
+            $table->string('currency', 3); // USD, COP, MXN, etc
 
-            // Normalización a moneda base (EUR)
+            // Normalización a moneda base (USD)
             $table->decimal('exchange_rate_to_base', 12, 6);
-            $table->decimal('amount_base', 14, 2); // EUR
+            $table->decimal('amount_base', 14, 2); // USD
 
             $table->string('payment_method')->nullable(); // transfer, cash, paypal, etc
             $table->boolean('is_advance')->default(false);

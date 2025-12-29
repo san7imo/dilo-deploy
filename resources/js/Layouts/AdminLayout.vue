@@ -1,12 +1,29 @@
 <script setup>
 import logoBlanco from '@/Assets/Images/Logos/responsive-blanco.webp';
 import { Link, usePage } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 const { props } = usePage();
 const user = props.auth?.user;
 
 const isSidebarOpen = ref(true);
+
+const roleNames = computed(() => {
+  const names = user?.role_names;
+  return Array.isArray(names) ? names : [];
+});
+
+const isAdmin = computed(() => roleNames.value.includes("admin"));
+const isRoadManager = computed(() => roleNames.value.includes("roadmanager"));
+const dashboardRoute = computed(() =>
+  isRoadManager.value ? "admin.events.index" : "admin.dashboard"
+);
+const dashboardLabel = computed(() =>
+  isRoadManager.value ? "Finanzas" : "Dashboard"
+);
+const panelTitle = computed(() =>
+  isRoadManager.value ? "Panel Road Manager" : "Panel de Administración"
+);
 </script>
 
 <template>
@@ -20,7 +37,7 @@ const isSidebarOpen = ref(true);
     >
       <!-- Logo -->
       <div class="flex items-center justify-between p-4 border-b border-[#2a2a2a]">
-        <Link :href="route('admin.dashboard')" class="flex items-center gap-2">
+        <Link :href="route(dashboardRoute)" class="flex items-center gap-2">
             <img
             :src="logoBlanco"
               alt="Dilo Records"
@@ -59,15 +76,20 @@ const isSidebarOpen = ref(true);
       <!-- Navegación -->
       <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
         <Link
-          :href="route('admin.dashboard')"
+          :href="route(dashboardRoute)"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
-          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.dashboard') }"
+          :class="{
+            'bg-[#ffa236]/20 text-[#ffa236]': isRoadManager
+              ? route().current('admin.events.*')
+              : route().current('admin.dashboard')
+          }"
         >
           <i class="fa-solid fa-house"></i>
-          <span v-if="isSidebarOpen">Dashboard</span>
+          <span v-if="isSidebarOpen">{{ dashboardLabel }}</span>
         </Link>
 
         <Link
+          v-if="isAdmin"
           :href="route('admin.artists.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.artists.*') }"
@@ -77,6 +99,17 @@ const isSidebarOpen = ref(true);
         </Link>
 
         <Link
+          v-if="isAdmin"
+          :href="route('admin.roadmanagers.index')"
+          class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
+          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.roadmanagers.*') }"
+        >
+          <i class="fa-solid fa-clipboard-user"></i>
+          <span v-if="isSidebarOpen">Road managers</span>
+        </Link>
+
+        <Link
+          v-if="isAdmin"
           :href="route('admin.releases.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.releases.*') }"
@@ -86,6 +119,7 @@ const isSidebarOpen = ref(true);
         </Link>
 
         <Link
+          v-if="isAdmin"
           :href="route('admin.tracks.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.tracks.*') }"
@@ -95,6 +129,7 @@ const isSidebarOpen = ref(true);
         </Link>
 
         <Link
+          v-if="isAdmin"
           :href="route('admin.events.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.events.*') }"
@@ -104,6 +139,7 @@ const isSidebarOpen = ref(true);
         </Link>
 
         <Link
+          v-if="isAdmin"
           :href="route('admin.genres.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.genres.*') }"
@@ -134,8 +170,10 @@ const isSidebarOpen = ref(true);
       <header
         class="h-14 bg-[#1d1d1b] border-b border-[#2a2a2a] flex items-center justify-between px-6"
       >
-        <h1 class="text-lg font-semibold text-[#ffa236]">Panel de Administración</h1>
-        <div class="text-sm text-gray-400">Dilo Records</div>
+        <h1 class="text-lg font-semibold text-[#ffa236]">{{ panelTitle }}</h1>
+        <Link :href="route('public.home')" class="text-gray-400 hover:text-white" aria-label="Inicio">
+          <i class="fa-solid fa-house"></i>
+        </Link>
       </header>
 
       <!-- Contenido dinámico -->

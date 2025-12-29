@@ -20,7 +20,7 @@ const props = defineProps({
     },
     currency: {
         type: String,
-        default: "€",
+        default: "$",
     },
     heightClass: {
         type: String,

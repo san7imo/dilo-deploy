@@ -65,7 +65,7 @@ const form = useForm({
   presentation_video_url: props.artist.presentation_video_url || "",
 
   // credenciales del artista
-  email: "",
+  email: props.artist.user?.email || "",
   password: "",
 
   // 🔹 Estos son los campos reales que se envían como archivos
@@ -193,6 +193,7 @@ const handleSubmit = () => {
     .transform((data) => ({
       ...data,
       _method: props.mode === "edit" ? "put" : "post",
+      _token: document.querySelector('meta[name="csrf-token"]')?.content,
       social_links: data.social_links,
     }))
     .submit(method, url, {
@@ -225,7 +226,7 @@ const handleSubmit = () => {
         </p>
       </div>
 
-      <div v-if="props.mode === 'create'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="text-gray-300 text-sm">Correo del artista</label>
           <input v-model="form.email" type="email" class="input" placeholder="artista@email.com" />
@@ -236,9 +237,12 @@ const handleSubmit = () => {
 
         <div>
           <label class="text-gray-300 text-sm">Contraseña</label>
-          <input v-model="form.password" type="password" class="input" placeholder="Mínimo 8 caracteres" />
+          <input v-model="form.password" type="password" class="input" placeholder="Minimo 8 caracteres" />
           <p v-if="form.errors.password" class="text-red-500 text-sm mt-1">
             {{ form.errors.password }}
+          </p>
+          <p v-if="props.mode === 'edit'" class="text-xs text-gray-500 mt-1">
+            Deja en blanco para no cambiarla.
           </p>
         </div>
       </div>

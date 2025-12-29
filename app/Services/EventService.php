@@ -14,15 +14,37 @@ class EventService
      */
     public function getAll(int $perPage = 10): LengthAwarePaginator
     {
-        return Event::with('artists')->orderBy('event_date', 'desc')->paginate($perPage);
+        return Event::with(['artists', 'mainArtist'])
+            ->withSum('payments as total_paid_base', 'amount_base')
+            ->withSum(
+                ['payments as advance_paid_base' => function ($query) {
+                    $query->where('is_advance', true);
+                }],
+                'amount_base'
+            )
+            ->withSum('expenses as total_expenses_base', 'amount_base')
+            ->orderBy('event_date', 'desc')
+            ->paginate($perPage);
     }
 
     public function getVisibleForUser(User $user, int $perPage = 10)
     {
         $query = Event::with(['artists', 'mainArtist'])
+            ->withSum('payments as total_paid_base', 'amount_base')
+            ->withSum(
+                ['payments as advance_paid_base' => function ($query) {
+                    $query->where('is_advance', true);
+                }],
+                'amount_base'
+            )
+            ->withSum('expenses as total_expenses_base', 'amount_base')
             ->orderBy('event_date', 'desc');
 
-        if ($user->hasRole('artist') && $user->artist) {
+        if ($user->hasRole('roadmanager')) {
+            $query->whereHas('roadManagers', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            });
+        } elseif ($user->hasRole('artist') && $user->artist) {
             $query->where('main_artist_id', $user->artist->id);
         }
 
@@ -72,6 +94,8 @@ class EventService
         // Se separan artist_ids si vienen
         $artistIds = Arr::get($data, 'artist_ids', []);
         unset($data['artist_ids']);
+        $roadManagerIds = Arr::get($data, 'road_manager_ids', []);
+        unset($data['road_manager_ids']);
 
         if (!array_key_exists('is_paid', $data)) {
             $data['is_paid'] = false;
@@ -81,6 +105,10 @@ class EventService
 
         if (!empty($artistIds)) {
             $event->artists()->sync($artistIds);
+        }
+
+        if (is_array($roadManagerIds)) {
+            $event->roadManagers()->sync($roadManagerIds);
         }
 
         return $event->load('artists');
@@ -125,11 +153,17 @@ class EventService
 
         $artistIds = Arr::get($data, 'artist_ids', null);
         unset($data['artist_ids']);
+        $roadManagerIds = Arr::get($data, 'road_manager_ids', null);
+        unset($data['road_manager_ids']);
 
         $event->update($data);
 
         if (is_array($artistIds)) {
             $event->artists()->sync($artistIds);
+        }
+
+        if (is_array($roadManagerIds)) {
+            $event->roadManagers()->sync($roadManagerIds);
         }
 
         return $event->fresh('artists');
@@ -141,6 +175,7 @@ class EventService
     public function delete(Event $event): void
     {
         $event->artists()->detach();
+        $event->roadManagers()->detach();
         $event->delete();
     }
 }

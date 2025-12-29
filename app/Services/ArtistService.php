@@ -242,6 +242,20 @@ class ArtistService
         $artist = $artist instanceof Artist ? $artist : Artist::findOrFail($artist);
         Log::info('✏️ [ArtistService] Actualizando artista', ['id' => $artist->id]);
 
+        if (array_key_exists('email', $data) || array_key_exists('password', $data)) {
+            $user = $artist->user;
+            if ($user) {
+                if (!empty($data['email'])) {
+                    $user->email = $data['email'];
+                }
+                if (!empty($data['password'])) {
+                    $user->password = Hash::make($data['password']);
+                }
+                $user->save();
+            }
+            unset($data['email'], $data['password']);
+        }
+
         // Si cambió el nombre, re-slug opcional
         if (!empty($data['name']) && empty($data['slug'])) {
             $data['slug'] = Str::slug($data['name']);

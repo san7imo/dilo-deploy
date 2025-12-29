@@ -9,6 +9,7 @@ use App\Models\EventExpense;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Services\EventFinanceAggregator;
+use Illuminate\Validation\ValidationException;
 
 class EventFinanceController extends Controller
 {
@@ -32,9 +33,69 @@ class EventFinanceController extends Controller
             'is_paid' => ['required', 'boolean'],
         ]);
 
+        if ($data['is_paid']) {
+            $totalPaid = (float) $event->payments()->sum('amount_base');
+            $feeTotal = (float) ($event->show_fee_total ?? 0);
+
+            if ($feeTotal <= 0 || $totalPaid < $feeTotal) {
+                throw ValidationException::withMessages([
+                    'is_paid' => 'El total pagado debe ser igual o mayor al fee del show para marcarlo como pagado.',
+                ]);
+            }
+        }
+
         $event->update(['is_paid' => (bool) $data['is_paid']]);
 
         return back()->with('success', 'Estado de pago actualizado');
+    }
+
+    public function updateEventDetails(Request $request, Event $event)
+    {
+        $this->authorize('viewFinancial', $event);
+
+        $user = $request->user();
+        if (!$user || !$user->hasRole('admin')) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'event_date' => ['required', 'date'],
+            'full_payment_due_date' => ['nullable', 'date'],
+            'status' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        if (($data['status'] ?? null) === 'pagado' && $event->status !== 'pagado') {
+            $totalPaid = (float) $event->payments()->sum('amount_base');
+            $feeTotal = (float) ($event->show_fee_total ?? 0);
+
+            if ($feeTotal <= 0 || $totalPaid < $feeTotal) {
+                throw ValidationException::withMessages([
+                    'status' => 'El total pagado debe ser igual o mayor al fee del show para marcarlo como pagado.',
+                ]);
+            }
+        }
+
+        $event->update($data);
+
+        return back()->with('success', 'Datos del evento actualizados');
+    }
+
+    public function confirmRoadManagerPayment(Request $request, Event $event)
+    {
+        $this->authorize('viewFinancial', $event);
+
+        $user = $request->user();
+        if (!$user || !$user->hasRole('roadmanager')) {
+            abort(403);
+        }
+
+        $confirmed = (bool) $request->boolean('confirmed', true);
+
+        $event->roadManagers()->updateExistingPivot($user->id, [
+            'payment_confirmed_at' => $confirmed ? now() : null,
+        ]);
+
+        return back()->with('success', 'Confirmacion de pago registrada');
     }
 
     /**

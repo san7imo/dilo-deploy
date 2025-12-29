@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use App\Traits\HasImages;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\User;
 
 class Event extends Model
 {
@@ -57,7 +58,14 @@ class Event extends Model
     /**
      * Atributos que siempre se incluyen en la serialización.
      */
-    protected $appends = ['is_upcoming', 'is_past', 'poster_optimized_url'];
+    protected $appends = [
+        'is_upcoming',
+        'is_past',
+        'poster_optimized_url',
+        'net_base',
+        'artist_share_estimated_base',
+        'label_share_estimated_base'
+    ];
 
     /*
     |--------------------------------------------------------------------------
@@ -82,6 +90,13 @@ class Event extends Model
     public function payments()
     {
         return $this->hasMany(EventPayment::class);
+    }
+
+    public function roadManagers()
+    {
+        return $this->belongsToMany(User::class, 'event_road_manager')
+            ->withPivot('payment_confirmed_at')
+            ->withTimestamps();
     }
 
     public function expenses()
@@ -135,10 +150,42 @@ class Event extends Model
             : null;
     }
 
+    /**
+     * Resultado neto del evento (ingresos - gastos).
+     */
+    public function getNetBaseAttribute(): float
+    {
+        $totalPaid = $this->total_paid_base ?? 0;
+        $totalExpenses = $this->total_expenses_base ?? 0;
+        return round($totalPaid - $totalExpenses, 2);
+    }
+
+    /**
+     * 70% del resultado neto para el artista.
+     */
+    public function getArtistShareEstimatedBaseAttribute(): float
+    {
+        return round($this->net_base * 0.70, 2);
+    }
+
+    /**
+     * 30% del resultado neto para la compañía.
+     */
+    public function getLabelShareEstimatedBaseAttribute(): float
+    {
+        return round($this->net_base * 0.30, 2);
+    }
+
     public function scopeVisibleForUser(Builder $query, $user): Builder
     {
         if ($user->hasRole('admin')) {
             return $query;
+        }
+
+        if ($user->hasRole('roadmanager')) {
+            return $query->whereHas('roadManagers', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            });
         }
 
         if ($user->hasRole('artist') && $user->artist) {
