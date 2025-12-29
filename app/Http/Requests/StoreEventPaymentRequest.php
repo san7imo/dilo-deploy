@@ -43,7 +43,7 @@ class StoreEventPaymentRequest extends FormRequest
         $currency = strtoupper(trim((string) $this->input('currency', '')));
 
         $this->merge([
-            'currency' => $currency ?: 'EUR',
+            'currency' => $currency ?: 'USD',
         ]);
     }
 }

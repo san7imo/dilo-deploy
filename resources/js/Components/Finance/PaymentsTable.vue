@@ -3,6 +3,7 @@ import { formatDateES } from "@/utils/date";
 
 defineProps({
     payments: { type: Array, default: () => [] },
+    canDelete: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(["delete"]);
@@ -20,11 +21,11 @@ const emit = defineEmits(["delete"]);
                     <tr>
                         <th class="py-2 text-left">Fecha</th>
                         <th class="py-2 text-left">Original</th>
-                        <th class="py-2 text-left">EUR</th>
+                        <th class="py-2 text-left">USD</th>
                         <th class="py-2 text-left">Método</th>
                         <th class="py-2 text-left">Anticipo</th>
                         <th class="py-2 text-left">Notas</th>
-                        <th class="py-2 text-right">Acciones</th>
+                        <th v-if="canDelete" class="py-2 text-right">Acciones</th>
                     </tr>
                 </thead>
 
@@ -37,7 +38,7 @@ const emit = defineEmits(["delete"]);
                         </td>
 
                         <td class="py-2 whitespace-nowrap">
-                            € {{ Number(p.amount_base ?? 0).toFixed(2) }}
+                            $ {{ Number(p.amount_base ?? 0).toFixed(2) }}
                         </td>
 
                         <td class="py-2 whitespace-nowrap capitalize">
@@ -61,7 +62,7 @@ const emit = defineEmits(["delete"]);
                             </span>
                         </td>
 
-                        <td class="py-2 text-right whitespace-nowrap">
+                        <td v-if="canDelete" class="py-2 text-right whitespace-nowrap">
                             <button @click="emit('delete', p.id)" class="text-red-400 hover:underline">
                                 Eliminar
                             </button>

@@ -33,5 +33,21 @@ class AdminUserSeeder extends Seeder
         }
 
         $this->command->info('Usuario administrador creado: diana@dilorecords.com / AdminD1l0*');
+
+        // Crear el segundo usuario administrador
+        $santiago = User::updateOrCreate(
+            ['email' => 'san7imo@gmail.com'],
+            [
+                'name' => 'Santiago',
+                'password' => Hash::make('Oliver0227.'),
+                'email_verified_at' => now(),
+            ]
+        );
+
+        if (!$santiago->hasRole('admin')) {
+            $santiago->assignRole($adminRole);
+        }
+
+        $this->command->info('Usuario administrador creado: san7imo@gmail.com / Oliver0227.');
     }
 }

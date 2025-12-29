@@ -21,7 +21,7 @@ const formatDate = (date) => {
 };
 
 const formatCurrency = (value) => {
-    return `EUR ${Number(value ?? 0).toFixed(2)}`;
+    return `USD ${Number(value ?? 0).toFixed(2)}`;
 };
 
 const filteredEvents = computed(() => {

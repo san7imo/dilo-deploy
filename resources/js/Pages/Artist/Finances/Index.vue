@@ -65,7 +65,7 @@ const pendingEventsCount = computed(() => {
 
 const formatCurrency = (value) => {
     const amount = Number(value ?? 0);
-    const currency = props.summary.currency || "EUR";
+    const currency = props.summary.currency || "USD";
     return `${currency} ${amount.toFixed(2)}`;
 };
 
@@ -166,7 +166,7 @@ const handleYearChange = () => {
             <!-- Gráficas -->
             <FinanceCharts :totals="totals" :events="events" :filter-type="filterType" :filter-year="filterYear"
                 :filter-month="filterMonth" :filter-date-from="filterDateFrom" :filter-date-to="filterDateTo"
-                currency="€" />
+                currency="$" />
 
             <!-- Eventos -->
             <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-xl p-6">

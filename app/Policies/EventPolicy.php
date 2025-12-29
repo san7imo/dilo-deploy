@@ -18,6 +18,13 @@ class EventPolicy
             return true;
         }
 
+        // Road manager solo puede ver eventos asignados
+        if ($user->hasRole('roadmanager')) {
+            return $event->roadManagers()
+                ->where('users.id', $user->id)
+                ->exists();
+        }
+
         // Artista solo si es el artista principal
         if (
             $user->hasRole('artist') &&

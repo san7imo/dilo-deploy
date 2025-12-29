@@ -71,6 +71,10 @@ Route::middleware(['auth:sanctum', 'verified'])
             return inertia('Artist/Dashboard');
         }
 
+        if ($user->hasRole('roadmanager')) {
+            return redirect()->route('admin.events.index');
+        }
+
         abort(403);
     })
     ->name('admin.dashboard');
@@ -86,7 +90,8 @@ use App\Http\Controllers\Web\Admin\{
     GenreController as AdminGenreController,
     ReleaseController as AdminReleaseController,
     TrackController as AdminTrackController,
-    EventFinanceController
+    EventFinanceController,
+    RoadManagerController
 };
 
 use App\Http\Controllers\Web\EventPaymentController;
@@ -96,6 +101,29 @@ use App\Http\Controllers\Web\EventExpenseController;
 Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
     ->get('/admin/dashboard/data', [DashboardController::class, 'index'])
     ->name('admin.dashboard.data');
+
+Route::middleware(['auth:sanctum', 'verified', 'role:admin|roadmanager'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        // ✅ FINANZAS POR EVENTO (ADMIN)  -> admin.events.finance
+        Route::get('events', [AdminEventController::class, 'index'])
+            ->name('events.index');
+
+        Route::get('events/{event}/finance', [EventFinanceController::class, 'show'])
+            ->name('events.finance');
+
+        Route::patch('events/{event}/roadmanager-payment', [EventFinanceController::class, 'confirmRoadManagerPayment'])
+            ->name('events.roadmanager-payment.update');
+
+        // ✅ PAGOS (solo crear)
+        Route::post('events/{event}/payments', [EventPaymentController::class, 'store'])
+            ->name('events.payments.store');
+
+        // ✅ GASTOS (solo crear)
+        Route::post('events/{event}/expenses', [EventExpenseController::class, 'store'])
+            ->name('events.expenses.store');
+    });
 
 Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
     ->prefix('admin')
@@ -108,19 +136,17 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
         Route::delete('artists/{artist}/image', [AdminArtistController::class, 'deleteImage'])
             ->name('artists.deleteImage');
 
-        // --- Eventos ---
-        Route::resource('events', AdminEventController::class)->except(['show']);
+        // --- Road managers ---
+        Route::resource('roadmanagers', RoadManagerController::class)->except(['show']);
 
-        // ✅ FINANZAS POR EVENTO (ADMIN)  -> admin.events.finance
-        Route::get('events/{event}/finance', [EventFinanceController::class, 'show'])
-            ->name('events.finance');
+        // --- Eventos ---
+        Route::resource('events', AdminEventController::class)->except(['show', 'index']);
 
         Route::patch('events/{event}/payment-status', [EventFinanceController::class, 'updatePaymentStatus'])
             ->name('events.payment-status.update');
 
-        // ✅ PAGOS (ADMIN) -> admin.events.payments.store / admin.events.payments.destroy
-        Route::post('events/{event}/payments', [EventPaymentController::class, 'store'])
-            ->name('events.payments.store');
+        Route::patch('events/{event}/details', [EventFinanceController::class, 'updateEventDetails'])
+            ->name('events.details.update');
 
         Route::put('event-payments/{payment}', [EventPaymentController::class, 'update'])
             ->name('events.payments.update');
@@ -128,17 +154,12 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
         Route::delete('event-payments/{payment}', [EventPaymentController::class, 'destroy'])
             ->name('events.payments.destroy');
 
-        // ✅ GASTOS (ADMIN) -> admin.events.expenses.store / admin.events.expenses.destroy
-        Route::post('events/{event}/expenses', [EventExpenseController::class, 'store'])
-            ->name('events.expenses.store');
-
         Route::put('event-expenses/{expense}', [EventExpenseController::class, 'update'])
             ->name('events.expenses.update');
 
         Route::delete('event-expenses/{expense}', [EventExpenseController::class, 'destroy'])
             ->name('events.expenses.destroy');
 
-        // ✅ SINCRONIZACIÓN DE GASTOS (ADMIN)
         Route::put('events/{event}/expenses-sync', [EventFinanceController::class, 'syncExpenses'])
             ->name('events.expenses.sync');
 

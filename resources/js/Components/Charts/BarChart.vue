@@ -79,7 +79,7 @@ const options = computed(() => ({
                 color: "#9ca3af",
                 font: { size: 11 },
                 callback: function (value) {
-                    return "€ " + value.toLocaleString();
+                    return "$ " + value.toLocaleString();
                 },
             },
             grid: {

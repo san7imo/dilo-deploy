@@ -23,7 +23,7 @@ const onBlurCurrency = () => {
             <div class="flex items-center justify-between gap-4">
                 <div>
                     <h2 class="text-lg font-semibold">Registrar pago</h2>
-                    <p class="text-sm text-gray-400">Registra un pago y se convertirá a EUR según la tasa.</p>
+                    <p class="text-sm text-gray-400">Registra un pago y se convertirá a USD según la tasa.</p>
                 </div>
                 <button type="button" class="text-gray-300 hover:text-white" @click="emit('close')">
                     Cerrar
@@ -49,21 +49,21 @@ const onBlurCurrency = () => {
 
                 <div>
                     <label class="text-gray-300 text-sm">Moneda (ISO)</label>
-                    <input v-model="form.currency" @blur="onBlurCurrency" type="text" class="fin-input"
-                        placeholder="EUR / USD / COP..." />
-                    <p class="text-gray-500 text-xs mt-1">Ej: EUR, USD, COP (3 letras).</p>
+                        <input v-model="form.currency" @blur="onBlurCurrency" type="text" class="fin-input"
+                            placeholder="USD / COP / MXN..." />
+                    <p class="text-gray-500 text-xs mt-1">Ej: USD, COP, MXN (3 letras).</p>
                 </div>
 
-                <div v-if="form.currency !== 'EUR'">
-                    <label class="text-gray-300 text-sm">Tasa a EUR</label>
+                <div v-if="form.currency !== 'USD'">
+                    <label class="text-gray-300 text-sm">Tasa a USD</label>
                     <input v-model="form.exchange_rate_to_base" type="number" step="0.000001" class="fin-input" />
-                    <p class="text-gray-500 text-xs mt-1">Ej: si 1 USD = 0.92 EUR, pon 0.92</p>
+                    <p class="text-gray-500 text-xs mt-1">Ej: si 1 COP = 0.00025 USD, pon 0.00025</p>
                 </div>
 
                 <div v-else>
-                    <label class="text-gray-300 text-sm">Tasa a EUR</label>
+                    <label class="text-gray-300 text-sm">Tasa a USD</label>
                     <input :value="1" disabled class="fin-input opacity-60" />
-                    <p class="text-gray-500 text-xs mt-1">EUR no requiere tasa.</p>
+                    <p class="text-gray-500 text-xs mt-1">USD no requiere tasa.</p>
                 </div>
 
                 <div>

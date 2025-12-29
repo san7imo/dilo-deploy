@@ -22,7 +22,7 @@ const onBlurCurrency = () => {
             <div class="flex items-center justify-between gap-4">
                 <div>
                     <h2 class="text-lg font-semibold">Registrar gasto</h2>
-                    <p class="text-sm text-gray-400">Registra un gasto y se convertirá a EUR según la tasa.</p>
+                    <p class="text-sm text-gray-400">Registra un gasto y se convertirá a USD según la tasa.</p>
                 </div>
                 <button type="button" class="text-gray-300 hover:text-white" @click="emit('close')">
                     Cerrar
@@ -80,20 +80,20 @@ const onBlurCurrency = () => {
                 <div>
                     <label class="text-gray-300 text-sm">Moneda (ISO)</label>
                     <input v-model="form.currency" @blur="onBlurCurrency" type="text" class="fin-input"
-                        placeholder="EUR / USD / COP..." />
-                    <p class="text-gray-500 text-xs mt-1">Ej: EUR, USD, COP (3 letras).</p>
+                        placeholder="USD / COP / MXN..." />
+                    <p class="text-gray-500 text-xs mt-1">Ej: USD, COP, MXN (3 letras).</p>
                 </div>
 
-                <div v-if="form.currency !== 'EUR'">
-                    <label class="text-gray-300 text-sm">Tasa a EUR</label>
+                <div v-if="form.currency !== 'USD'">
+                    <label class="text-gray-300 text-sm">Tasa a USD</label>
                     <input v-model="form.exchange_rate_to_base" type="number" step="0.000001" class="fin-input" />
-                    <p class="text-gray-500 text-xs mt-1">Ej: si 1 USD = 0.92 EUR, pon 0.92</p>
+                    <p class="text-gray-500 text-xs mt-1">Ej: si 1 COP = 0.00025 USD, pon 0.00025</p>
                 </div>
 
                 <div v-else>
-                    <label class="text-gray-300 text-sm">Tasa a EUR</label>
+                    <label class="text-gray-300 text-sm">Tasa a USD</label>
                     <input :value="1" disabled class="fin-input opacity-60" />
-                    <p class="text-gray-500 text-xs mt-1">EUR no requiere tasa.</p>
+                    <p class="text-gray-500 text-xs mt-1">USD no requiere tasa.</p>
                 </div>
 
                 <div class="sm:col-span-2">
@@ -102,6 +102,19 @@ const onBlurCurrency = () => {
                         placeholder="Detalles adicionales del gasto..." />
                     <p v-if="form.errors.description" class="text-red-500 text-sm mt-1">
                         {{ form.errors.description }}
+                    </p>
+                </div>
+
+                <div class="sm:col-span-2">
+                    <label class="text-gray-300 text-sm">Comprobante (imagen)</label>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        class="fin-input"
+                        @change="(e) => { form.receipt_file = e.target.files[0]; }"
+                    />
+                    <p v-if="form.errors.receipt_file" class="text-red-500 text-sm mt-1">
+                        {{ form.errors.receipt_file }}
                     </p>
                 </div>
 

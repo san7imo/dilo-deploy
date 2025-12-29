@@ -62,11 +62,14 @@
         <!-- Security & Performance Headers (CSP) -->
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <?php if(app()->environment('local')): ?>
-            <!-- CSP permisivo en local para desarrollo con Vite -->
+            <!-- CSP permissive in local for Vite dev server (allow multiple common dev ports and HMR websockets) -->
             <meta http-equiv="Content-Security-Policy"
-                  content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: http://localhost:5173;
-                           script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: http://localhost:5173;
-                           style-src 'self' 'unsafe-inline' https: http://localhost:5173;">
+                  content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: http://localhost:5173 http://localhost:5174 ws://localhost:5173 ws://localhost:5174 wss://localhost:5173 wss://localhost:5174;
+                           connect-src 'self' ws://localhost:5173 ws://localhost:5174 wss://localhost:5173 wss://localhost:5174 http://localhost:5173 http://localhost:5174 https: data:;
+                           script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: http://localhost:5173 http://localhost:5174;
+                           style-src 'self' 'unsafe-inline' https: http://localhost:5173 http://localhost:5174;
+                           script-src-elem 'self' 'unsafe-inline' http://localhost:5173 http://localhost:5174;
+                           style-src-elem 'self' 'unsafe-inline' https: http://localhost:5173 http://localhost:5174;">
         <?php else: ?>
             <!-- CSP más restrictivo en producción (sin localhost ni Vite dev server) -->
             <meta http-equiv="Content-Security-Policy"
@@ -100,6 +103,7 @@
         <!-- Apple & Android Meta Tags -->
         <meta name="theme-color" content="#ffa236">
         <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
         <meta name="apple-mobile-web-app-title" content="<?php echo e(config('app.name', 'Dilo Records')); ?>">
         <meta name="msapplication-TileColor" content="#ffa236">

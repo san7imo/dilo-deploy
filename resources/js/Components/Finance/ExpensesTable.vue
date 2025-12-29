@@ -3,6 +3,7 @@ import { formatDateES } from "@/utils/date";
 
 defineProps({
     expenses: { type: Array, default: () => [] },
+    canDelete: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(["delete"]);
@@ -22,9 +23,10 @@ const emit = defineEmits(["delete"]);
                         <th class="py-2 text-left">Nombre</th>
                         <th class="py-2 text-left">Categoría</th>
                         <th class="py-2 text-left">Original</th>
-                        <th class="py-2 text-left">EUR</th>
+                        <th class="py-2 text-left">USD</th>
                         <th class="py-2 text-left">Descripción</th>
-                        <th class="py-2 text-right">Acciones</th>
+                        <th class="py-2 text-left">Comprobante</th>
+                        <th v-if="canDelete" class="py-2 text-right">Acciones</th>
                     </tr>
                 </thead>
 
@@ -49,7 +51,7 @@ const emit = defineEmits(["delete"]);
                         </td>
 
                         <td class="py-2 whitespace-nowrap">
-                            € {{ Number(g.amount_base ?? 0).toFixed(2) }}
+                            $ {{ Number(g.amount_base ?? 0).toFixed(2) }}
                         </td>
 
                         <td class="py-2 max-w-[280px]">
@@ -58,7 +60,20 @@ const emit = defineEmits(["delete"]);
                             </span>
                         </td>
 
-                        <td class="py-2 text-right whitespace-nowrap">
+                        <td class="py-2 whitespace-nowrap">
+                            <a
+                                v-if="g.receipt_url"
+                                :href="g.receipt_url"
+                                target="_blank"
+                                rel="noopener"
+                                class="text-[#ffa236] hover:underline"
+                            >
+                                Ver
+                            </a>
+                            <span v-else class="text-gray-500">—</span>
+                        </td>
+
+                        <td v-if="canDelete" class="py-2 text-right whitespace-nowrap">
                             <button @click="emit('delete', g.id)" class="text-red-400 hover:underline">
                                 Eliminar
                             </button>

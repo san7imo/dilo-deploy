@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use App\Traits\HasImages;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\User;
 
 class Event extends Model
 {
@@ -91,6 +92,13 @@ class Event extends Model
         return $this->hasMany(EventPayment::class);
     }
 
+    public function roadManagers()
+    {
+        return $this->belongsToMany(User::class, 'event_road_manager')
+            ->withPivot('payment_confirmed_at')
+            ->withTimestamps();
+    }
+
     public function expenses()
     {
         return $this->hasMany(EventExpense::class);
@@ -172,6 +180,12 @@ class Event extends Model
     {
         if ($user->hasRole('admin')) {
             return $query;
+        }
+
+        if ($user->hasRole('roadmanager')) {
+            return $query->whereHas('roadManagers', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            });
         }
 
         if ($user->hasRole('artist') && $user->artist) {

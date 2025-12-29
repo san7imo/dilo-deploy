@@ -12,6 +12,8 @@ class EventExpense extends Model
         'description',
         'name',
         'category',
+        'receipt_url',
+        'receipt_id',
         'amount_original',
         'currency',
         'exchange_rate_to_base',

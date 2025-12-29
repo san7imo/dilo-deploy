@@ -8,16 +8,16 @@ use App\Models\EventPayment;
 class EventPaymentService
 {
     /**
-     * Crear un pago normalizado a EUR (moneda base)
+     * Crear un pago normalizado a USD (moneda base)
      */
     public function create(Event $event, array $data): EventPayment
     {
-        // Si la moneda ya es EUR, el monto base es el mismo
-        if ($data['currency'] === 'EUR') {
+        // Si la moneda ya es USD, el monto base es el mismo
+        if ($data['currency'] === 'USD') {
             $data['exchange_rate_to_base'] = 1;
             $data['amount_base'] = $data['amount_original'];
         } else {
-            // amount_original / rate = EUR
+            // amount_original / rate = USD
             $data['amount_base'] = round(
                 $data['amount_original'] / $data['exchange_rate_to_base'],
                 2
@@ -38,12 +38,12 @@ class EventPaymentService
     {
         $event = $payment->event;
 
-        // Si la moneda es EUR, el monto base es el mismo
-        if ($data['currency'] === 'EUR') {
+        // Si la moneda es USD, el monto base es el mismo
+        if ($data['currency'] === 'USD') {
             $data['exchange_rate_to_base'] = 1;
             $data['amount_base'] = $data['amount_original'];
         } else {
-            // amount_original / rate = EUR
+            // amount_original / rate = USD
             $data['amount_base'] = round(
                 $data['amount_original'] / $data['exchange_rate_to_base'],
                 2
@@ -75,8 +75,10 @@ class EventPaymentService
      */
     protected function refreshPaidStatus(Event $event): void
     {
-        $total = $event->payments()->sum('amount_base');
-        $event->is_paid = $total > 0;
+        $total = (float) $event->payments()->sum('amount_base');
+        $feeTotal = (float) ($event->show_fee_total ?? 0);
+
+        $event->is_paid = $feeTotal > 0 && $total >= $feeTotal;
         $event->save();
     }
 }

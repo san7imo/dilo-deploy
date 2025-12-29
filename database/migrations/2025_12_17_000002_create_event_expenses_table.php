@@ -22,7 +22,7 @@ return new class extends Migration
             $table->decimal('amount_original', 14, 2);
             $table->string('currency', 3);
 
-            // Monto normalizado a EUR
+            // Monto normalizado a USD
             $table->decimal('exchange_rate_to_base', 12, 6)->default(1);
             $table->decimal('amount_base', 14, 2);
 

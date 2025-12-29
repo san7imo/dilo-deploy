@@ -42,6 +42,10 @@ class StoreEventRequest extends FormRequest
                 'exists:artists,id',
                 Rule::in($this->input('artist_ids', [])),
             ],
+
+            // Road managers asignados
+            'road_manager_ids' => 'nullable|array',
+            'road_manager_ids.*' => 'integer|exists:users,id',
         ];
     }
 

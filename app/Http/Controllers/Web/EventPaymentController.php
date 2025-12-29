@@ -21,8 +21,8 @@ class EventPaymentController extends Controller
     ) {
         $data = $request->validated();
 
-        // Si es EUR, la tasa siempre es 1 
-        if ($data['currency'] === 'EUR') {
+        // Si es USD, la tasa siempre es 1 
+        if ($data['currency'] === 'USD') {
             $data['exchange_rate_to_base'] = 1;
         }
 
@@ -41,8 +41,8 @@ class EventPaymentController extends Controller
     ) {
         $data = $request->validated();
 
-        // Si es EUR, la tasa siempre es 1 
-        if ($data['currency'] === 'EUR') {
+        // Si es USD, la tasa siempre es 1 
+        if ($data['currency'] === 'USD') {
             $data['exchange_rate_to_base'] = 1;
         }
 

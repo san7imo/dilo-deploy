@@ -20,7 +20,7 @@ return new class extends Migration
 
             // Fee del show
             $table->decimal('show_fee_total', 15, 2)->nullable()->after('status');
-            $table->string('currency', 3)->default('EUR')->after('show_fee_total');
+            $table->string('currency', 3)->default('USD')->after('show_fee_total');
             $table->decimal('advance_percentage', 5, 2)->default(50)->after('currency');
             $table->boolean('advance_expected')->default(true)->after('advance_percentage');
             $table->date('full_payment_due_date')->nullable()->after('advance_expected');

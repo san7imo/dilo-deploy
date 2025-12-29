@@ -14,6 +14,7 @@ class EventFinanceAggregator
     {
         $event->load([
             'mainArtist:id,name',
+            'roadManagers:id,name,email',
             'payments' => fn($q) => $q
                 ->orderBy('payment_date', 'desc')
                 ->orderBy('created_at', 'desc'),
@@ -204,7 +205,7 @@ class EventFinanceAggregator
         $net = $totalPaid - $totalExpenses;
 
         return [
-            'currency' => 'EUR',
+            'currency' => 'USD',
             'events_count' => $events->count(),
             'upcoming_events_count' => $events->filter(fn($event) => $event->event_date?->isFuture())->count(),
             'paid_events_count' => $events->filter(fn($event) => $event->is_paid)->count(),

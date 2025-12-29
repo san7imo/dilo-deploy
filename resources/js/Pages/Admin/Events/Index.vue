@@ -1,21 +1,18 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-<<<<<<< Updated upstream
 import { Link } from "@inertiajs/vue3";
-=======
-import { Link, useForm } from "@inertiajs/vue3";
 import axios from 'axios'
->>>>>>> Stashed changes
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   events: Object,
-  artists: Array
+  artists: Array,
+  canManageEvents: { type: Boolean, default: false },
 });
 
 const selectedArtist = ref('todos');
 
-const formatMoney = (value, currency = 'EUR') => {
+const formatMoney = (value, currency = 'USD') => {
   const n = Number(value ?? 0)
   if (Number.isNaN(n)) return `${currency} 0,00`
   try {
@@ -66,12 +63,13 @@ const totals = computed(() => {
   }
 })
 
+const canManageEvents = computed(() => !!props.canManageEvents);
+
 // Form helper to perform deletes (pattern used elsewhere in the app)
 // Local reactive copy of the events list so we can perform optimistic updates
 const localEvents = ref((props.events && props.events.data) ? [...props.events.data] : []);
 
 // Keep localEvents in sync if the props change (e.g., pagination or Inertia reload)
-import { watch } from 'vue'
 watch(() => props.events, (newVal) => {
   localEvents.value = (newVal && newVal.data) ? [...newVal.data] : (newVal || []);
 });
@@ -132,7 +130,7 @@ const deleteEvent = async (eventId) => {
           </select>
         </div>
       </div>
-      <Link :href="route('admin.events.create')"
+      <Link v-if="canManageEvents" :href="route('admin.events.create')"
         class="bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors">+ Nuevo
         evento</Link>
     </div>
@@ -141,24 +139,24 @@ const deleteEvent = async (eventId) => {
     <div class="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-6">
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">Ingresos totales</p>
-        <p class="text-xl font-semibold text-white">{{ formatMoney(totals.totalPaid, 'EUR') }}</p>
+        <p class="text-xl font-semibold text-white">{{ formatMoney(totals.totalPaid, 'USD') }}</p>
       </div>
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">Gastos totales</p>
-        <p class="text-xl font-semibold text-red-400">{{ formatMoney(totals.totalExpenses, 'EUR') }}</p>
+        <p class="text-xl font-semibold text-red-400">{{ formatMoney(totals.totalExpenses, 'USD') }}</p>
       </div>
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">Resultado neto</p>
-        <p class="text-xl font-semibold text-white">{{ formatMoney(totals.net, 'EUR') }}</p>
+        <p class="text-xl font-semibold text-white">{{ formatMoney(totals.net, 'USD') }}</p>
       </div>
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">70% Artista</p>
-        <p class="text-xl font-semibold text-[#ffa236]">{{ formatMoney(totals.artistShare, 'EUR') }}</p>
+        <p class="text-xl font-semibold text-[#ffa236]">{{ formatMoney(totals.artistShare, 'USD') }}</p>
         <p class="text-xs text-gray-400">{{ Math.round(totals.artistPct) }}%</p>
       </div>
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">30% Compañía</p>
-        <p class="text-xl font-semibold text-gray-100">{{ formatMoney(totals.labelShare, 'EUR') }}</p>
+        <p class="text-xl font-semibold text-gray-100">{{ formatMoney(totals.labelShare, 'USD') }}</p>
         <p class="text-xs text-gray-400">{{ Math.round(totals.labelPct) }}%</p>
       </div>
     </div>
@@ -172,11 +170,11 @@ const deleteEvent = async (eventId) => {
             <th class="px-4 py-2 text-left">Ubicación</th>
             <th class="px-4 py-2 text-left">Tipo</th>
             <th class="px-4 py-2 text-left">Estado</th>
-            <th class="px-4 py-2 text-left">Fee / Moneda</th>
-            <th class="px-4 py-2 text-left">% Anticipo</th>
+            <th v-if="canManageEvents" class="px-4 py-2 text-left">Fee / Moneda</th>
+            <th v-if="canManageEvents" class="px-4 py-2 text-left">% Anticipo</th>
             <th class="px-4 py-2 text-left">Pago final</th>
             <th class="px-4 py-2 text-left">Artista Principal</th>
-            <th class="px-4 py-2 text-right">Acciones</th>
+            <th class="px-4 py-2 text-right">{{ canManageEvents ? 'Acciones' : 'Finanzas' }}</th>
           </tr>
         </thead>
         <tbody>
@@ -208,6 +206,8 @@ const deleteEvent = async (eventId) => {
                   ? 'bg-green-500/20 text-green-300'
                   : event.status === 'confirmado'
                     ? 'bg-blue-500/20 text-blue-300'
+                    : event.status === 'pospuesto'
+                      ? 'bg-orange-500/20 text-orange-300'
                     : event.status === 'cancelado'
                       ? 'bg-red-500/20 text-red-300'
                       : 'bg-yellow-500/20 text-yellow-300'
@@ -215,15 +215,15 @@ const deleteEvent = async (eventId) => {
                 {{ event.status || 'Sin estado' }}
               </span>
             </td>
-            <td class="px-4 py-3">
+            <td v-if="canManageEvents" class="px-4 py-3">
               <div class="text-xs">
                 <p v-if="event.show_fee_total">
-                  {{ event.currency || 'EUR' }} {{ Number(event.show_fee_total).toFixed(2) }}
+                  {{ event.currency || 'USD' }} {{ Number(event.show_fee_total).toFixed(2) }}
                 </p>
                 <p v-else>—</p>
               </div>
             </td>
-            <td class="px-4 py-3">
+            <td v-if="canManageEvents" class="px-4 py-3">
               <span class="text-xs">{{ event.advance_percentage ?? 50 }}%</span>
             </td>
             <td class="px-4 py-3">
@@ -234,7 +234,7 @@ const deleteEvent = async (eventId) => {
               {{ event.main_artist?.name || event.mainArtist?.name || "-" }}
             </td>
             <td class="px-4 py-3 text-right space-x-2">
-              <Link :href="route('admin.events.edit', event.id)" class="text-[#ffa236] hover:underline text-sm">
+              <Link v-if="canManageEvents" :href="route('admin.events.edit', event.id)" class="text-[#ffa236] hover:underline text-sm">
                 Editar
               </Link>
 
@@ -243,6 +243,7 @@ const deleteEvent = async (eventId) => {
               </Link>
 
               <button
+                v-if="canManageEvents"
                 type="button"
                 class="text-red-400 hover:underline text-sm"
                 @click.prevent="deleteEvent(event.id)"
