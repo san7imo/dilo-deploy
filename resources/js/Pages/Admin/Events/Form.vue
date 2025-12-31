@@ -58,6 +58,7 @@ const handleSubmit = () => {
     .transform((data) => ({
       ...data,
       _method: props.mode === "edit" ? "put" : "post",
+      _token: document.querySelector('meta[name="csrf-token"]')?.content,
     }))
     .submit(method, url, {
       forceFormData: true,
