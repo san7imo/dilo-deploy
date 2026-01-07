@@ -104,6 +104,16 @@ class Event extends Model
         return $this->hasMany(EventExpense::class);
     }
 
+    public function artistExpenses()
+    {
+        return $this->hasMany(ArtistEventExpense::class);
+    }
+
+    public function artistExpensesByArtist($artistId)
+    {
+        return $this->artistExpenses()->where('artist_id', $artistId);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Mutadores
