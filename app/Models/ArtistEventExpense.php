@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -36,6 +37,15 @@ class ArtistEventExpense extends Model
         'amount_base' => 'decimal:2',
         'approved_at' => 'datetime',
     ];
+
+    // Atributos computados
+    #[Attribute]
+    public function isApproved(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => !is_null($this->approved_at),
+        );
+    }
 
     // relaciones
     public function event()
@@ -75,11 +85,6 @@ class ArtistEventExpense extends Model
     }
 
     // Metodos auxiliares
-    public function isApproved(): bool
-    {
-        return !is_null($this->approved_at);
-    }
-
     public function approve(): void
     {
         $this->approved_at = now();
