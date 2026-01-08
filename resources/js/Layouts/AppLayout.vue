@@ -22,8 +22,14 @@ const switchToTeam = (team) => {
     });
 };
 
+const getCsrfToken = () =>
+    document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+
 const logout = () => {
-    router.post(route('logout'));
+    const token = getCsrfToken();
+    router.post(route('logout'), { _token: token }, {
+        headers: token ? { 'X-CSRF-TOKEN': token } : {},
+    });
 };
 </script>
 

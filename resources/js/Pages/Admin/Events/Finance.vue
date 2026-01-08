@@ -9,7 +9,6 @@ import PersonalExpenseModal from "@/Components/Finance/PersonalExpenseModal.vue"
 import PaymentsTable from "@/Components/Finance/PaymentsTable.vue";
 import ExpensesTable from "@/Components/Finance/ExpensesTable.vue";
 import PersonalExpensesTable from "@/Components/Finance/PersonalExpensesTable.vue";
-import AnalysisFilters from "@/Components/Finance/AnalysisFilters.vue";
 import { formatDateES } from "@/utils/date";
 
 const props = defineProps({
@@ -28,13 +27,6 @@ const showPaymentModal = ref(false);
 const showExpenseModal = ref(false);
 const showPersonalExpenseModal = ref(false);
 
-// Filtros (análisis)
-const filterType = ref("all");
-const filterYear = ref(null);
-const filterMonth = ref(null);
-const filterDateFrom = ref(null);
-const filterDateTo = ref(null);
-
 // Opciones
 const paymentMethodOptions = [
     { value: "transferencia", label: "Transferencia bancaria" },
@@ -44,8 +36,9 @@ const paymentMethodOptions = [
     { value: "otro", label: "Otro" },
 ];
 
-const csrfToken =
+const getCsrfToken = () =>
     document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+const csrfToken = getCsrfToken();
 
 const personalExpenseMethodOptions = [
     { value: "transferencia", label: "Transferencia bancaria" },
@@ -55,6 +48,14 @@ const personalExpenseMethodOptions = [
 ];
 
 // Forms
+const toDateInputValue = (value) => {
+    if (!value) return "";
+    const raw = String(value);
+    if (raw.includes("T")) return raw.split("T")[0];
+    if (raw.includes(" ")) return raw.split(" ")[0];
+    return raw;
+};
+
 const paymentForm = useForm({
     payment_date: new Date().toISOString().slice(0, 10),
     amount_original: "",
@@ -89,17 +90,15 @@ const personalExpenseForm = useForm({
     exchange_rate_to_base: 1,
 });
 
-const statusForm = useForm({
-    is_paid: props.event.is_paid ?? false,
-});
-
 const eventMetaForm = useForm({
+    _token: csrfToken,
     status: props.event.status || "",
-    event_date: props.event.event_date || "",
-    full_payment_due_date: props.event.full_payment_due_date || "",
+    event_date: toDateInputValue(props.event.event_date),
+    full_payment_due_date: toDateInputValue(props.event.full_payment_due_date),
 });
 
 const confirmForm = useForm({
+    _token: csrfToken,
     confirmed: true,
 });
 
@@ -178,6 +177,11 @@ const personalRemainingForModal = computed(() => {
     return Math.max(personalRemaining.value + current, 0);
 });
 
+const roadManagerTotals = computed(() => ({
+    paid: Number(props.finance?.total_paid_base ?? 0),
+    expenses: Number(props.finance?.total_expenses_base ?? 0),
+}));
+
 const totalPaidBase = computed(() => Number(props.finance?.total_paid_base ?? 0));
 const showFeeTotal = computed(() => Number(props.event.show_fee_total ?? 0));
 const canMarkPaid = computed(() => showFeeTotal.value > 0 && totalPaidBase.value >= showFeeTotal.value);
@@ -185,14 +189,36 @@ const paidShortfall = computed(() => {
     if (showFeeTotal.value <= 0) return 0;
     return Math.max(showFeeTotal.value - totalPaidBase.value, 0);
 });
+const paidOverage = computed(() => {
+    if (showFeeTotal.value <= 0) return 0;
+    return Math.max(totalPaidBase.value - showFeeTotal.value, 0);
+});
+const autoPaidBadge = computed(() => {
+    if (showFeeTotal.value <= 0) {
+        return {
+            label: "Sin fee",
+            className: "bg-gray-500/20 text-gray-300 border border-gray-500/30",
+        };
+    }
+    const paid = canMarkPaid.value;
+    return {
+        label: paid ? "Pagado" : "Pendiente",
+        className: paid
+            ? "bg-green-500/20 text-green-300 border border-green-500/40"
+            : "bg-yellow-500/20 text-yellow-300 border border-yellow-500/40",
+    };
+});
 const paidStatusAlert = computed(() => {
     if (showFeeTotal.value <= 0) {
-        return "Define el fee del show para poder marcarlo como pagado.";
+        return "Define el fee del show para calcular el estado de pago.";
     }
     if (!canMarkPaid.value) {
-        return `Faltan $${paidShortfall.value.toFixed(2)} USD para marcarlo como pagado.`;
+        return `Faltan $${paidShortfall.value.toFixed(2)} USD para completar el pago.`;
     }
-    return "";
+    if (paidOverage.value > 0) {
+        return `Pago completo. Excedente: $${paidOverage.value.toFixed(2)} USD.`;
+    }
+    return "Pago completo.";
 });
 
 const eventStatusValue = computed(() => {
@@ -263,9 +289,16 @@ const eventArray = computed(() => {
             status: props.event.is_paid ? "pagado" : "pendiente",
             total_paid_base: props.finance?.total_paid_base ?? 0,
             total_expenses_base: props.finance?.total_expenses_base ?? 0,
+            total_personal_expenses_base: props.finance?.total_personal_expenses_base ?? 0,
             net_base:
                 (props.finance?.total_paid_base ?? 0) -
                 (props.finance?.total_expenses_base ?? 0),
+            label_share_estimated_base: props.finance?.share_label ?? 0,
+            artist_share_estimated_base: props.finance?.share_artist ?? 0,
+            artist_share_after_personal_base:
+                props.finance?.share_artist_after_personal ??
+                props.finance?.share_artist_after_personal_base ??
+                0,
         },
     ];
 });
@@ -360,9 +393,12 @@ const submitPersonalExpense = () => {
     const routeName = isEditing
         ? route("admin.events.personal-expenses.update", editingPersonalExpense.value.id)
         : route("admin.events.personal-expenses.store", props.event.id);
+    const token = getCsrfToken();
+    personalExpenseForm._token = token;
 
     personalExpenseForm[isEditing ? "put" : "post"](routeName, {
         preserveScroll: true,
+        headers: token ? { "X-CSRF-TOKEN": token } : {},
         onSuccess: () => {
             personalExpenseForm.reset(
                 "amount_original",
@@ -383,8 +419,11 @@ const deletePersonalExpense = (expenseId) => {
     if (!isAdmin.value) return;
     if (!confirm("¿Eliminar este gasto personal?")) return;
 
+    const token = getCsrfToken();
+    personalExpenseForm._token = token;
     personalExpenseForm.delete(route("admin.events.personal-expenses.destroy", expenseId), {
         preserveScroll: true,
+        headers: token ? { "X-CSRF-TOKEN": token } : {},
         onSuccess: () => {
             if (editingPersonalExpense.value?.id === expenseId) {
                 editingPersonalExpense.value = null;
@@ -394,15 +433,12 @@ const deletePersonalExpense = (expenseId) => {
     });
 };
 
-const updatePaymentStatus = () => {
-    statusForm.patch(route("admin.events.payment-status.update", props.event.id), {
-        preserveScroll: true,
-    });
-};
-
 const updateEventDetails = () => {
+    const token = getCsrfToken();
+    eventMetaForm._token = token;
     eventMetaForm.patch(route("admin.events.details.update", props.event.id), {
         preserveScroll: true,
+        headers: token ? { "X-CSRF-TOKEN": token } : {},
     });
 };
 
@@ -410,23 +446,14 @@ const confirmRoadManagerPayment = () => {
     if (confirmForm.processing) return;
     if (roadManagerConfirmedAt.value) return;
 
+    const token = getCsrfToken();
+    confirmForm._token = token;
     confirmForm.patch(route("admin.events.roadmanager-payment.update", props.event.id), {
         preserveScroll: true,
+        headers: token ? { "X-CSRF-TOKEN": token } : {},
     });
 };
 
-// Quick computed for UI
-const statusBadge = computed(() => {
-    const paid = !!statusForm.is_paid;
-    return {
-        label: paid ? "Pagado" : "Pendiente",
-        className: paid
-            ? "bg-green-500/20 text-green-300 border border-green-500/40"
-            : "bg-yellow-500/20 text-yellow-300 border border-yellow-500/40",
-    };
-});
-
-const canSubmitPaymentStatus = computed(() => !statusForm.is_paid || canMarkPaid.value);
 const canSubmitEventDetails = computed(() => eventStatusValue.value !== "pagado" || canMarkPaid.value);
 
 const openPaymentModal = () => {
@@ -494,7 +521,15 @@ const closePersonalExpenseModal = () => {
         <div class="space-y-6 text-white">
             <div class="flex items-center justify-between gap-4">
                 <div>
-                    <h1 class="text-2xl font-bold">Finanzas — {{ event.title }}</h1>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <h1 class="text-2xl font-bold">Finanzas — {{ event.title }}</h1>
+                        <span v-if="!isRoadManager" :class="[
+                            'px-3 py-1 text-xs font-semibold rounded-full capitalize border',
+                            autoPaidBadge.className
+                        ]">
+                            {{ autoPaidBadge.label }}
+                        </span>
+                    </div>
                     <div class="text-gray-400 text-sm mt-2 space-y-1">
                         <p>
                             Artista principal:
@@ -529,119 +564,199 @@ const closePersonalExpenseModal = () => {
                 </div>
             </div>
 
-            <div v-if="isRoadManager" class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h2 class="text-lg font-semibold">Pago pendiente al road manager</h2>
-                        <p class="text-sm text-gray-400">
-                            Corresponde al porcentaje restante despues del adelanto.
-                        </p>
-                        <p class="text-2xl font-semibold text-[#ffa236] mt-2">
-                            {{ event.currency || "USD" }} {{ roadManagerDue.toFixed(2) }}
-                        </p>
-                    </div>
-                    <div class="text-sm text-gray-300">
-                        <button
-                            v-if="!roadManagerConfirmedAt"
-                            type="button"
-                            class="btn-primary"
-                            :disabled="confirmForm.processing"
-                            @click="confirmRoadManagerPayment"
-                        >
-                            Confirmar pago recibido
-                        </button>
-                        <div v-else class="text-green-400 font-semibold">
-                            Pago confirmado
-                            <span v-if="roadManagerConfirmedAt" class="block text-xs text-gray-400 mt-1">
-                                {{ formatDateES(roadManagerConfirmedAt) }}
-                            </span>
+            <div v-if="!isRoadManager" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="card">
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">Fee negociado</p>
+                    <p class="text-white text-xl font-semibold">
+                        {{ event.currency || "USD" }} {{ showFeeTotal.toFixed(2) }}
+                    </p>
+                    <p class="text-gray-500 text-xs mt-1">Total acordado para el show.</p>
+                </div>
+                <div class="card">
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">Total pagado</p>
+                    <p class="text-white text-xl font-semibold">$ {{ totals.paid.toFixed(2) }}</p>
+                    <p class="text-gray-500 text-xs mt-1">Pagos registrados (USD).</p>
+                </div>
+                <div class="card">
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">Gastos del evento</p>
+                    <p class="text-red-400 text-xl font-semibold">$ {{ totals.expenses.toFixed(2) }}</p>
+                    <p class="text-gray-500 text-xs mt-1">Gastos generales (USD).</p>
+                </div>
+                <div class="card">
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">Neto del evento</p>
+                    <p class="text-white text-xl font-semibold">$ {{ totals.net.toFixed(2) }}</p>
+                    <p class="text-gray-500 text-xs mt-1">Pagos − gastos.</p>
+                </div>
+                <div class="card">
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">30% Dilo</p>
+                    <p class="text-white text-xl font-semibold">$ {{ totals.shareLabel.toFixed(2) }}</p>
+                    <p class="text-gray-500 text-xs mt-1">Sobre neto (USD).</p>
+                </div>
+                <div class="card">
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">70% Artista (antes)</p>
+                    <p class="text-[#ffa236] text-xl font-semibold">$ {{ totals.shareArtist.toFixed(2) }}</p>
+                    <p class="text-gray-500 text-xs mt-1">Sobre neto (USD).</p>
+                </div>
+                <div class="card">
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">Gastos personales</p>
+                    <p class="text-red-400 text-xl font-semibold">$ {{ totalPersonalExpenses.toFixed(2) }}</p>
+                    <p class="text-gray-500 text-xs mt-1">Descuento al 70%.</p>
+                </div>
+                <div class="card">
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">70% Artista (después)</p>
+                    <p class="text-[#ffa236] text-xl font-semibold">$ {{ shareArtistAfterPersonal.toFixed(2) }}</p>
+                    <p class="text-gray-500 text-xs mt-1">70% − gastos personales.</p>
+                </div>
+            </div>
+
+            <div v-if="isRoadManager" class="space-y-6">
+                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h2 class="text-lg font-semibold">Pago pendiente al road manager</h2>
+                            <p class="text-sm text-gray-400">
+                                Corresponde al porcentaje restante despues del adelanto.
+                            </p>
+                            <p class="text-2xl font-semibold text-[#ffa236] mt-2">
+                                {{ event.currency || "USD" }} {{ roadManagerDue.toFixed(2) }}
+                            </p>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <div v-if="statusAlert" :class="['rounded-lg p-4 text-sm', statusAlert.className]">
-                <p class="font-semibold">{{ statusAlert.title }}</p>
-                <p class="opacity-90 mt-1">{{ statusAlert.message }}</p>
-            </div>
-
-            <div class="flex flex-wrap gap-2 border-b border-[#2a2a2a] pb-3">
-                <button v-if="isAdmin" type="button" class="tab-btn"
-                    :class="activeTab === 'resumen' ? 'tab-btn--active' : 'tab-btn--idle'"
-                    @click="activeTab = 'resumen'">
-                    Resumen
-                </button>
-                <button type="button" class="tab-btn"
-                    :class="activeTab === 'pagos' ? 'tab-btn--active' : 'tab-btn--idle'" @click="activeTab = 'pagos'">
-                    Pagos
-                </button>
-                <button type="button" class="tab-btn"
-                    :class="activeTab === 'gastos' ? 'tab-btn--active' : 'tab-btn--idle'" @click="activeTab = 'gastos'">
-                    Gastos
-                </button>
-                <button v-if="isAdmin" type="button" class="tab-btn"
-                    :class="activeTab === 'gastos-personales' ? 'tab-btn--active' : 'tab-btn--idle'"
-                    @click="activeTab = 'gastos-personales'">
-                    Gastos personales
-                </button>
-                <button v-if="isAdmin" type="button" class="tab-btn"
-                    :class="activeTab === 'analisis' ? 'tab-btn--active' : 'tab-btn--idle'"
-                    @click="activeTab = 'analisis'">
-                    Análisis
-                </button>
-                <div class="flex-1"></div>
-                <div class="flex gap-2">
-                    <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
-                    <button type="button" class="btn-secondary" @click="openExpenseModal">+ Nuevo gasto</button>
-                </div>
-            </div>
-
-            <div v-if="isAdmin && activeTab === 'resumen'" class="space-y-6">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div class="card">
-                        <p class="text-gray-400 text-sm">Total pagado</p>
-                        <p class="text-white text-xl font-semibold">$ {{ totals.paid.toFixed(2) }}</p>
-                        <p class="text-gray-500 text-xs mt-1">Suma de pagos (convertidos a USD).</p>
-                    </div>
-                    <div class="card">
-                        <p class="text-gray-400 text-sm">Total gastos</p>
-                        <p class="text-white text-xl font-semibold">$ {{ totals.expenses.toFixed(2) }}</p>
-                        <p class="text-gray-500 text-xs mt-1">Suma de gastos (convertidos a USD).</p>
-                    </div>
-                    <div class="card">
-                        <p class="text-gray-400 text-sm">Neto</p>
-                        <p class="text-white text-xl font-semibold">$ {{ totals.net.toFixed(2) }}</p>
-                        <p class="text-gray-500 text-xs mt-1">Pagos − gastos.</p>
+                        <div class="text-sm text-gray-300">
+                            <button
+                                v-if="!roadManagerConfirmedAt"
+                                type="button"
+                                class="btn-primary"
+                                :disabled="confirmForm.processing"
+                                @click="confirmRoadManagerPayment"
+                            >
+                                Confirmar pago recibido
+                            </button>
+                            <div v-else class="text-green-400 font-semibold">
+                                Pago confirmado
+                                <span v-if="roadManagerConfirmedAt" class="block text-xs text-gray-400 mt-1">
+                                    {{ formatDateES(roadManagerConfirmedAt) }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
-                    <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center justify-between mb-4">
                         <div>
-                            <h2 class="text-lg font-semibold">Estado de pago</h2>
-                            <p class="text-sm text-gray-400">Marca si el evento se considera pagado o pendiente.</p>
+                            <h2 class="text-lg font-semibold">Información del evento</h2>
+                            <p class="text-sm text-gray-400">Detalles generales del show.</p>
                         </div>
-                        <span :class="['px-3 py-1 rounded-full text-xs font-semibold', statusBadge.className]">{{
-                            statusBadge.label }}</span>
                     </div>
-                    <form @submit.prevent="updatePaymentStatus" class="flex flex-col sm:flex-row sm:items-center gap-4">
-                        <label class="flex items-center gap-2 text-sm text-gray-300">
-                            <input v-model="statusForm.is_paid" type="checkbox" class="checkbox"
-                                :disabled="!canMarkPaid && !statusForm.is_paid" />
-                            Marcar como pagado
-                        </label>
-                        <div class="flex-1"></div>
-                        <button type="submit" class="btn-primary self-start sm:self-auto"
-                            :disabled="statusForm.processing || !canSubmitPaymentStatus">Guardar estado</button>
-                    </form>
-                    <p v-if="paidStatusAlert" class="text-amber-300 text-sm mt-3">
-                        {{ paidStatusAlert }}
-                    </p>
-                    <p v-if="statusForm.errors.is_paid" class="text-red-500 text-sm mt-2">
-                        {{ statusForm.errors.is_paid }}
-                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                        <div class="mini-card">
+                            <p class="text-gray-400">Ubicación</p>
+                            <p class="text-white font-semibold">
+                                <span v-if="event.city || event.country">
+                                    {{ event.city }}{{ event.city && event.country ? "," : "" }} {{ event.country }}
+                                </span>
+                                <span v-else>{{ event.location || "—" }}</span>
+                            </p>
+                            <p v-if="event.location" class="text-gray-400 text-xs mt-1">{{ event.location }}</p>
+                            <p v-if="event.venue_address" class="text-gray-500 text-xs mt-1">{{ event.venue_address }}</p>
+                        </div>
+                        <div class="mini-card">
+                            <p class="text-gray-400">Tipo de evento</p>
+                            <p class="text-white font-semibold capitalize">{{ event.event_type || "—" }}</p>
+                            <p class="text-gray-400 mt-2">Estado</p>
+                            <span :class="['inline-flex px-2 py-1 rounded-full text-xs font-semibold border mt-1', eventStatusBadge.className]">
+                                {{ eventStatusBadge.label }}
+                            </span>
+                        </div>
+                        <div class="mini-card">
+                            <p class="text-gray-400">Fecha del evento</p>
+                            <p class="text-white font-semibold">{{ event.event_date ? formatDateES(event.event_date) : "—" }}</p>
+                        </div>
+                    </div>
                 </div>
 
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="card">
+                        <p class="text-gray-400 text-xs uppercase tracking-wide">Total pagos registrados por ti</p>
+                        <p class="text-white text-xl font-semibold">$ {{ roadManagerTotals.paid.toFixed(2) }}</p>
+                    </div>
+                    <div class="card">
+                        <p class="text-gray-400 text-xs uppercase tracking-wide">Total gastos registrados por ti</p>
+                        <p class="text-red-400 text-xl font-semibold">$ {{ roadManagerTotals.expenses.toFixed(2) }}</p>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
+                        <div>
+                            <h2 class="text-lg font-semibold">Tus pagos</h2>
+                            <p class="text-sm text-gray-400">Total: $ {{ roadManagerTotals.paid.toFixed(2) }}</p>
+                        </div>
+                        <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
+                    </div>
+                    <PaymentsTable
+                        :payments="event.payments || []"
+                        :can-delete="false"
+                        @delete="deletePayment"
+                    />
+                </div>
+
+                <div class="space-y-4">
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
+                        <div>
+                            <h2 class="text-lg font-semibold">Tus gastos</h2>
+                            <p class="text-sm text-gray-400">Total: $ {{ roadManagerTotals.expenses.toFixed(2) }}</p>
+                        </div>
+                        <button type="button" class="btn-secondary" @click="openExpenseModal">+ Nuevo gasto</button>
+                    </div>
+                    <ExpensesTable
+                        :expenses="event.expenses || []"
+                        :can-delete="false"
+                        @delete="deleteExpense"
+                    />
+                </div>
+            </div>
+
+            <div v-else>
+                <div v-if="statusAlert" :class="['rounded-lg p-4 text-sm', statusAlert.className]">
+                    <p class="font-semibold">{{ statusAlert.title }}</p>
+                    <p class="opacity-90 mt-1">{{ statusAlert.message }}</p>
+                </div>
+
+                <div class="flex flex-wrap gap-2 border-b border-[#2a2a2a] pb-3">
+                    <button v-if="isAdmin" type="button" class="tab-btn"
+                        :class="activeTab === 'resumen' ? 'tab-btn--active' : 'tab-btn--idle'"
+                        @click="activeTab = 'resumen'">
+                        Resumen
+                    </button>
+                    <button type="button" class="tab-btn"
+                        :class="activeTab === 'pagos' ? 'tab-btn--active' : 'tab-btn--idle'" @click="activeTab = 'pagos'">
+                        Pagos
+                    </button>
+                    <button type="button" class="tab-btn"
+                        :class="activeTab === 'gastos' ? 'tab-btn--active' : 'tab-btn--idle'" @click="activeTab = 'gastos'">
+                        Gastos
+                    </button>
+                    <button v-if="isAdmin" type="button" class="tab-btn"
+                        :class="activeTab === 'gastos-personales' ? 'tab-btn--active' : 'tab-btn--idle'"
+                        @click="activeTab = 'gastos-personales'">
+                        Gastos personales
+                    </button>
+                    <button v-if="isAdmin" type="button" class="tab-btn"
+                        :class="activeTab === 'analisis' ? 'tab-btn--active' : 'tab-btn--idle'"
+                        @click="activeTab = 'analisis'">
+                        Análisis
+                    </button>
+                    <div class="flex-1"></div>
+                    <div class="flex gap-2">
+                        <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
+                        <button type="button" class="btn-secondary" @click="openExpenseModal">+ Nuevo gasto</button>
+                    </div>
+                </div>
+
+                <div v-if="isAdmin && activeTab === 'resumen'" class="space-y-6">
                 <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
                     <div class="flex items-center justify-between mb-4">
                         <div>
@@ -695,33 +810,50 @@ const closePersonalExpenseModal = () => {
                     </form>
                 </div>
 
-                <div v-if="roadManagers.length" class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
-                    <h2 class="text-lg font-semibold mb-4">Confirmacion road managers</h2>
-                    <div class="space-y-3 text-sm">
-                        <div
-                            v-for="rm in roadManagers"
-                            :key="rm.id"
-                            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#2a2a2a] pb-2"
-                        >
-                            <div>
-                                <p class="text-white font-semibold">{{ rm.name }}</p>
-                                <p class="text-gray-400 text-xs">{{ rm.email }}</p>
-                            </div>
-                            <div class="text-sm">
-                                <span v-if="rm.pivot?.payment_confirmed_at" class="text-green-400 font-semibold">
-                                    Confirmado
-                                    <span class="block text-xs text-gray-400">
-                                        {{ formatDateES(rm.pivot.payment_confirmed_at) }}
-                                    </span>
-                                </span>
-                                <span v-else class="text-yellow-400 font-semibold">Pendiente</span>
-                            </div>
+                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h2 class="text-lg font-semibold">Estado de pago</h2>
+                            <p class="text-sm text-gray-400">
+                                Automático según el total pagado vs el fee negociado.
+                            </p>
+                        </div>
+                        <span :class="[
+                            'px-3 py-1 rounded-full text-xs font-semibold border',
+                            autoPaidBadge.className
+                        ]">
+                            {{ autoPaidBadge.label }}
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div class="mini-card">
+                            <p class="text-gray-400">Diferencia vs fee</p>
+                            <p :class="[
+                                'text-lg font-semibold',
+                                canMarkPaid ? 'text-green-300' : 'text-yellow-300'
+                            ]">
+                                {{ canMarkPaid ? `+ $${paidOverage.toFixed(2)}` : `- $${paidShortfall.toFixed(2)}` }}
+                            </p>
+                            <p class="text-gray-500 text-xs mt-1">
+                                Se calcula con el fee negociado y el total pagado.
+                            </p>
+                        </div>
+                        <div class="mini-card">
+                            <p class="text-gray-400">Nota</p>
+                            <p class="text-gray-300 text-sm mt-1">
+                                {{ paidStatusAlert }}
+                            </p>
                         </div>
                     </div>
                 </div>
 
                 <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
-                    <h2 class="text-lg font-semibold mb-4">Datos del evento</h2>
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-lg font-semibold">Datos del evento</h2>
+                            <p class="text-sm text-gray-400">Información general y condiciones del show.</p>
+                        </div>
+                    </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                         <div class="mini-card">
                             <p class="text-gray-400">Ubicación</p>
@@ -736,12 +868,8 @@ const closePersonalExpenseModal = () => {
                             </p>
                         </div>
                         <div class="mini-card">
-                            <p class="text-gray-400">Tipo</p>
+                            <p class="text-gray-400">Tipo de evento</p>
                             <p class="text-white font-semibold capitalize">{{ event.event_type || "—" }}</p>
-                            <p class="text-gray-400 mt-2">Estado</p>
-                            <span :class="['inline-flex px-2 py-1 rounded-full text-xs font-semibold border mt-1', eventStatusBadge.className]">
-                                {{ eventStatusBadge.label }}
-                            </span>
                         </div>
                         <div class="mini-card">
                             <p class="text-gray-400">Fee del show</p>
@@ -764,10 +892,32 @@ const closePersonalExpenseModal = () => {
                                 formatDateES(event.full_payment_due_date) : "—" }}</p>
                         </div>
                         <div class="mini-card">
-                            <p class="text-gray-400">Reparto (neto)</p>
-                            <div class="mt-1 space-y-1">
-                                <p class="text-white font-semibold">Label: $ {{ totals.shareLabel.toFixed(2) }}</p>
-                                <p class="text-white font-semibold">Artista: $ {{ totals.shareArtist.toFixed(2) }}</p>
+                            <p class="text-gray-400">Fecha del evento</p>
+                            <p class="text-white font-semibold">{{ event.event_date ? formatDateES(event.event_date) : "—" }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="roadManagers.length" class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
+                    <h2 class="text-lg font-semibold mb-4">Confirmacion road managers</h2>
+                    <div class="space-y-3 text-sm">
+                        <div
+                            v-for="rm in roadManagers"
+                            :key="rm.id"
+                            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#2a2a2a] pb-2"
+                        >
+                            <div>
+                                <p class="text-white font-semibold">{{ rm.name }}</p>
+                                <p class="text-gray-400 text-xs">{{ rm.email }}</p>
+                            </div>
+                            <div class="text-sm">
+                                <span v-if="rm.pivot?.payment_confirmed_at" class="text-green-400 font-semibold">
+                                    Confirmado
+                                    <span class="block text-xs text-gray-400">
+                                        {{ formatDateES(rm.pivot.payment_confirmed_at) }}
+                                    </span>
+                                </span>
+                                <span v-else class="text-yellow-400 font-semibold">Pendiente</span>
                             </div>
                         </div>
                     </div>
@@ -845,12 +995,8 @@ const closePersonalExpenseModal = () => {
             </div>
 
             <div v-else-if="isAdmin" class="space-y-6">
-                <AnalysisFilters v-model:filter-type="filterType" v-model:filter-date-from="filterDateFrom"
-                    v-model:filter-date-to="filterDateTo" v-model:filter-year="filterYear"
-                    v-model:filter-month="filterMonth" />
-                <FinanceCharts :totals="totals" :events="eventArray" :filter-type="filterType" :filter-year="filterYear"
-                    :filter-month="filterMonth" :filter-date-from="filterDateFrom" :filter-date-to="filterDateTo"
-                    currency="$" />
+                <FinanceCharts :totals="totals" :events="eventArray" currency="$" />
+            </div>
             </div>
 
             <PaymentModal :show="showPaymentModal" :form="paymentForm" :payment-method-options="paymentMethodOptions"

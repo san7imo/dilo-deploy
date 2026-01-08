@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 
 class EventExpense extends Model
 {
     protected $fillable = [
         'event_id',
+        'created_by',
         'expense_date',
         'description',
         'name',
@@ -30,5 +32,10 @@ class EventExpense extends Model
     public function event()
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

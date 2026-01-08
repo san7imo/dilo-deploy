@@ -1,6 +1,6 @@
 <script setup>
 import ArtistLayout from "@/Layouts/ArtistLayout.vue";
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
 
 const props = defineProps({
@@ -14,48 +14,6 @@ const props = defineProps({
     },
 });
 
-// Filtros
-const filterType = ref("all"); // 'all', 'year', 'month', 'paid', 'pending'
-const filterYear = ref(null);
-const filterMonth = ref(null);
-const filterDateFrom = ref(null);
-const filterDateTo = ref(null);
-
-// Años disponibles
-const availableYears = computed(() => {
-    const years = new Set(
-        props.events
-            .map((e) => new Date(e.event_date).getFullYear())
-            .filter((y) => y > 0)
-    );
-    return Array.from(years).sort((a, b) => b - a);
-});
-
-// Meses disponibles para el año seleccionado
-const availableMonths = computed(() => {
-    if (!filterYear.value) return [];
-    const months = new Set(
-        props.events
-            .filter((e) => new Date(e.event_date).getFullYear() === filterYear.value)
-            .map((e) => new Date(e.event_date).getMonth() + 1)
-    );
-    return Array.from(months).sort((a, b) => a - b);
-});
-
-const monthNames = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
-];
 
 const pendingEventsCount = computed(() => {
     const total = props.summary.events_count || props.events.length || 0;
@@ -86,10 +44,6 @@ const totals = computed(() => ({
     shareArtist: Number(props.summary?.artist_share_estimated_base ?? 0),
 }));
 
-// Resetear mes cuando cambias año
-const handleYearChange = () => {
-    filterMonth.value = null;
-};
 </script>
 
 <template>
@@ -105,68 +59,8 @@ const handleYearChange = () => {
                 <span class="text-sm text-gray-400">Total eventos: {{ summary.events_count || events.length }}</span>
             </div>
 
-            <!-- Filtros -->
-            <div
-                class="bg-gradient-to-br from-[#1d1d1b] to-[#151512] border border-[#3a3a38] rounded-xl p-6 flex flex-wrap gap-4 shadow-lg">
-                <div class="flex-1 min-w-[200px]">
-                    <label class="text-[#ffa236] text-sm  mb-2 font-semibold flex items-center gap-2">
-                        Filtrar por estado
-                    </label>
-                    <select v-model="filterType"
-                        class="w-full bg-[#0f0f0d] border border-[#3a3a38] rounded-lg px-3 py-2 text-white text-sm hover:border-[#ffa236]/30 focus:border-[#ffa236] transition-colors">
-                        <option value="all">Todos los eventos</option>
-                        <option value="paid">Solo pagados</option>
-                        <option value="pending">Solo pendientes</option>
-                    </select>
-                </div>
-
-                <div class="flex-1 min-w-[200px]">
-                    <label class="text-[#ffa236] text-sm  mb-2 font-semibold flex items-center gap-2">
-                        Año
-                    </label>
-                    <select v-model.number="filterYear" @change="handleYearChange"
-                        class="w-full bg-[#0f0f0d] border border-[#3a3a38] rounded-lg px-3 py-2 text-white text-sm hover:border-[#ffa236]/30 focus:border-[#ffa236] transition-colors">
-                        <option :value="null">Todos los años</option>
-                        <option v-for="year in availableYears" :key="year" :value="year">
-                            {{ year }}
-                        </option>
-                    </select>
-                </div>
-
-                <div v-if="filterYear" class="flex-1 min-w-[200px]">
-                    <label class="text-[#ffa236] text-sm  mb-2 font-semibold flex items-center gap-2">
-                        Mes
-                    </label>
-                    <select v-model.number="filterMonth"
-                        class="w-full bg-[#0f0f0d] border border-[#3a3a38] rounded-lg px-3 py-2 text-white text-sm hover:border-[#ffa236]/30 focus:border-[#ffa236] transition-colors">
-                        <option :value="null">Todos los meses</option>
-                        <option v-for="month in availableMonths" :key="month" :value="month">
-                            {{ monthNames[month - 1] }}
-                        </option>
-                    </select>
-                </div>
-
-                <div class="flex-1 min-w-[200px]">
-                    <label class="text-[#ffa236] text-sm  mb-2 font-semibold flex items-center gap-2">
-                        Desde
-                    </label>
-                    <input v-model="filterDateFrom" type="date"
-                        class="w-full bg-[#0f0f0d] border border-[#3a3a38] rounded-lg px-3 py-2 text-white text-sm hover:border-[#ffa236]/30 focus:border-[#ffa236] transition-colors">
-                </div>
-
-                <div class="flex-1 min-w-[200px]">
-                    <label class="text-[#ffa236] text-sm  mb-2 font-semibold flex items-center gap-2">
-                        Hasta
-                    </label>
-                    <input v-model="filterDateTo" type="date"
-                        class="w-full bg-[#0f0f0d] border border-[#3a3a38] rounded-lg px-3 py-2 text-white text-sm hover:border-[#ffa236]/30 focus:border-[#ffa236] transition-colors">
-                </div>
-            </div>
-
             <!-- Gráficas -->
-            <FinanceCharts :totals="totals" :events="events" :filter-type="filterType" :filter-year="filterYear"
-                :filter-month="filterMonth" :filter-date-from="filterDateFrom" :filter-date-to="filterDateTo"
-                currency="$" />
+            <FinanceCharts :totals="totals" :events="events" currency="$" />
 
             <!-- Eventos -->
             <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-xl p-6">

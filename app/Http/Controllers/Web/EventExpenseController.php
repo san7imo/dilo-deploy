@@ -20,6 +20,7 @@ class EventExpenseController extends Controller
         EventExpenseService $service
     ) {
         $data = $request->validated();
+        $data['created_by'] = $request->user()?->id;
 
         if ($request->hasFile('receipt_file')) {
             $data['receipt_file'] = $request->file('receipt_file');

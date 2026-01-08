@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Artist;
 use App\Models\Event;
+use App\Models\User;
 
 class EventFinanceAggregator
 {
@@ -29,6 +30,30 @@ class EventFinanceAggregator
         return [
             'event' => $event,
             'finance' => $this->computeTotals($event),
+        ];
+    }
+
+    /**
+     * Datos financieros para road manager (solo registros propios).
+     */
+    public function roadManagerFinance(Event $event, User $user): array
+    {
+        $event->load([
+            'mainArtist:id,name',
+            'roadManagers:id,name,email',
+            'payments' => fn($q) => $q
+                ->where('created_by', $user->id)
+                ->orderBy('payment_date', 'desc')
+                ->orderBy('created_at', 'desc'),
+            'expenses' => fn($q) => $q
+                ->where('created_by', $user->id)
+                ->orderBy('expense_date', 'desc')
+                ->orderBy('created_at', 'desc'),
+        ]);
+
+        return [
+            'event' => $event,
+            'finance' => $this->computeRoadManagerTotals($event),
         ];
     }
 
@@ -275,6 +300,24 @@ class EventFinanceAggregator
             'share_artist' => $shareArtist,
             'share_artist_after_personal' => max(round($shareArtist - $totalPersonalExpenses, 2), 0),
             'share_label' => round($net * 0.30, 2),
+        ];
+    }
+
+    protected function computeRoadManagerTotals(Event $event): array
+    {
+        $totalPaid = $event->payments->sum('amount_base');
+        $totalExpenses = $event->expenses->sum('amount_base');
+        $net = $totalPaid - $totalExpenses;
+
+        return [
+            'total_paid_base' => round($totalPaid, 2),
+            'advance_paid_base' => 0,
+            'total_expenses_base' => round($totalExpenses, 2),
+            'total_personal_expenses_base' => 0,
+            'net_base' => round($net, 2),
+            'share_artist' => 0,
+            'share_artist_after_personal' => 0,
+            'share_label' => 0,
         ];
     }
 }
