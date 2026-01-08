@@ -5,8 +5,10 @@ import { computed, ref, watch } from "vue";
 import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
 import PaymentModal from "@/Components/Finance/PaymentModal.vue";
 import ExpenseModal from "@/Components/Finance/ExpenseModal.vue";
+import PersonalExpenseModal from "@/Components/Finance/PersonalExpenseModal.vue";
 import PaymentsTable from "@/Components/Finance/PaymentsTable.vue";
 import ExpensesTable from "@/Components/Finance/ExpensesTable.vue";
+import PersonalExpensesTable from "@/Components/Finance/PersonalExpensesTable.vue";
 import AnalysisFilters from "@/Components/Finance/AnalysisFilters.vue";
 import { formatDateES } from "@/utils/date";
 
@@ -21,9 +23,10 @@ const isAdmin = computed(() => roleNames.value.includes("admin"));
 const isRoadManager = computed(() => roleNames.value.includes("roadmanager"));
 
 // UI State
-const activeTab = ref("resumen"); // resumen | pagos | gastos | analisis
+const activeTab = ref("resumen"); // resumen | pagos | gastos | gastos-personales | analisis
 const showPaymentModal = ref(false);
 const showExpenseModal = ref(false);
+const showPersonalExpenseModal = ref(false);
 
 // Filtros (análisis)
 const filterType = ref("all");
@@ -38,6 +41,16 @@ const paymentMethodOptions = [
     { value: "efectivo", label: "Efectivo" },
     { value: "tarjeta", label: "Tarjeta" },
     { value: "paypal", label: "PayPal" },
+    { value: "otro", label: "Otro" },
+];
+
+const csrfToken =
+    document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+
+const personalExpenseMethodOptions = [
+    { value: "transferencia", label: "Transferencia bancaria" },
+    { value: "efectivo", label: "Efectivo" },
+    { value: "tercero", label: "Enviado a otra persona" },
     { value: "otro", label: "Otro" },
 ];
 
@@ -63,6 +76,19 @@ const expenseForm = useForm({
     exchange_rate_to_base: 1,
 });
 
+const personalExpenseForm = useForm({
+    _token: csrfToken,
+    expense_date: new Date().toISOString().slice(0, 10),
+    expense_type: "",
+    name: "",
+    description: "",
+    payment_method: "",
+    recipient: "",
+    amount_original: "",
+    currency: "USD",
+    exchange_rate_to_base: 1,
+});
+
 const statusForm = useForm({
     is_paid: props.event.is_paid ?? false,
 });
@@ -80,6 +106,12 @@ const confirmForm = useForm({
 const roadManagers = computed(() => {
     return props.event.road_managers || props.event.roadManagers || [];
 });
+
+const personalExpenses = computed(() => {
+    return props.event.personal_expenses || props.event.personalExpenses || [];
+});
+
+const editingPersonalExpense = ref(null);
 
 const currentRoadManager = computed(() => {
     if (!isRoadManager.value) return null;
@@ -123,6 +155,27 @@ const totals = computed(() => {
         shareLabel: Number(props.finance?.share_label ?? net * 0.3),
         shareArtist: Number(props.finance?.share_artist ?? net * 0.7),
     };
+});
+
+const totalPersonalExpenses = computed(() =>
+    Number(props.finance?.total_personal_expenses_base ?? 0)
+);
+
+const shareArtistAfterPersonal = computed(() => {
+    if (typeof props.finance?.share_artist_after_personal !== "undefined") {
+        return Number(props.finance?.share_artist_after_personal ?? 0);
+    }
+    return Math.max(totals.value.shareArtist - totalPersonalExpenses.value, 0);
+});
+
+const personalRemaining = computed(() =>
+    Math.max(totals.value.shareArtist - totalPersonalExpenses.value, 0)
+);
+
+const personalRemainingForModal = computed(() => {
+    if (!editingPersonalExpense.value) return personalRemaining.value;
+    const current = Number(editingPersonalExpense.value.amount_base ?? 0);
+    return Math.max(personalRemaining.value + current, 0);
 });
 
 const totalPaidBase = computed(() => Number(props.finance?.total_paid_base ?? 0));
@@ -240,6 +293,20 @@ const normalizeExpenseCurrencyAndRate = () => {
     }
 };
 
+const normalizePersonalExpenseCurrencyAndRate = () => {
+    const cur = (personalExpenseForm.currency || "").toUpperCase().trim();
+    personalExpenseForm.currency = cur || "USD";
+
+    if (personalExpenseForm.currency === "USD") {
+        personalExpenseForm.exchange_rate_to_base = 1;
+    } else if (
+        !personalExpenseForm.exchange_rate_to_base ||
+        Number(personalExpenseForm.exchange_rate_to_base) <= 0
+    ) {
+        personalExpenseForm.exchange_rate_to_base = 1;
+    }
+};
+
 // Actions
 const submitPayment = () => {
     normalizePaymentCurrencyAndRate();
@@ -283,6 +350,47 @@ const deleteExpense = (expenseId) => {
 
     expenseForm.delete(route("admin.events.expenses.destroy", expenseId), {
         preserveScroll: true,
+    });
+};
+
+const submitPersonalExpense = () => {
+    normalizePersonalExpenseCurrencyAndRate();
+
+    const isEditing = !!editingPersonalExpense.value;
+    const routeName = isEditing
+        ? route("admin.events.personal-expenses.update", editingPersonalExpense.value.id)
+        : route("admin.events.personal-expenses.store", props.event.id);
+
+    personalExpenseForm[isEditing ? "put" : "post"](routeName, {
+        preserveScroll: true,
+        onSuccess: () => {
+            personalExpenseForm.reset(
+                "amount_original",
+                "expense_type",
+                "name",
+                "description",
+                "payment_method",
+                "recipient"
+            );
+            editingPersonalExpense.value = null;
+            showPersonalExpenseModal.value = false;
+            activeTab.value = "gastos-personales";
+        },
+    });
+};
+
+const deletePersonalExpense = (expenseId) => {
+    if (!isAdmin.value) return;
+    if (!confirm("¿Eliminar este gasto personal?")) return;
+
+    personalExpenseForm.delete(route("admin.events.personal-expenses.destroy", expenseId), {
+        preserveScroll: true,
+        onSuccess: () => {
+            if (editingPersonalExpense.value?.id === expenseId) {
+                editingPersonalExpense.value = null;
+                showPersonalExpenseModal.value = false;
+            }
+        },
     });
 };
 
@@ -333,6 +441,51 @@ const openExpenseModal = () => {
     expenseForm.currency = (expenseForm.currency || "USD").toUpperCase().trim() || "USD";
     if (expenseForm.currency === "USD") expenseForm.exchange_rate_to_base = 1;
     showExpenseModal.value = true;
+};
+
+const openPersonalExpenseModal = () => {
+    if (personalRemaining.value <= 0) {
+        alert("No puedes agregar más gastos personales porque el 70% del artista ya está en 0.");
+        return;
+    }
+
+    editingPersonalExpense.value = null;
+    personalExpenseForm.clearErrors();
+    personalExpenseForm.expense_date = new Date().toISOString().slice(0, 10);
+    personalExpenseForm.expense_type = "";
+    personalExpenseForm.name = "";
+    personalExpenseForm.description = "";
+    personalExpenseForm.payment_method = "";
+    personalExpenseForm.recipient = "";
+    personalExpenseForm.amount_original = "";
+    personalExpenseForm.currency =
+        (personalExpenseForm.currency || "USD").toUpperCase().trim() || "USD";
+    personalExpenseForm.exchange_rate_to_base = 1;
+    if (personalExpenseForm.currency === "USD") personalExpenseForm.exchange_rate_to_base = 1;
+    showPersonalExpenseModal.value = true;
+};
+
+const editPersonalExpense = (expense) => {
+    if (!expense) return;
+
+    editingPersonalExpense.value = expense;
+    personalExpenseForm.clearErrors();
+    personalExpenseForm.expense_date = expense.expense_date || new Date().toISOString().slice(0, 10);
+    personalExpenseForm.expense_type = expense.expense_type || "";
+    personalExpenseForm.name = expense.name || "";
+    personalExpenseForm.description = expense.description || "";
+    personalExpenseForm.payment_method = expense.payment_method || "";
+    personalExpenseForm.recipient = expense.recipient || "";
+    personalExpenseForm.amount_original = expense.amount_original ?? "";
+    personalExpenseForm.currency = (expense.currency || "USD").toUpperCase().trim() || "USD";
+    personalExpenseForm.exchange_rate_to_base =
+        expense.exchange_rate_to_base ?? personalExpenseForm.exchange_rate_to_base ?? 1;
+    showPersonalExpenseModal.value = true;
+};
+
+const closePersonalExpenseModal = () => {
+    showPersonalExpenseModal.value = false;
+    editingPersonalExpense.value = null;
 };
 </script>
 
@@ -425,6 +578,11 @@ const openExpenseModal = () => {
                 <button type="button" class="tab-btn"
                     :class="activeTab === 'gastos' ? 'tab-btn--active' : 'tab-btn--idle'" @click="activeTab = 'gastos'">
                     Gastos
+                </button>
+                <button v-if="isAdmin" type="button" class="tab-btn"
+                    :class="activeTab === 'gastos-personales' ? 'tab-btn--active' : 'tab-btn--idle'"
+                    @click="activeTab = 'gastos-personales'">
+                    Gastos personales
                 </button>
                 <button v-if="isAdmin" type="button" class="tab-btn"
                     :class="activeTab === 'analisis' ? 'tab-btn--active' : 'tab-btn--idle'"
@@ -648,6 +806,44 @@ const openExpenseModal = () => {
                 />
             </div>
 
+            <div v-else-if="isAdmin && activeTab === 'gastos-personales'" class="space-y-4">
+                <div
+                    class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
+                    <div>
+                        <h2 class="text-lg font-semibold">Gastos personales</h2>
+                        <p class="text-sm text-gray-400">
+                            Total: $ {{ totalPersonalExpenses.toFixed(2) }}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            70% disponible: $ {{ personalRemaining.toFixed(2) }} · 70% luego de gastos: $ {{
+                                shareArtistAfterPersonal.toFixed(2) }}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="btn-secondary"
+                        :disabled="personalRemaining <= 0"
+                        @click="openPersonalExpenseModal"
+                    >
+                        + Agregar gasto personal
+                    </button>
+                </div>
+
+                <div v-if="personalRemaining <= 0" class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+                    <p class="text-amber-200 text-sm font-semibold">
+                        No puedes agregar más gastos personales porque el 70% del artista ya está en 0.
+                    </p>
+                </div>
+
+                <PersonalExpensesTable
+                    :expenses="personalExpenses"
+                    :can-edit="isAdmin"
+                    :can-delete="isAdmin"
+                    @edit="editPersonalExpense"
+                    @delete="deletePersonalExpense"
+                />
+            </div>
+
             <div v-else-if="isAdmin" class="space-y-6">
                 <AnalysisFilters v-model:filter-type="filterType" v-model:filter-date-from="filterDateFrom"
                     v-model:filter-date-to="filterDateTo" v-model:filter-year="filterYear"
@@ -663,6 +859,16 @@ const openExpenseModal = () => {
             <ExpenseModal :show="showExpenseModal" :form="expenseForm"
                 :normalize-currency="normalizeExpenseCurrencyAndRate" @close="showExpenseModal = false"
                 @submit="submitExpense" />
+            <PersonalExpenseModal
+                :show="showPersonalExpenseModal"
+                :form="personalExpenseForm"
+                :payment-method-options="personalExpenseMethodOptions"
+                :normalize-currency="normalizePersonalExpenseCurrencyAndRate"
+                :remaining="personalRemainingForModal"
+                :is-editing="!!editingPersonalExpense"
+                @close="closePersonalExpenseModal"
+                @submit="submitPersonalExpense"
+            />
         </div>
     </AdminLayout>
 </template>

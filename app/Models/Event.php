@@ -104,6 +104,11 @@ class Event extends Model
         return $this->hasMany(EventExpense::class);
     }
 
+    public function personalExpenses()
+    {
+        return $this->hasMany(EventPersonalExpense::class);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Mutadores

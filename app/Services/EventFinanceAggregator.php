@@ -21,6 +21,9 @@ class EventFinanceAggregator
             'expenses' => fn($q) => $q
                 ->orderBy('expense_date', 'desc')
                 ->orderBy('created_at', 'desc'),
+            'personalExpenses' => fn($q) => $q
+                ->orderBy('expense_date', 'desc')
+                ->orderBy('created_at', 'desc'),
         ]);
 
         return [
@@ -44,6 +47,7 @@ class EventFinanceAggregator
                 'amount_base'
             )
             ->withSum('expenses as total_expenses_base', 'amount_base')
+            ->withSum('personalExpenses as total_personal_expenses_base', 'amount_base')
             ->orderBy('event_date', 'desc')
             ->get();
 
@@ -53,7 +57,9 @@ class EventFinanceAggregator
             $totalPaid = round($event->total_paid_base ?? 0, 2);
             $advancePaid = round($event->advance_paid_base ?? 0, 2);
             $expenses = round($event->total_expenses_base ?? 0, 2);
+            $personalExpenses = round($event->total_personal_expenses_base ?? 0, 2);
             $net = $totalPaid - $expenses;
+            $shareArtist = round($net * 0.70, 2);
 
             return [
                 'id' => $event->id,
@@ -63,8 +69,10 @@ class EventFinanceAggregator
                 'total_paid_base' => $totalPaid,
                 'advance_paid_base' => $advancePaid,
                 'total_expenses_base' => $expenses,
+                'total_personal_expenses_base' => $personalExpenses,
                 'net_base' => round($net, 2),
-                'artist_share_estimated_base' => round($net * 0.70, 2),
+                'artist_share_estimated_base' => $shareArtist,
+                'artist_share_after_personal_base' => max(round($shareArtist - $personalExpenses, 2), 0),
                 'label_share_estimated_base' => round($net * 0.30, 2),
                 'status' => $event->is_paid ? 'pagado' : 'pendiente',
                 'is_upcoming' => $event->event_date?->isFuture(),
@@ -116,6 +124,7 @@ class EventFinanceAggregator
                 'amount_base'
             )
             ->withSum('expenses as total_expenses_base', 'amount_base')
+            ->withSum('personalExpenses as total_personal_expenses_base', 'amount_base')
             ->orderBy('event_date', 'desc')
             ->take($limit)
             ->get();
@@ -124,6 +133,8 @@ class EventFinanceAggregator
             $totalPaid = round($event->total_paid_base ?? 0, 2);
             $totalExpenses = round($event->total_expenses_base ?? 0, 2);
             $net = $totalPaid - $totalExpenses;
+            $personalExpenses = round($event->total_personal_expenses_base ?? 0, 2);
+            $shareArtist = round($net * 0.70, 2);
 
             return [
                 'id' => $event->id,
@@ -133,8 +144,10 @@ class EventFinanceAggregator
                 'total_paid_base' => $totalPaid,
                 'advance_paid_base' => round($event->advance_paid_base ?? 0, 2),
                 'total_expenses_base' => $totalExpenses,
+                'total_personal_expenses_base' => $personalExpenses,
                 'net_base' => round($net, 2),
-                'artist_share_estimated_base' => round($net * 0.70, 2),
+                'artist_share_estimated_base' => $shareArtist,
+                'artist_share_after_personal_base' => max(round($shareArtist - $personalExpenses, 2), 0),
                 'label_share_estimated_base' => round($net * 0.30, 2),
                 'status' => $event->is_paid ? 'pagado' : 'pendiente',
                 'is_upcoming' => $event->event_date?->isFuture(),
@@ -152,6 +165,7 @@ class EventFinanceAggregator
             // Load original amounts, currency and dates so frontend can display them
             'payments:id,event_id,amount_base,amount_original,currency,payment_date,is_advance',
             'expenses:id,event_id,amount_base,amount_original,currency,expense_date,name,description,category',
+            'personalExpenses:id,event_id,artist_id,amount_base,amount_original,currency,exchange_rate_to_base,expense_date,expense_type,name,description,payment_method,recipient',
         ]);
 
         $totals = $this->computeTotals($event);
@@ -185,6 +199,24 @@ class EventFinanceAggregator
             ];
         })->toArray();
 
+        $eventPayload['personal_expenses'] = $event->personalExpenses->map(function ($e) {
+            return [
+                'id' => $e->id,
+                'event_id' => $e->event_id,
+                'artist_id' => $e->artist_id,
+                'amount_base' => is_null($e->amount_base) ? 0 : (float) $e->amount_base,
+                'amount_original' => is_null($e->amount_original) ? 0 : (float) $e->amount_original,
+                'currency' => $e->currency,
+                'exchange_rate_to_base' => is_null($e->exchange_rate_to_base) ? 1 : (float) $e->exchange_rate_to_base,
+                'expense_date' => $e->expense_date?->toDateString(),
+                'expense_type' => $e->expense_type,
+                'name' => $e->name,
+                'description' => $e->description,
+                'payment_method' => $e->payment_method,
+                'recipient' => $e->recipient,
+            ];
+        })->toArray();
+
         return [
             'event' => $eventPayload,
             'finance' => [
@@ -193,6 +225,8 @@ class EventFinanceAggregator
                 'total_expenses_base' => $totals['total_expenses_base'],
                 'net_base' => $totals['net_base'],
                 'artist_share_estimated_base' => $totals['share_artist'],
+                'total_personal_expenses_base' => $totals['total_personal_expenses_base'],
+                'artist_share_after_personal_base' => $totals['share_artist_after_personal'],
                 'label_share_estimated_base' => $totals['share_label'],
             ],
         ];
@@ -202,7 +236,9 @@ class EventFinanceAggregator
     {
         $totalPaid = $events->sum('total_paid_base');
         $totalExpenses = $events->sum('total_expenses_base');
+        $totalPersonalExpenses = $events->sum('total_personal_expenses_base');
         $net = $totalPaid - $totalExpenses;
+        $shareArtist = round($net * 0.70, 2);
 
         return [
             'currency' => 'USD',
@@ -211,8 +247,10 @@ class EventFinanceAggregator
             'paid_events_count' => $events->filter(fn($event) => $event->is_paid)->count(),
             'total_paid_base' => round($totalPaid, 2),
             'total_expenses_base' => round($totalExpenses, 2),
+            'total_personal_expenses_base' => round($totalPersonalExpenses, 2),
             'net_base' => round($net, 2),
-            'artist_share_estimated_base' => round($net * 0.70, 2),
+            'artist_share_estimated_base' => $shareArtist,
+            'artist_share_after_personal_base' => max(round($shareArtist - $totalPersonalExpenses, 2), 0),
             'label_share_estimated_base' => round($net * 0.30, 2),
         ];
     }
@@ -222,14 +260,20 @@ class EventFinanceAggregator
         $totalPaid = $event->payments->sum('amount_base');
         $advancePaid = $event->payments->where('is_advance', true)->sum('amount_base');
         $totalExpenses = $event->expenses->sum('amount_base');
+        $totalPersonalExpenses = $event->relationLoaded('personalExpenses')
+            ? $event->personalExpenses->sum('amount_base')
+            : $event->personalExpenses()->sum('amount_base');
         $net = $totalPaid - $totalExpenses;
+        $shareArtist = round($net * 0.70, 2);
 
         return [
             'total_paid_base' => round($totalPaid, 2),
             'advance_paid_base' => round($advancePaid, 2),
             'total_expenses_base' => round($totalExpenses, 2),
+            'total_personal_expenses_base' => round($totalPersonalExpenses, 2),
             'net_base' => round($net, 2),
-            'share_artist' => round($net * 0.70, 2),
+            'share_artist' => $shareArtist,
+            'share_artist_after_personal' => max(round($shareArtist - $totalPersonalExpenses, 2), 0),
             'share_label' => round($net * 0.30, 2),
         ];
     }
