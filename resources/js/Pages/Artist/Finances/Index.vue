@@ -1,7 +1,9 @@
 <script setup>
 import ArtistLayout from "@/Layouts/ArtistLayout.vue";
 import { computed, ref } from "vue";
+import { Icon } from "@iconify/vue";
 import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
+import ArtistExpensesTable from "@/Components/Finance/ArtistExpensesTable.vue";
 
 const props = defineProps({
     summary: {
@@ -81,9 +83,11 @@ const formatDate = (date) => {
 const totals = computed(() => ({
     paid: Number(props.summary?.total_paid_base ?? 0),
     expenses: Number(props.summary?.total_expenses_base ?? 0),
+    artistPersonalExpenses: Number(props.summary?.artist_personal_expenses_base ?? 0),
     net: Number(props.summary?.net_base ?? 0),
     shareLabel: Number(props.summary?.label_share_estimated_base ?? 0),
     shareArtist: Number(props.summary?.artist_share_estimated_base ?? 0),
+    shareArtistNet: Number(props.summary?.artist_net_share_base ?? 0),
 }));
 
 // Resetear mes cuando cambias año
@@ -168,6 +172,38 @@ const handleYearChange = () => {
                 :filter-month="filterMonth" :filter-date-from="filterDateFrom" :filter-date-to="filterDateTo"
                 currency="$" />
 
+            <!-- Resumen global de gastos personales -->
+            <div v-if="totals.artistPersonalExpenses > 0" class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-[#ffa236]">Tus gastos personales</h2>
+                        <p class="text-gray-400 text-sm">
+                            Total de gastos personales registrados en todos los eventos
+                        </p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-orange-400 text-2xl font-bold">
+                            {{ formatCurrency(totals.artistPersonalExpenses) }}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">Se descuenta de tu 70%</p>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gradient-to-r from-[#ffa236]/10 to-transparent border border-[#ffa236]/30 rounded-lg p-5 flex gap-4">
+                    <Icon icon="mdi:lightbulb-outline" class="text-[#ffa236] text-2xl flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p class="text-sm font-semibold text-[#ffa236] mb-2">Nota sobre tus gastos personales</p>
+                        <p class="text-sm text-gray-300 leading-relaxed">
+                            Estos gastos corresponden a tus decisiones personales (alimentación, transporte personal,
+                            recreación, etc.) durante el evento.
+                        </p>
+                        <p class="text-xs text-gray-400 mt-2 italic">Se descuentan únicamente de tu pago (70%), no
+                            afectan la ganancia de la compañía.</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Eventos -->
             <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-xl p-6">
                 <div class="flex items-center justify-between mb-4">
@@ -220,21 +256,28 @@ const handleYearChange = () => {
                                 <p class="text-white font-semibold">{{ formatCurrency(event.total_paid_base) }}</p>
                             </div>
                             <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-md p-3">
-                                <p class="text-gray-400 text-xs">Tu 70% estimado</p>
+                                <p class="text-gray-400 text-xs">Tu 70%</p>
                                 <p class="text-[#ffa236] font-semibold">{{
                                     formatCurrency(event.artist_share_estimated_base) }}</p>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-3 text-xs text-gray-400">
+                        <div class="grid grid-cols-3 gap-3 text-xs text-gray-400">
                             <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-md p-3">
-                                <p class="text-gray-400 text-[11px]">Gastos</p>
+                                <p class="text-gray-400 text-[11px]">Gastos evento</p>
                                 <p class="text-red-400 font-semibold">{{ formatCurrency(event.total_expenses_base) }}
                                 </p>
                             </div>
                             <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-md p-3">
-                                <p class="text-gray-400 text-[11px]">Resultado neto</p>
-                                <p class="text-white font-semibold">{{ formatCurrency(event.net_base) }}</p>
+                                <p class="text-gray-400 text-[11px]">Tus gastos</p>
+                                <p class="text-orange-400 font-semibold">{{
+                                    formatCurrency(event.artist_personal_expenses_base || 0) }}
+                                </p>
+                            </div>
+                            <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-md p-3">
+                                <p class="text-gray-400 text-[11px]">Tu pago neto</p>
+                                <p class="text-green-400 font-semibold">{{ formatCurrency(event.artist_net_share_base ||
+                                    event.artist_share_estimated_base) }}</p>
                             </div>
                         </div>
 
@@ -242,6 +285,57 @@ const handleYearChange = () => {
                             <span>Anticipo: {{ formatCurrency(event.advance_paid_base) }}</span>
                             <span class="text-gray-500" v-if="event.is_upcoming">Proximo</span>
                             <span class="text-gray-500" v-else>Pasado</span>
+                        </div>
+
+                        <!-- Gastos personales del artista (si existen) -->
+                        <div v-if="event.artist_personal_expenses && event.artist_personal_expenses.length > 0"
+                            class="border-t border-[#2a2a2a] pt-3 mt-2">
+                            <details class="text-sm">
+                                <summary
+                                    class="cursor-pointer text-gray-400 hover:text-white transition-colors flex items-center justify-between">
+                                    <span>Ver tus gastos personales</span>
+                                    <span class="text-xs text-orange-400 font-semibold">
+                                        {{ formatCurrency(event.artist_personal_expenses_base || 0) }}
+                                    </span>
+                                </summary>
+                                <div class="mt-3 space-y-2">
+                                    <div v-for="expense in event.artist_personal_expenses" :key="expense.id"
+                                        class="bg-[#0f0f0f] border border-[#2a2a2a] rounded p-2 text-xs">
+                                        <div class="flex items-start justify-between gap-2">
+                                            <div class="flex-1">
+                                                <p class="text-white font-semibold">{{ expense.name }}</p>
+                                                <p v-if="expense.description" class="text-gray-500 text-[11px] mt-1">
+                                                    {{ expense.description }}
+                                                </p>
+                                                <p class="text-gray-400 text-[11px] mt-1">
+                                                    {{ formatDate(expense.expense_date) }}
+                                                    <span v-if="expense.category" class="ml-2 capitalize">
+                                                        • {{ expense.category }}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                            <div class="text-right">
+                                                <p class="text-orange-400 font-semibold">
+                                                    {{ formatCurrency(expense.amount_base, 'USD') }}
+                                                </p>
+                                                <div v-if="expense.is_approved"
+                                                    class="text-green-400 text-xs mt-1 flex items-center justify-end gap-1">
+                                                    <Icon icon="mdi:check-circle" class="text-sm" />
+                                                    <span>Aprobado</span>
+                                                </div>
+                                                <div v-else
+                                                    class="text-yellow-400 text-xs mt-1 flex items-center justify-end gap-1">
+                                                    <Icon icon="mdi:clock-outline" class="text-sm" />
+                                                    <span>Pendiente</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="text-gray-500 text-[11px] mt-2 italic">
+                                        * Estos gastos personales se descuentan de tu 70%
+                                    </p>
+                                </div>
+                            </details>
                         </div>
                     </div>
                 </div>

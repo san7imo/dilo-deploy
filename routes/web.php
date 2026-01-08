@@ -96,6 +96,7 @@ use App\Http\Controllers\Web\Admin\{
 
 use App\Http\Controllers\Web\EventPaymentController;
 use App\Http\Controllers\Web\EventExpenseController;
+use App\Http\Controllers\Web\Artist\ArtistEventExpenseController;
 
 // Endpoint de datos del Dashboard Admin
 Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
@@ -123,6 +124,16 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin|roadmanager'])
         // ✅ GASTOS (solo crear)
         Route::post('events/{event}/expenses', [EventExpenseController::class, 'store'])
             ->name('events.expenses.store');
+
+        // ✅ GASTOS PERSONALES DEL ARTISTA (admin y roadmanager)
+        Route::post('events/{event}/artist-expenses', [ArtistEventExpenseController::class, 'store'])
+            ->name('events.artist-expenses.store');
+
+        Route::put('artist-expenses/{artistExpense}', [ArtistEventExpenseController::class, 'update'])
+            ->name('artist-expenses.update');
+
+        Route::delete('artist-expenses/{artistExpense}', [ArtistEventExpenseController::class, 'destroy'])
+            ->name('artist-expenses.destroy');
     });
 
 Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
@@ -163,6 +174,10 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
         Route::put('events/{event}/expenses-sync', [EventFinanceController::class, 'syncExpenses'])
             ->name('events.expenses.sync');
 
+        // ✅ APROBAR GASTOS PERSONALES DEL ARTISTA (solo admin)
+        Route::patch('artist-expenses/{artistExpense}/approve', [ArtistEventExpenseController::class, 'approve'])
+            ->name('artist-expenses.approve');
+
         // --- Géneros ---
         Route::resource('genres', AdminGenreController::class)->except(['show']);
 
@@ -191,10 +206,10 @@ Route::middleware(['auth:sanctum', 'verified', 'role:artist'])
             ->name('dashboard.data');
 
         // Perfil
-    Route::get('/profile/data', [ArtistProfileController::class, 'showData'])->name('profile.data');
-    Route::get('/profile', [ArtistProfileController::class, 'show'])->name('profile.show');
-    Route::get('/profile/edit', [ArtistProfileController::class, 'edit'])->name('profile.edit');
-    Route::put('/profile', [ArtistProfileController::class, 'update'])->name('profile.update');
+        Route::get('/profile/data', [ArtistProfileController::class, 'showData'])->name('profile.data');
+        Route::get('/profile', [ArtistProfileController::class, 'show'])->name('profile.show');
+        Route::get('/profile/edit', [ArtistProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('/profile', [ArtistProfileController::class, 'update'])->name('profile.update');
 
         // Finanzas
         Route::get('/finances', [ArtistFinanceController::class, 'index'])->name('finances.index');

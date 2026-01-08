@@ -1,13 +1,16 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-import { Link, useForm, usePage } from "@inertiajs/vue3";
+import { Link, useForm, usePage, router } from "@inertiajs/vue3";
 import { computed, ref, watch } from "vue";
+import { Icon } from "@iconify/vue";
 import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
 import PaymentModal from "@/Components/Finance/PaymentModal.vue";
 import ExpenseModal from "@/Components/Finance/ExpenseModal.vue";
 import PaymentsTable from "@/Components/Finance/PaymentsTable.vue";
 import ExpensesTable from "@/Components/Finance/ExpensesTable.vue";
 import AnalysisFilters from "@/Components/Finance/AnalysisFilters.vue";
+import ArtistExpensesTable from "@/Components/Finance/ArtistExpensesTable.vue";
+import ArtistExpenseModal from "@/Components/Finance/ArtistExpenseModal.vue";
 import { formatDateES } from "@/utils/date";
 
 const props = defineProps({
@@ -21,9 +24,10 @@ const isAdmin = computed(() => roleNames.value.includes("admin"));
 const isRoadManager = computed(() => roleNames.value.includes("roadmanager"));
 
 // UI State
-const activeTab = ref("resumen"); // resumen | pagos | gastos | analisis
+const activeTab = ref("resumen"); // resumen | pagos | gastos | gastos-artista | analisis
 const showPaymentModal = ref(false);
 const showExpenseModal = ref(false);
+const showArtistExpenseModal = ref(false);
 
 // Filtros (análisis)
 const filterType = ref("all");
@@ -63,6 +67,19 @@ const expenseForm = useForm({
     exchange_rate_to_base: 1,
 });
 
+const artistExpenseForm = useForm({
+    artist_id: "",
+    expense_date: new Date().toISOString().slice(0, 10),
+    name: "",
+    description: "",
+    category: "",
+    receipt_file: null,
+    amount_original: "",
+    currency: "USD",
+    exchange_rate_to_base: 1,
+    notes: "",
+});
+
 const statusForm = useForm({
     is_paid: props.event.is_paid ?? false,
 });
@@ -79,6 +96,16 @@ const confirmForm = useForm({
 
 const roadManagers = computed(() => {
     return props.event.road_managers || props.event.roadManagers || [];
+});
+
+const availableArtists = computed(() => {
+    const artists = [];
+    if (props.event.main_artist) {
+        artists.push(props.event.main_artist);
+    } else if (props.event.mainArtist) {
+        artists.push(props.event.mainArtist);
+    }
+    return artists;
 });
 
 const currentRoadManager = computed(() => {
@@ -114,14 +141,17 @@ watch(
 const totals = computed(() => {
     const paid = Number(props.finance?.total_paid_base ?? 0);
     const expenses = Number(props.finance?.total_expenses_base ?? 0);
+    const artistPersonalExpenses = Number(props.finance?.artist_personal_expenses_base ?? 0);
     const net = paid - expenses;
 
     return {
         paid,
         expenses,
+        artistPersonalExpenses,
         net,
-        shareLabel: Number(props.finance?.share_label ?? net * 0.3),
-        shareArtist: Number(props.finance?.share_artist ?? net * 0.7),
+        shareLabel: Number(props.finance?.label_share_estimated_base ?? net * 0.3),
+        shareArtist: Number(props.finance?.artist_share_estimated_base ?? net * 0.7),
+        shareArtistNet: Number(props.finance?.artist_net_share_base ?? (net * 0.7 - artistPersonalExpenses)),
     };
 });
 
@@ -240,6 +270,17 @@ const normalizeExpenseCurrencyAndRate = () => {
     }
 };
 
+const normalizeArtistExpenseCurrencyAndRate = () => {
+    const cur = (artistExpenseForm.currency || "").toUpperCase().trim();
+    artistExpenseForm.currency = cur || "USD";
+
+    if (artistExpenseForm.currency === "USD") {
+        artistExpenseForm.exchange_rate_to_base = 1;
+    } else if (!artistExpenseForm.exchange_rate_to_base || Number(artistExpenseForm.exchange_rate_to_base) <= 0) {
+        artistExpenseForm.exchange_rate_to_base = 1;
+    }
+};
+
 // Actions
 const submitPayment = () => {
     normalizePaymentCurrencyAndRate();
@@ -260,6 +301,13 @@ const deletePayment = (paymentId) => {
 
     paymentForm.delete(route("admin.events.payments.destroy", paymentId), {
         preserveScroll: true,
+        onSuccess: () => {
+            // Recargar la página para actualizar
+            router.visit(route("admin.events.finance", props.event.id), {
+                preserveScroll: true,
+                preserveState: false,
+            });
+        },
     });
 };
 
@@ -273,6 +321,11 @@ const submitExpense = () => {
             expenseForm.reset("amount_original", "name", "description", "category", "receipt_file");
             showExpenseModal.value = false;
             activeTab.value = "gastos";
+            // Recargar la página para actualizar los datos
+            router.visit(route("admin.events.finance", props.event.id), {
+                preserveScroll: true,
+                preserveState: false,
+            });
         },
     });
 };
@@ -283,6 +336,13 @@ const deleteExpense = (expenseId) => {
 
     expenseForm.delete(route("admin.events.expenses.destroy", expenseId), {
         preserveScroll: true,
+        onSuccess: () => {
+            // Recargar la página para actualizar
+            router.visit(route("admin.events.finance", props.event.id), {
+                preserveScroll: true,
+                preserveState: false,
+            });
+        },
     });
 };
 
@@ -334,6 +394,84 @@ const openExpenseModal = () => {
     if (expenseForm.currency === "USD") expenseForm.exchange_rate_to_base = 1;
     showExpenseModal.value = true;
 };
+
+const openArtistExpenseModal = () => {
+    artistExpenseForm.expense_date = new Date().toISOString().slice(0, 10);
+    artistExpenseForm.currency = "USD";
+    artistExpenseForm.exchange_rate_to_base = 1;
+    // Pre-seleccionar el artista principal si existe
+    if (availableArtists.value.length > 0) {
+        artistExpenseForm.artist_id = availableArtists.value[0].id;
+    }
+    showArtistExpenseModal.value = true;
+};
+
+const submitArtistExpense = () => {
+    normalizeArtistExpenseCurrencyAndRate();
+
+    artistExpenseForm.post(route("admin.events.artist-expenses.store", props.event.id), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            artistExpenseForm.reset();
+            showArtistExpenseModal.value = false;
+            activeTab.value = "gastos-artista";
+        },
+    });
+};
+
+const approveArtistExpense = (expenseId) => {
+    if (!isAdmin.value) return;
+    if (!confirm("¿Aprobar este gasto personal del artista?")) return;
+
+    router.patch(
+        route("admin.artist-expenses.approve", expenseId),
+        {},
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                // Refrescar componente de gastos del artista
+                fetch(route("admin.events.finance", props.event.id))
+                    .then(response => response.text())
+                    .then(html => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const script = doc.querySelector('script[type="application/json"]');
+                        if (script) {
+                            const data = JSON.parse(script.textContent);
+                            if (data.props && data.props.event && data.props.event.artist_personal_expenses) {
+                                props.event.artist_personal_expenses = data.props.event.artist_personal_expenses;
+                            }
+                        }
+                    });
+            },
+        }
+    );
+};
+
+const deleteArtistExpense = (expenseId) => {
+    if (!confirm("¿Eliminar este gasto personal del artista?")) return;
+
+    router.delete(route("admin.artist-expenses.destroy", expenseId), {
+        preserveScroll: true,
+        onSuccess: () => {
+            // Refrescar solo los gastos del artista sin recargar la página
+            fetch(route("admin.events.finance", props.event.id))
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const script = doc.querySelector('script[type="application/json"]');
+                    if (script) {
+                        const data = JSON.parse(script.textContent);
+                        if (data.props && data.props.event && data.props.event.artist_personal_expenses) {
+                            props.event.artist_personal_expenses = data.props.event.artist_personal_expenses;
+                        }
+                    }
+                });
+        },
+    });
+};
 </script>
 
 <template>
@@ -356,7 +494,7 @@ const openExpenseModal = () => {
                                     {{ event.city }}{{ event.city && event.country ? "," : "" }}
                                     {{ event.country }}
                                     <span v-if="event.location" class="block text-gray-400 text-xs">{{ event.location
-                                        }}</span>
+                                    }}</span>
                                     <span v-if="event.venue_address" class="block text-gray-500 text-xs">{{
                                         event.venue_address }}</span>
                                 </span>
@@ -388,13 +526,8 @@ const openExpenseModal = () => {
                         </p>
                     </div>
                     <div class="text-sm text-gray-300">
-                        <button
-                            v-if="!roadManagerConfirmedAt"
-                            type="button"
-                            class="btn-primary"
-                            :disabled="confirmForm.processing"
-                            @click="confirmRoadManagerPayment"
-                        >
+                        <button v-if="!roadManagerConfirmedAt" type="button" class="btn-primary"
+                            :disabled="confirmForm.processing" @click="confirmRoadManagerPayment">
                             Confirmar pago recibido
                         </button>
                         <div v-else class="text-green-400 font-semibold">
@@ -424,7 +557,12 @@ const openExpenseModal = () => {
                 </button>
                 <button type="button" class="tab-btn"
                     :class="activeTab === 'gastos' ? 'tab-btn--active' : 'tab-btn--idle'" @click="activeTab = 'gastos'">
-                    Gastos
+                    Gastos del evento
+                </button>
+                <button type="button" class="tab-btn"
+                    :class="activeTab === 'gastos-artista' ? 'tab-btn--active' : 'tab-btn--idle'"
+                    @click="activeTab = 'gastos-artista'">
+                    Gastos del artista
                 </button>
                 <button v-if="isAdmin" type="button" class="tab-btn"
                     :class="activeTab === 'analisis' ? 'tab-btn--active' : 'tab-btn--idle'"
@@ -435,11 +573,13 @@ const openExpenseModal = () => {
                 <div class="flex gap-2">
                     <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
                     <button type="button" class="btn-secondary" @click="openExpenseModal">+ Nuevo gasto</button>
+                    <button type="button" class="btn-secondary" @click="openArtistExpenseModal">+ Gasto del
+                        artista</button>
                 </div>
             </div>
 
             <div v-if="isAdmin && activeTab === 'resumen'" class="space-y-6">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-5 gap-4">
                     <div class="card">
                         <p class="text-gray-400 text-sm">Total pagado</p>
                         <p class="text-white text-xl font-semibold">$ {{ totals.paid.toFixed(2) }}</p>
@@ -454,6 +594,29 @@ const openExpenseModal = () => {
                         <p class="text-gray-400 text-sm">Neto</p>
                         <p class="text-white text-xl font-semibold">$ {{ totals.net.toFixed(2) }}</p>
                         <p class="text-gray-500 text-xs mt-1">Pagos − gastos.</p>
+                    </div>
+                    <div class="card">
+                        <p class="text-gray-400 text-sm">70% Artista</p>
+                        <p class="text-[#ffa236] text-xl font-semibold">$ {{ totals.shareArtist.toFixed(2) }}</p>
+                        <p class="text-gray-500 text-xs mt-1">Antes de gastos personales.</p>
+                    </div>
+                    <div class="card">
+                        <p class="text-gray-400 text-sm">Pago neto artista</p>
+                        <p class="text-green-400 text-xl font-semibold">$ {{ totals.shareArtistNet.toFixed(2) }}</p>
+                        <p class="text-gray-500 text-xs mt-1">Descontando gastos personales.</p>
+                    </div>
+                </div>
+
+                <div class="bg-[#ffa236]/5 border border-[#ffa236]/30 rounded-lg p-4 flex gap-3">
+                    <Icon icon="mdi:information-outline" class="text-[#ffa236] text-xl flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p class="text-sm text-[#ffa236] font-semibold mb-1">Gastos personales del artista</p>
+                        <p class="text-sm text-gray-300">
+                            Total: <span class="font-semibold text-[#ffa236]">${{
+                                totals.artistPersonalExpenses.toFixed(2) }}</span>
+                        </p>
+                        <p class="text-xs text-gray-400 mt-2">Se descuentan del 70% que le corresponde al artista. No
+                            afectan el 30% de la compañía.</p>
                     </div>
                 </div>
 
@@ -490,7 +653,8 @@ const openExpenseModal = () => {
                             <h2 class="text-lg font-semibold">Estado y fechas</h2>
                             <p class="text-sm text-gray-400">Actualiza el estado del evento y fechas clave.</p>
                         </div>
-                        <span :class="['px-3 py-1 rounded-full text-xs font-semibold border', eventStatusBadge.className]">
+                        <span
+                            :class="['px-3 py-1 rounded-full text-xs font-semibold border', eventStatusBadge.className]">
                             {{ eventStatusBadge.label }}
                         </span>
                     </div>
@@ -540,11 +704,8 @@ const openExpenseModal = () => {
                 <div v-if="roadManagers.length" class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
                     <h2 class="text-lg font-semibold mb-4">Confirmacion road managers</h2>
                     <div class="space-y-3 text-sm">
-                        <div
-                            v-for="rm in roadManagers"
-                            :key="rm.id"
-                            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#2a2a2a] pb-2"
-                        >
+                        <div v-for="rm in roadManagers" :key="rm.id"
+                            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#2a2a2a] pb-2">
                             <div>
                                 <p class="text-white font-semibold">{{ rm.name }}</p>
                                 <p class="text-gray-400 text-xs">{{ rm.email }}</p>
@@ -581,7 +742,8 @@ const openExpenseModal = () => {
                             <p class="text-gray-400">Tipo</p>
                             <p class="text-white font-semibold capitalize">{{ event.event_type || "—" }}</p>
                             <p class="text-gray-400 mt-2">Estado</p>
-                            <span :class="['inline-flex px-2 py-1 rounded-full text-xs font-semibold border mt-1', eventStatusBadge.className]">
+                            <span
+                                :class="['inline-flex px-2 py-1 rounded-full text-xs font-semibold border mt-1', eventStatusBadge.className]">
                                 {{ eventStatusBadge.label }}
                             </span>
                         </div>
@@ -625,27 +787,52 @@ const openExpenseModal = () => {
                     </div>
                     <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
                 </div>
-                <PaymentsTable
-                    :payments="event.payments || []"
-                    :can-delete="isAdmin"
-                    @delete="deletePayment"
-                />
+                <PaymentsTable :payments="event.payments || []" :can-delete="isAdmin" @delete="deletePayment" />
             </div>
 
             <div v-else-if="activeTab === 'gastos'" class="space-y-4">
                 <div
                     class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
                     <div>
-                        <h2 class="text-lg font-semibold">Gastos</h2>
+                        <h2 class="text-lg font-semibold">Gastos del evento</h2>
                         <p class="text-sm text-gray-400">Total: $ {{ totals.expenses.toFixed(2) }}</p>
                     </div>
                     <button type="button" class="btn-secondary" @click="openExpenseModal">+ Nuevo gasto</button>
                 </div>
-                <ExpensesTable
-                    :expenses="event.expenses || []"
-                    :can-delete="isAdmin"
-                    @delete="deleteExpense"
-                />
+                <ExpensesTable :expenses="event.expenses || []" :can-delete="isAdmin" @delete="deleteExpense" />
+            </div>
+
+            <div v-else-if="activeTab === 'gastos-artista'" class="space-y-4">
+                <div
+                    class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
+                    <div>
+                        <h2 class="text-lg font-semibold">Gastos personales del artista</h2>
+                        <p class="text-sm text-gray-400">
+                            Total: $ {{ totals.artistPersonalExpenses.toFixed(2) }}
+                            (se descuenta del 70% del artista)
+                        </p>
+                    </div>
+                    <button type="button" class="btn-secondary" @click="openArtistExpenseModal">+ Nuevo gasto
+                        personal</button>
+                </div>
+
+                <div
+                    class="bg-gradient-to-r from-[#ffa236]/10 to-transparent border border-[#ffa236]/30 rounded-lg p-5 flex gap-4">
+                    <Icon icon="mdi:lightbulb-outline" class="text-[#ffa236] text-2xl flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p class="text-sm font-semibold text-[#ffa236] mb-2">Política de gastos personales</p>
+                        <p class="text-sm text-gray-300 leading-relaxed">
+                            Los gastos personales del artista (alimentación, transporte, recreación, etc.) se descuentan
+                            únicamente del 70% que le corresponde al artista.
+                        </p>
+                        <p class="text-xs text-gray-400 mt-2 italic">El 30% destinado a la compañía no se ve afectado
+                            por estos gastos.</p>
+                    </div>
+                </div>
+
+                <ArtistExpensesTable :expenses="event.artist_personal_expenses || []" :can-approve="isAdmin"
+                    :can-delete="isAdmin || isRoadManager" @approve="approveArtistExpense"
+                    @delete="deleteArtistExpense" />
             </div>
 
             <div v-else-if="isAdmin" class="space-y-6">
@@ -663,6 +850,9 @@ const openExpenseModal = () => {
             <ExpenseModal :show="showExpenseModal" :form="expenseForm"
                 :normalize-currency="normalizeExpenseCurrencyAndRate" @close="showExpenseModal = false"
                 @submit="submitExpense" />
+            <ArtistExpenseModal :show="showArtistExpenseModal" :form="artistExpenseForm" :artists="availableArtists"
+                :event="event" :normalize-currency="normalizeArtistExpenseCurrencyAndRate"
+                @close="showArtistExpenseModal = false" @submit="submitArtistExpense" />
         </div>
     </AdminLayout>
 </template>
