@@ -18,7 +18,7 @@ class StoreEventRequest extends FormRequest
             'title'       => 'required|string|max:255',
             'description' => 'nullable|string',
             'location'    => 'nullable|string|max:255',
-            'event_date'  => 'required|date|after_or_equal:today',
+            'event_date'  => 'required|date',
             'event_type'  => 'nullable|string|max:100',
             'country'     => 'nullable|string|max:100',
             'city'        => 'nullable|string|max:100',
@@ -59,7 +59,6 @@ class StoreEventRequest extends FormRequest
             'main_artist_id.required' => 'Debes seleccionar un artista principal.',
             'main_artist_id.in'     => 'El artista principal debe estar en la lista de artistas.',
             'event_date.required'   => 'La fecha del evento es obligatoria.',
-            'event_date.after_or_equal' => 'La fecha del evento debe ser futura.',
         ];
     }
 }

@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 
 class EventPayment extends Model
 {
     protected $fillable = [
         'event_id',
+        'created_by',
         'payment_date',
         'amount_original',
         'currency',
@@ -32,5 +34,10 @@ class EventPayment extends Model
     public function event()
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

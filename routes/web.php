@@ -96,6 +96,7 @@ use App\Http\Controllers\Web\Admin\{
 
 use App\Http\Controllers\Web\EventPaymentController;
 use App\Http\Controllers\Web\EventExpenseController;
+use App\Http\Controllers\Web\EventPersonalExpenseController;
 
 // Endpoint de datos del Dashboard Admin
 Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
@@ -159,6 +160,15 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
 
         Route::delete('event-expenses/{expense}', [EventExpenseController::class, 'destroy'])
             ->name('events.expenses.destroy');
+
+        Route::post('events/{event}/personal-expenses', [EventPersonalExpenseController::class, 'store'])
+            ->name('events.personal-expenses.store');
+
+        Route::put('event-personal-expenses/{personalExpense}', [EventPersonalExpenseController::class, 'update'])
+            ->name('events.personal-expenses.update');
+
+        Route::delete('event-personal-expenses/{personalExpense}', [EventPersonalExpenseController::class, 'destroy'])
+            ->name('events.personal-expenses.destroy');
 
         Route::put('events/{event}/expenses-sync', [EventFinanceController::class, 'syncExpenses'])
             ->name('events.expenses.sync');

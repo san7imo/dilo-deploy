@@ -101,6 +101,11 @@ class Artist extends Model
         return $this->hasMany(Event::class, 'main_artist_id');
     }
 
+    public function personalExpenses()
+    {
+        return $this->hasMany(EventPersonalExpense::class);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Mutadores y eventos del modelo

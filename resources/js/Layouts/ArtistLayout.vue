@@ -1,11 +1,21 @@
 <script setup>
 import logoBlanco from '@/Assets/Images/Logos/responsive-blanco.webp';
-import { Link, usePage } from "@inertiajs/vue3";
+import { Link, router, usePage } from "@inertiajs/vue3";
 import { ref } from "vue";
 
 const { props } = usePage();
 const user = props.auth?.user;
 const isSidebarOpen = ref(true);
+
+const getCsrfToken = () =>
+    document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+
+const logout = () => {
+    const token = getCsrfToken();
+    router.post(route("logout"), { _token: token }, {
+        headers: token ? { "X-CSRF-TOKEN": token } : {},
+    });
+};
 </script>
 
 <template>
@@ -86,11 +96,14 @@ const isSidebarOpen = ref(true);
             <!-- Footer -->
             <div class="p-4 border-t border-[#2a2a2a] text-xs text-gray-500">
                 <div v-if="isSidebarOpen" class="mb-2">{{ user?.name }}</div>
-                <Link :href="route('logout')" method="post" as="button"
-                    class="flex items-center gap-2 text-[#ffa236] hover:text-[#ffb54d] transition-colors">
+                <button
+                    type="button"
+                    class="flex items-center gap-2 text-[#ffa236] hover:text-[#ffb54d] transition-colors"
+                    @click="logout"
+                >
                     <i class="fa-solid fa-right-from-bracket"></i>
                     <span v-if="isSidebarOpen">Cerrar sesión</span>
-                </Link>
+                </button>
             </div>
         </aside>
 

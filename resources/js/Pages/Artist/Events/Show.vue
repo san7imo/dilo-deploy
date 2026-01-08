@@ -120,6 +120,11 @@ const isPaid = () => {
                             }}</p>
                         </div>
                         <div class="rounded-xl border border-[#242424] bg-[#101010] p-4">
+                            <p class="text-gray-500 text-xs">Gastos personales</p>
+                            <p class="text-red-400 text-xl font-semibold">{{
+                                formatCurrency(finance.total_personal_expenses_base) }}</p>
+                        </div>
+                        <div class="rounded-xl border border-[#242424] bg-[#101010] p-4 sm:col-span-2">
                             <p class="text-gray-500 text-xs">Resultado neto</p>
                             <p class="text-white text-xl font-semibold">{{ formatCurrency(finance.net_base) }}</p>
                         </div>
@@ -129,9 +134,14 @@ const isPaid = () => {
                                 formatCurrency(finance.label_share_estimated_base) }}</p>
                         </div>
                         <div class="rounded-xl border border-[#242424] bg-[#101010] p-4 sm:col-span-2">
-                            <p class="text-gray-500 text-xs">70% Artista</p>
+                            <p class="text-gray-500 text-xs">70% Artista (antes)</p>
                             <p class="text-[#ffa236] text-xl font-semibold">{{
                                 formatCurrency(finance.artist_share_estimated_base) }}</p>
+                        </div>
+                        <div class="rounded-xl border border-[#242424] bg-[#101010] p-4 sm:col-span-2">
+                            <p class="text-gray-500 text-xs">70% Artista (después)</p>
+                            <p class="text-[#ffa236] text-xl font-semibold">{{
+                                formatCurrency(finance.artist_share_after_personal_base) }}</p>
                         </div>
                     </div>
 
@@ -236,6 +246,47 @@ const isPaid = () => {
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-semibold text-white">Gastos personales</h3>
+                        <div v-if="event.personal_expenses && event.personal_expenses.length"
+                            class="rounded-xl border border-[#242424] bg-[#0f0f0f] overflow-hidden">
+                            <table class="w-full text-sm">
+                                <thead class="border-b border-[#2a2a2a] bg-[#0c0c0c]">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-gray-400">Fecha</th>
+                                        <th class="px-4 py-3 text-left text-gray-400">Tipo</th>
+                                        <th class="px-4 py-3 text-left text-gray-400">Concepto</th>
+                                        <th class="px-4 py-3 text-left text-gray-400">Método</th>
+                                        <th class="px-4 py-3 text-left text-gray-400">Destinatario</th>
+                                        <th class="px-4 py-3 text-left text-gray-400">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="expense in event.personal_expenses" :key="expense.id"
+                                        class="border-t border-[#1f1f1f]">
+                                        <td class="px-4 py-3">{{ formatShortDate(expense.expense_date) }}</td>
+                                        <td class="px-4 py-3">
+                                            <span v-if="expense.expense_type"
+                                                class="bg-[#1b1b1b] text-gray-300 px-2 py-1 rounded text-xs border border-[#2a2a2a]">
+                                                {{ expense.expense_type }}
+                                            </span>
+                                            <span v-else class="text-gray-500">—</span>
+                                        </td>
+                                        <td class="px-4 py-3 font-medium">{{ expense.name || expense.description || '—'
+                                        }}</td>
+                                        <td class="px-4 py-3">{{ expense.payment_method || "—" }}</td>
+                                        <td class="px-4 py-3">{{ expense.recipient || "—" }}</td>
+                                        <td class="px-4 py-3 text-red-400">{{
+                                            formatCurrency(expense.amount_original, expense.currency || 'USD') }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-else class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4 text-sm text-gray-400">
+                            No hay gastos personales registrados.
                         </div>
                     </div>
                 </div>

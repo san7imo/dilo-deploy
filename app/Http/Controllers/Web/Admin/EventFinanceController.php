@@ -17,7 +17,12 @@ class EventFinanceController extends Controller
     {
         $this->authorize('viewFinancial', $event);
 
-        $payload = $financeAggregator->adminFinance($event);
+        $user = request()->user();
+        if ($user && $user->hasRole('roadmanager')) {
+            $payload = $financeAggregator->roadManagerFinance($event, $user);
+        } else {
+            $payload = $financeAggregator->adminFinance($event);
+        }
 
         return Inertia::render('Admin/Events/Finance', [
             'event' => $payload['event'],

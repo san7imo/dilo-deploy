@@ -20,6 +20,7 @@ class EventPaymentController extends Controller
         EventPaymentService $service
     ) {
         $data = $request->validated();
+        $data['created_by'] = $request->user()?->id;
 
         // Si es USD, la tasa siempre es 1 
         if ($data['currency'] === 'USD') {
