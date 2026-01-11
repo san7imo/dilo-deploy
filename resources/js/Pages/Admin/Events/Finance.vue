@@ -396,6 +396,7 @@ const openExpenseModal = () => {
 };
 
 const openArtistExpenseModal = () => {
+    artistExpenseForm.reset();
     artistExpenseForm.expense_date = new Date().toISOString().slice(0, 10);
     artistExpenseForm.currency = "USD";
     artistExpenseForm.exchange_rate_to_base = 1;

@@ -30,6 +30,24 @@ const selectedArtist = computed(() => {
     if (!props.form.artist_id || !props.artists) return null;
     return props.artists.find((a) => a.id === props.form.artist_id);
 });
+
+// Formatear fecha para input type="date"
+const formattedExpenseDate = computed({
+    get() {
+        if (!props.form.expense_date) return "";
+        if (typeof props.form.expense_date === "string") {
+            return props.form.expense_date.split("T")[0];
+        }
+      
+        if (props.form.expense_date instanceof Date) {
+            return props.form.expense_date.toISOString().split("T")[0];
+        }
+        return "";
+    },
+    set(value) {
+        props.form.expense_date = value;
+    },
+});
 </script>
 
 <template>
@@ -76,7 +94,7 @@ const selectedArtist = computed(() => {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-semibold mb-2">Fecha del gasto *</label>
-                        <input v-model="form.expense_date" type="date"
+                        <input v-model="formattedExpenseDate" type="date"
                             class="w-full bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg px-4 py-2 text-white text-sm focus:border-[#ffa236] focus:ring-1 focus:ring-[#ffa236]"
                             required />
                     </div>

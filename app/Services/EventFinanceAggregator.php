@@ -41,7 +41,7 @@ class EventFinanceAggregator
                 'amount_base' => (float) $e->amount_base,
                 'receipt_url' => $e->receipt_url,
                 'notes' => $e->notes,
-                'is_approved' => $e->isApproved(),
+                'is_approved' => $e->is_approved,
                 'approved_at' => $e->approved_at?->toDateTimeString(),
                 'created_by' => $e->createdByUser?->name,
             ];
