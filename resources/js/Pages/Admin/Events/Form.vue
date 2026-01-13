@@ -232,7 +232,7 @@ const handleSubmit = () => {
   </form>
 </template>
 
-<style scoped>
+<style scoped lang="postcss">
 .input {
   @apply w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white focus:border-[#ffa236] focus:ring-[#ffa236];
 }
