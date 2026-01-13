@@ -1,7 +1,6 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-import { Link, useForm, usePage, router } from "@inertiajs/vue3";
-import { computed, ref, watch } from "vue";
+import { Link } from "@inertiajs/vue3";
 import { Icon } from "@iconify/vue";
 import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
 import PaymentModal from "@/Components/Finance/PaymentModal.vue";
@@ -11,468 +10,65 @@ import ExpensesTable from "@/Components/Finance/ExpensesTable.vue";
 import AnalysisFilters from "@/Components/Finance/AnalysisFilters.vue";
 import ArtistExpensesTable from "@/Components/Finance/ArtistExpensesTable.vue";
 import ArtistExpenseModal from "@/Components/Finance/ArtistExpenseModal.vue";
+import FinanceSummary from "@/Components/Finance/FinanceSummary.vue";
+import useFinancePage from "@/composables/useFinancePage";
 import { formatDateES } from "@/utils/date";
 
 const props = defineProps({
     event: { type: Object, required: true },
     finance: { type: Object, default: () => ({}) },
 });
-
-const { props: pageProps } = usePage();
-const roleNames = computed(() => pageProps.auth?.user?.role_names || []);
-const isAdmin = computed(() => roleNames.value.includes("admin"));
-const isRoadManager = computed(() => roleNames.value.includes("roadmanager"));
-
-// UI State
-const activeTab = ref("resumen"); // resumen | pagos | gastos | gastos-artista | analisis
-const showPaymentModal = ref(false);
-const showExpenseModal = ref(false);
-const showArtistExpenseModal = ref(false);
-
-// Filtros (análisis)
-const filterType = ref("all");
-const filterYear = ref(null);
-const filterMonth = ref(null);
-const filterDateFrom = ref(null);
-const filterDateTo = ref(null);
-
-// Opciones
-const paymentMethodOptions = [
-    { value: "transferencia", label: "Transferencia bancaria" },
-    { value: "efectivo", label: "Efectivo" },
-    { value: "tarjeta", label: "Tarjeta" },
-    { value: "paypal", label: "PayPal" },
-    { value: "otro", label: "Otro" },
-];
-
-// Forms
-const paymentForm = useForm({
-    payment_date: new Date().toISOString().slice(0, 10),
-    amount_original: "",
-    currency: "USD",
-    exchange_rate_to_base: 1,
-    payment_method: "",
-    is_advance: false,
-    notes: "",
-});
-
-const expenseForm = useForm({
-    expense_date: new Date().toISOString().slice(0, 10),
-    name: "",
-    description: "",
-    category: "",
-    receipt_file: null,
-    amount_original: "",
-    currency: "USD",
-    exchange_rate_to_base: 1,
-});
-
-const artistExpenseForm = useForm({
-    artist_id: "",
-    expense_date: new Date().toISOString().slice(0, 10),
-    name: "",
-    description: "",
-    category: "",
-    receipt_file: null,
-    amount_original: "",
-    currency: "USD",
-    exchange_rate_to_base: 1,
-    notes: "",
-});
-
-const statusForm = useForm({
-    is_paid: props.event.is_paid ?? false,
-});
-
-const eventMetaForm = useForm({
-    status: props.event.status || "",
-    event_date: props.event.event_date || "",
-    full_payment_due_date: props.event.full_payment_due_date || "",
-});
-
-const confirmForm = useForm({
-    confirmed: true,
-});
-
-const roadManagers = computed(() => {
-    return props.event.road_managers || props.event.roadManagers || [];
-});
-
-const availableArtists = computed(() => {
-    const artists = [];
-    if (props.event.main_artist) {
-        artists.push(props.event.main_artist);
-    } else if (props.event.mainArtist) {
-        artists.push(props.event.mainArtist);
-    }
-    return artists;
-});
-
-const currentRoadManager = computed(() => {
-    if (!isRoadManager.value) return null;
-    const userId = pageProps.auth?.user?.id;
-    return roadManagers.value.find((rm) => rm.id === userId) || null;
-});
-
-const roadManagerConfirmedAt = computed(() => {
-    return currentRoadManager.value?.pivot?.payment_confirmed_at || null;
-});
-
-const roadManagerDue = computed(() => {
-    const fee = Number(props.event.show_fee_total ?? 0);
-    const advancePct = Number(props.event.advance_percentage ?? 0);
-    const pct = Number.isFinite(advancePct) ? advancePct : 0;
-    const normalizedPct = Math.min(Math.max(pct, 0), 100);
-    const due = fee * (1 - normalizedPct / 100);
-    return Number.isFinite(due) ? due : 0;
-});
-
-watch(
+const {
+    roleNames,
     isAdmin,
-    (value) => {
-        if (!value) {
-            activeTab.value = "pagos";
-        }
-    },
-    { immediate: true }
-);
-
-// Totales
-const totals = computed(() => {
-    const paid = Number(props.finance?.total_paid_base ?? 0);
-    const expenses = Number(props.finance?.total_expenses_base ?? 0);
-    const artistPersonalExpenses = Number(props.finance?.artist_personal_expenses_base ?? 0);
-    const net = paid - expenses;
-
-    return {
-        paid,
-        expenses,
-        artistPersonalExpenses,
-        net,
-        shareLabel: Number(props.finance?.label_share_estimated_base ?? net * 0.3),
-        shareArtist: Number(props.finance?.artist_share_estimated_base ?? net * 0.7),
-        shareArtistNet: Number(props.finance?.artist_net_share_base ?? (net * 0.7 - artistPersonalExpenses)),
-    };
-});
-
-const totalPaidBase = computed(() => Number(props.finance?.total_paid_base ?? 0));
-const showFeeTotal = computed(() => Number(props.event.show_fee_total ?? 0));
-const canMarkPaid = computed(() => showFeeTotal.value > 0 && totalPaidBase.value >= showFeeTotal.value);
-const paidShortfall = computed(() => {
-    if (showFeeTotal.value <= 0) return 0;
-    return Math.max(showFeeTotal.value - totalPaidBase.value, 0);
-});
-const paidStatusAlert = computed(() => {
-    if (showFeeTotal.value <= 0) {
-        return "Define el fee del show para poder marcarlo como pagado.";
-    }
-    if (!canMarkPaid.value) {
-        return `Faltan $${paidShortfall.value.toFixed(2)} USD para marcarlo como pagado.`;
-    }
-    return "";
-});
-
-const eventStatusValue = computed(() => {
-    const raw = eventMetaForm.status || props.event.status || "";
-    return raw.toString().trim().toLowerCase();
-});
-
-const eventStatusBadge = computed(() => {
-    const status = eventStatusValue.value;
-    if (!status) {
-        return {
-            label: "Sin estado",
-            className: "bg-gray-500/20 text-gray-300 border border-gray-500/30",
-        };
-    }
-
-    const labels = {
-        cotizado: "Cotizado",
-        reservado: "Reservado",
-        confirmado: "Confirmado",
-        pospuesto: "Pospuesto",
-        pagado: "Pagado",
-        cancelado: "Cancelado",
-    };
-
-    const classes = {
-        cotizado: "bg-gray-500/20 text-gray-200 border border-gray-500/30",
-        reservado: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30",
-        confirmado: "bg-blue-500/20 text-blue-300 border border-blue-500/30",
-        pospuesto: "bg-orange-500/20 text-orange-300 border border-orange-500/30",
-        pagado: "bg-green-500/20 text-green-300 border border-green-500/30",
-        cancelado: "bg-red-500/20 text-red-300 border border-red-500/30",
-    };
-
-    return {
-        label: labels[status] || status,
-        className: classes[status] || "bg-gray-500/20 text-gray-300 border border-gray-500/30",
-    };
-});
-
-const statusAlert = computed(() => {
-    const status = eventStatusValue.value;
-    if (status === "pospuesto") {
-        return {
-            title: "Evento pospuesto",
-            message: "Actualiza la nueva fecha y confirma el plan con el equipo.",
-            className: "bg-orange-500/10 border border-orange-500/30 text-orange-200",
-        };
-    }
-    if (status === "cancelado") {
-        return {
-            title: "Evento cancelado",
-            message: "Revisa pagos y gastos para cerrar la contabilidad.",
-            className: "bg-red-500/10 border border-red-500/30 text-red-200",
-        };
-    }
-    return null;
-});
-
-// Adaptador para FinanceCharts
-const eventArray = computed(() => {
-    if (!props.event) return [];
-    return [
-        {
-            ...props.event,
-            title: props.event.title || props.event.name || "Evento",
-            event_date: props.event.event_date || new Date().toISOString(),
-            status: props.event.is_paid ? "pagado" : "pendiente",
-            total_paid_base: props.finance?.total_paid_base ?? 0,
-            total_expenses_base: props.finance?.total_expenses_base ?? 0,
-            net_base:
-                (props.finance?.total_paid_base ?? 0) -
-                (props.finance?.total_expenses_base ?? 0),
-        },
-    ];
-});
-
-// Helpers
-const normalizePaymentCurrencyAndRate = () => {
-    const cur = (paymentForm.currency || "").toUpperCase().trim();
-    paymentForm.currency = cur || "USD";
-
-    if (paymentForm.currency === "USD") {
-        paymentForm.exchange_rate_to_base = 1;
-    } else if (!paymentForm.exchange_rate_to_base || Number(paymentForm.exchange_rate_to_base) <= 0) {
-        paymentForm.exchange_rate_to_base = 1;
-    }
-};
-
-const normalizeExpenseCurrencyAndRate = () => {
-    const cur = (expenseForm.currency || "").toUpperCase().trim();
-    expenseForm.currency = cur || "USD";
-
-    if (expenseForm.currency === "USD") {
-        expenseForm.exchange_rate_to_base = 1;
-    } else if (!expenseForm.exchange_rate_to_base || Number(expenseForm.exchange_rate_to_base) <= 0) {
-        expenseForm.exchange_rate_to_base = 1;
-    }
-};
-
-const normalizeArtistExpenseCurrencyAndRate = () => {
-    const cur = (artistExpenseForm.currency || "").toUpperCase().trim();
-    artistExpenseForm.currency = cur || "USD";
-
-    if (artistExpenseForm.currency === "USD") {
-        artistExpenseForm.exchange_rate_to_base = 1;
-    } else if (!artistExpenseForm.exchange_rate_to_base || Number(artistExpenseForm.exchange_rate_to_base) <= 0) {
-        artistExpenseForm.exchange_rate_to_base = 1;
-    }
-};
-
-// Actions
-const submitPayment = () => {
-    normalizePaymentCurrencyAndRate();
-
-    paymentForm.post(route("admin.events.payments.store", props.event.id), {
-        preserveScroll: true,
-        onSuccess: () => {
-            paymentForm.reset("amount_original", "payment_method", "is_advance", "notes");
-            showPaymentModal.value = false;
-            activeTab.value = "pagos";
-        },
-    });
-};
-
-const deletePayment = (paymentId) => {
-    if (!isAdmin.value) return;
-    if (!confirm("¿Eliminar este pago?")) return;
-
-    paymentForm.delete(route("admin.events.payments.destroy", paymentId), {
-        preserveScroll: true,
-        onSuccess: () => {
-            // Recargar la página para actualizar
-            router.visit(route("admin.events.finance", props.event.id), {
-                preserveScroll: true,
-                preserveState: false,
-            });
-        },
-    });
-};
-
-const submitExpense = () => {
-    normalizeExpenseCurrencyAndRate();
-
-    expenseForm.post(route("admin.events.expenses.store", props.event.id), {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            expenseForm.reset("amount_original", "name", "description", "category", "receipt_file");
-            showExpenseModal.value = false;
-            activeTab.value = "gastos";
-            // Recargar la página para actualizar los datos
-            router.visit(route("admin.events.finance", props.event.id), {
-                preserveScroll: true,
-                preserveState: false,
-            });
-        },
-    });
-};
-
-const deleteExpense = (expenseId) => {
-    if (!isAdmin.value) return;
-    if (!confirm("¿Eliminar este gasto?")) return;
-
-    expenseForm.delete(route("admin.events.expenses.destroy", expenseId), {
-        preserveScroll: true,
-        onSuccess: () => {
-            // Recargar la página para actualizar
-            router.visit(route("admin.events.finance", props.event.id), {
-                preserveScroll: true,
-                preserveState: false,
-            });
-        },
-    });
-};
-
-const updatePaymentStatus = () => {
-    statusForm.patch(route("admin.events.payment-status.update", props.event.id), {
-        preserveScroll: true,
-    });
-};
-
-const updateEventDetails = () => {
-    eventMetaForm.patch(route("admin.events.details.update", props.event.id), {
-        preserveScroll: true,
-    });
-};
-
-const confirmRoadManagerPayment = () => {
-    if (confirmForm.processing) return;
-    if (roadManagerConfirmedAt.value) return;
-
-    confirmForm.patch(route("admin.events.roadmanager-payment.update", props.event.id), {
-        preserveScroll: true,
-    });
-};
-
-// Quick computed for UI
-const statusBadge = computed(() => {
-    const paid = !!statusForm.is_paid;
-    return {
-        label: paid ? "Pagado" : "Pendiente",
-        className: paid
-            ? "bg-green-500/20 text-green-300 border border-green-500/40"
-            : "bg-yellow-500/20 text-yellow-300 border border-yellow-500/40",
-    };
-});
-
-const canSubmitPaymentStatus = computed(() => !statusForm.is_paid || canMarkPaid.value);
-const canSubmitEventDetails = computed(() => eventStatusValue.value !== "pagado" || canMarkPaid.value);
-
-const openPaymentModal = () => {
-    paymentForm.payment_date = new Date().toISOString().slice(0, 10);
-    paymentForm.currency = (paymentForm.currency || "USD").toUpperCase().trim() || "USD";
-    if (paymentForm.currency === "USD") paymentForm.exchange_rate_to_base = 1;
-    showPaymentModal.value = true;
-};
-
-const openExpenseModal = () => {
-    expenseForm.expense_date = new Date().toISOString().slice(0, 10);
-    expenseForm.currency = (expenseForm.currency || "USD").toUpperCase().trim() || "USD";
-    if (expenseForm.currency === "USD") expenseForm.exchange_rate_to_base = 1;
-    showExpenseModal.value = true;
-};
-
-const openArtistExpenseModal = () => {
-    artistExpenseForm.reset();
-    artistExpenseForm.expense_date = new Date().toISOString().slice(0, 10);
-    artistExpenseForm.currency = "USD";
-    artistExpenseForm.exchange_rate_to_base = 1;
-    // Pre-seleccionar el artista principal si existe
-    if (availableArtists.value.length > 0) {
-        artistExpenseForm.artist_id = availableArtists.value[0].id;
-    }
-    showArtistExpenseModal.value = true;
-};
-
-const submitArtistExpense = () => {
-    normalizeArtistExpenseCurrencyAndRate();
-
-    artistExpenseForm.post(route("admin.events.artist-expenses.store", props.event.id), {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            artistExpenseForm.reset();
-            showArtistExpenseModal.value = false;
-            activeTab.value = "gastos-artista";
-        },
-    });
-};
-
-const approveArtistExpense = (expenseId) => {
-    if (!isAdmin.value) return;
-    if (!confirm("¿Aprobar este gasto personal del artista?")) return;
-
-    router.patch(
-        route("admin.artist-expenses.approve", expenseId),
-        {},
-        {
-            preserveScroll: true,
-            onSuccess: () => {
-                // Refrescar componente de gastos del artista
-                fetch(route("admin.events.finance", props.event.id))
-                    .then(response => response.text())
-                    .then(html => {
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(html, 'text/html');
-                        const script = doc.querySelector('script[type="application/json"]');
-                        if (script) {
-                            const data = JSON.parse(script.textContent);
-                            if (data.props && data.props.event && data.props.event.artist_personal_expenses) {
-                                props.event.artist_personal_expenses = data.props.event.artist_personal_expenses;
-                            }
-                        }
-                    });
-            },
-        }
-    );
-};
-
-const deleteArtistExpense = (expenseId) => {
-    if (!confirm("¿Eliminar este gasto personal del artista?")) return;
-
-    router.delete(route("admin.artist-expenses.destroy", expenseId), {
-        preserveScroll: true,
-        onSuccess: () => {
-            // Refrescar solo los gastos del artista sin recargar la página
-            fetch(route("admin.events.finance", props.event.id))
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const script = doc.querySelector('script[type="application/json"]');
-                    if (script) {
-                        const data = JSON.parse(script.textContent);
-                        if (data.props && data.props.event && data.props.event.artist_personal_expenses) {
-                            props.event.artist_personal_expenses = data.props.event.artist_personal_expenses;
-                        }
-                    }
-                });
-        },
-    });
-};
+    isRoadManager,
+    activeTab,
+    showPaymentModal,
+    showExpenseModal,
+    showArtistExpenseModal,
+    filterType,
+    filterYear,
+    filterMonth,
+    filterDateFrom,
+    filterDateTo,
+    paymentMethodOptions,
+    paymentForm,
+    expenseForm,
+    artistExpenseForm,
+    statusForm,
+    eventMetaForm,
+    confirmForm,
+    roadManagers,
+    availableArtists,
+    currentRoadManager,
+    roadManagerConfirmedAt,
+    roadManagerDue,
+    totals,
+    paidStatusAlert,
+    eventStatusValue,
+    eventStatusBadge,
+    statusAlert,
+    eventArray,
+    statusBadge,
+    canSubmitPaymentStatus,
+    canSubmitEventDetails,
+    normalizePaymentCurrencyAndRate,
+    normalizeExpenseCurrencyAndRate,
+    normalizeArtistExpenseCurrencyAndRate,
+    openPaymentModal,
+    openExpenseModal,
+    openArtistExpenseModal,
+    submitPayment,
+    deletePayment,
+    submitExpense,
+    deleteExpense,
+    updatePaymentStatus,
+    updateEventDetails,
+    confirmRoadManagerPayment,
+    submitArtistExpense,
+    approveArtistExpense,
+    deleteArtistExpense,
+} = useFinancePage(props);
 </script>
 
 <template>
@@ -579,205 +175,12 @@ const deleteArtistExpense = (expenseId) => {
                 </div>
             </div>
 
-            <div v-if="isAdmin && activeTab === 'resumen'" class="space-y-6">
-                <div class="grid grid-cols-1 sm:grid-cols-5 gap-4">
-                    <div class="card">
-                        <p class="text-gray-400 text-sm">Total pagado</p>
-                        <p class="text-white text-xl font-semibold">$ {{ totals.paid.toFixed(2) }}</p>
-                        <p class="text-gray-500 text-xs mt-1">Suma de pagos (convertidos a USD).</p>
-                    </div>
-                    <div class="card">
-                        <p class="text-gray-400 text-sm">Total gastos</p>
-                        <p class="text-white text-xl font-semibold">$ {{ totals.expenses.toFixed(2) }}</p>
-                        <p class="text-gray-500 text-xs mt-1">Suma de gastos (convertidos a USD).</p>
-                    </div>
-                    <div class="card">
-                        <p class="text-gray-400 text-sm">Neto</p>
-                        <p class="text-white text-xl font-semibold">$ {{ totals.net.toFixed(2) }}</p>
-                        <p class="text-gray-500 text-xs mt-1">Pagos − gastos.</p>
-                    </div>
-                    <div class="card">
-                        <p class="text-gray-400 text-sm">70% Artista</p>
-                        <p class="text-[#ffa236] text-xl font-semibold">$ {{ totals.shareArtist.toFixed(2) }}</p>
-                        <p class="text-gray-500 text-xs mt-1">Antes de gastos personales.</p>
-                    </div>
-                    <div class="card">
-                        <p class="text-gray-400 text-sm">Pago neto artista</p>
-                        <p class="text-green-400 text-xl font-semibold">$ {{ totals.shareArtistNet.toFixed(2) }}</p>
-                        <p class="text-gray-500 text-xs mt-1">Descontando gastos personales.</p>
-                    </div>
-                </div>
-
-                <div class="bg-[#ffa236]/5 border border-[#ffa236]/30 rounded-lg p-4 flex gap-3">
-                    <Icon icon="mdi:information-outline" class="text-[#ffa236] text-xl flex-shrink-0 mt-0.5" />
-                    <div>
-                        <p class="text-sm text-[#ffa236] font-semibold mb-1">Gastos personales del artista</p>
-                        <p class="text-sm text-gray-300">
-                            Total: <span class="font-semibold text-[#ffa236]">${{
-                                totals.artistPersonalExpenses.toFixed(2) }}</span>
-                        </p>
-                        <p class="text-xs text-gray-400 mt-2">Se descuentan del 70% que le corresponde al artista. No
-                            afectan el 30% de la compañía.</p>
-                    </div>
-                </div>
-
-                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
-                    <div class="flex items-center justify-between mb-3">
-                        <div>
-                            <h2 class="text-lg font-semibold">Estado de pago</h2>
-                            <p class="text-sm text-gray-400">Marca si el evento se considera pagado o pendiente.</p>
-                        </div>
-                        <span :class="['px-3 py-1 rounded-full text-xs font-semibold', statusBadge.className]">{{
-                            statusBadge.label }}</span>
-                    </div>
-                    <form @submit.prevent="updatePaymentStatus" class="flex flex-col sm:flex-row sm:items-center gap-4">
-                        <label class="flex items-center gap-2 text-sm text-gray-300">
-                            <input v-model="statusForm.is_paid" type="checkbox" class="checkbox"
-                                :disabled="!canMarkPaid && !statusForm.is_paid" />
-                            Marcar como pagado
-                        </label>
-                        <div class="flex-1"></div>
-                        <button type="submit" class="btn-primary self-start sm:self-auto"
-                            :disabled="statusForm.processing || !canSubmitPaymentStatus">Guardar estado</button>
-                    </form>
-                    <p v-if="paidStatusAlert" class="text-amber-300 text-sm mt-3">
-                        {{ paidStatusAlert }}
-                    </p>
-                    <p v-if="statusForm.errors.is_paid" class="text-red-500 text-sm mt-2">
-                        {{ statusForm.errors.is_paid }}
-                    </p>
-                </div>
-
-                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h2 class="text-lg font-semibold">Estado y fechas</h2>
-                            <p class="text-sm text-gray-400">Actualiza el estado del evento y fechas clave.</p>
-                        </div>
-                        <span
-                            :class="['px-3 py-1 rounded-full text-xs font-semibold border', eventStatusBadge.className]">
-                            {{ eventStatusBadge.label }}
-                        </span>
-                    </div>
-                    <form @submit.prevent="updateEventDetails" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div>
-                            <label class="text-gray-300 text-sm">Estado</label>
-                            <select v-model="eventMetaForm.status" class="input">
-                                <option value="">Selecciona un estado</option>
-                                <option value="cotizado">Cotizado</option>
-                                <option value="reservado">Reservado</option>
-                                <option value="confirmado">Confirmado</option>
-                                <option value="pospuesto">Pospuesto</option>
-                                <option value="pagado" :disabled="!canMarkPaid">Pagado</option>
-                                <option value="cancelado">Cancelado</option>
-                            </select>
-                            <p v-if="eventMetaForm.errors.status" class="text-red-500 text-sm mt-1">
-                                {{ eventMetaForm.errors.status }}
-                            </p>
-                            <p v-else-if="eventStatusValue === 'pagado' && paidStatusAlert"
-                                class="text-amber-300 text-xs mt-1">
-                                {{ paidStatusAlert }}
-                            </p>
-                        </div>
-                        <div>
-                            <label class="text-gray-300 text-sm">Fecha del evento</label>
-                            <input v-model="eventMetaForm.event_date" type="date" class="input" />
-                            <p v-if="eventMetaForm.errors.event_date" class="text-red-500 text-sm mt-1">
-                                {{ eventMetaForm.errors.event_date }}
-                            </p>
-                        </div>
-                        <div>
-                            <label class="text-gray-300 text-sm">Fecha pago final</label>
-                            <input v-model="eventMetaForm.full_payment_due_date" type="date" class="input" />
-                            <p v-if="eventMetaForm.errors.full_payment_due_date" class="text-red-500 text-sm mt-1">
-                                {{ eventMetaForm.errors.full_payment_due_date }}
-                            </p>
-                        </div>
-                        <div class="sm:col-span-3 flex justify-end">
-                            <button type="submit" class="btn-primary"
-                                :disabled="eventMetaForm.processing || !canSubmitEventDetails">
-                                Guardar cambios
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <div v-if="roadManagers.length" class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
-                    <h2 class="text-lg font-semibold mb-4">Confirmacion road managers</h2>
-                    <div class="space-y-3 text-sm">
-                        <div v-for="rm in roadManagers" :key="rm.id"
-                            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-[#2a2a2a] pb-2">
-                            <div>
-                                <p class="text-white font-semibold">{{ rm.name }}</p>
-                                <p class="text-gray-400 text-xs">{{ rm.email }}</p>
-                            </div>
-                            <div class="text-sm">
-                                <span v-if="rm.pivot?.payment_confirmed_at" class="text-green-400 font-semibold">
-                                    Confirmado
-                                    <span class="block text-xs text-gray-400">
-                                        {{ formatDateES(rm.pivot.payment_confirmed_at) }}
-                                    </span>
-                                </span>
-                                <span v-else class="text-yellow-400 font-semibold">Pendiente</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
-                    <h2 class="text-lg font-semibold mb-4">Datos del evento</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                        <div class="mini-card">
-                            <p class="text-gray-400">Ubicación</p>
-                            <p class="text-white font-semibold">
-                                <span v-if="event.city || event.country">
-                                    {{ event.city }}{{ event.city && event.country ? "," : "" }} {{ event.country }}
-                                </span>
-                                <span v-else>{{ event.location || "—" }}</span>
-                            </p>
-                            <p v-if="event.location" class="text-gray-400 text-xs mt-1">{{ event.location }}</p>
-                            <p v-if="event.venue_address" class="text-gray-500 text-xs mt-1">{{ event.venue_address }}
-                            </p>
-                        </div>
-                        <div class="mini-card">
-                            <p class="text-gray-400">Tipo</p>
-                            <p class="text-white font-semibold capitalize">{{ event.event_type || "—" }}</p>
-                            <p class="text-gray-400 mt-2">Estado</p>
-                            <span
-                                :class="['inline-flex px-2 py-1 rounded-full text-xs font-semibold border mt-1', eventStatusBadge.className]">
-                                {{ eventStatusBadge.label }}
-                            </span>
-                        </div>
-                        <div class="mini-card">
-                            <p class="text-gray-400">Fee del show</p>
-                            <p class="text-white font-semibold">
-                                <span>{{ event.currency || "USD" }}</span>
-                                <span class="ml-1">{{ Number(event.show_fee_total ?? 0).toFixed(2) }}</span>
-                            </p>
-                            <p class="text-gray-400 mt-2">Moneda</p>
-                            <p class="text-white font-semibold">{{ event.currency || "USD" }}</p>
-                        </div>
-                        <div class="mini-card">
-                            <p class="text-gray-400">% Anticipo</p>
-                            <p class="text-white font-semibold">{{ event.advance_percentage ?? 50 }}%</p>
-                            <p class="text-gray-400 mt-2">¿Se espera anticipo?</p>
-                            <p class="text-white font-semibold">{{ event.advance_expected ? "Sí" : "No" }}</p>
-                        </div>
-                        <div class="mini-card">
-                            <p class="text-gray-400">Fecha pago final</p>
-                            <p class="text-white font-semibold">{{ event.full_payment_due_date ?
-                                formatDateES(event.full_payment_due_date) : "—" }}</p>
-                        </div>
-                        <div class="mini-card">
-                            <p class="text-gray-400">Reparto (neto)</p>
-                            <div class="mt-1 space-y-1">
-                                <p class="text-white font-semibold">Label: $ {{ totals.shareLabel.toFixed(2) }}</p>
-                                <p class="text-white font-semibold">Artista: $ {{ totals.shareArtist.toFixed(2) }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <FinanceSummary v-if="isAdmin && activeTab === 'resumen'" :event="event" :totals="totals"
+                :status-badge="statusBadge" :status-form="statusForm" :update-payment-status="updatePaymentStatus"
+                :can-submit-payment-status="canSubmitPaymentStatus" :paid-status-alert="paidStatusAlert"
+                :event-meta-form="eventMetaForm" :update-event-details="updateEventDetails"
+                :event-status-badge="eventStatusBadge" :event-status-value="eventStatusValue"
+                :can-submit-event-details="canSubmitEventDetails" :road-managers="roadManagers" />
 
             <div v-else-if="activeTab === 'pagos'" class="space-y-4">
                 <div
@@ -858,7 +261,7 @@ const deleteArtistExpense = (expenseId) => {
     </AdminLayout>
 </template>
 
-<style scoped>
+<style scoped lang="postcss">
 .input {
     @apply w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white focus:border-[#ffa236] focus:ring-[#ffa236];
 }
@@ -877,14 +280,6 @@ const deleteArtistExpense = (expenseId) => {
 
 .checkbox {
     @apply w-4 h-4 rounded bg-[#0f0f0f] border border-[#2a2a2a] text-[#ffa236] focus:ring-[#ffa236];
-}
-
-.card {
-    @apply bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5;
-}
-
-.mini-card {
-    @apply bg-[#111111] border border-[#2a2a2a] rounded-md p-3;
 }
 
 .tab-btn {
