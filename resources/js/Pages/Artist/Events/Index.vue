@@ -2,6 +2,7 @@
 import ArtistLayout from '@/Layouts/ArtistLayout.vue';
 import { Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import { formatMoney } from '@/utils/money';
 
 const props = defineProps({
     events: {
@@ -21,7 +22,7 @@ const formatDate = (date) => {
 };
 
 const formatCurrency = (value) => {
-    return `USD ${Number(value ?? 0).toFixed(2)}`;
+    return formatMoney(value, "USD");
 };
 
 const filteredEvents = computed(() => {

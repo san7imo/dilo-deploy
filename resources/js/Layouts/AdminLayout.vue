@@ -2,6 +2,7 @@
 import logoBlanco from '@/Assets/Images/Logos/responsive-blanco.webp';
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
+import { getXsrfToken } from "@/utils/csrf";
 
 const { props } = usePage();
 const user = props.auth?.user;
@@ -15,24 +16,28 @@ const roleNames = computed(() => {
 
 const isAdmin = computed(() => roleNames.value.includes("admin"));
 const isRoadManager = computed(() => roleNames.value.includes("roadmanager"));
+const isContentManager = computed(() => roleNames.value.includes("contentmanager"));
+const canManageContent = computed(() => isAdmin.value || isContentManager.value);
 const dashboardRoute = computed(() =>
-  isRoadManager.value ? "admin.events.index" : "admin.dashboard"
+  isRoadManager.value || isContentManager.value
+    ? "admin.events.index"
+    : "admin.dashboard"
 );
 const dashboardLabel = computed(() =>
-  isRoadManager.value ? "Finanzas" : "Dashboard"
+  isRoadManager.value ? "Eventos" : isContentManager.value ? "Eventos" : "Dashboard"
 );
 const panelTitle = computed(() =>
-  isRoadManager.value ? "Panel Road Manager" : "Panel de Administración"
+  isRoadManager.value
+    ? "Panel Road Manager"
+    : isContentManager.value
+      ? "Panel Gestor de Contenido"
+      : "Panel de Administración"
 );
-
-const getCsrfToken = () =>
-  document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+const isEventDashboard = computed(() => isRoadManager.value || isContentManager.value);
 
 const logout = () => {
-  const token = getCsrfToken();
-  router.post(route("logout"), { _token: token }, {
-    headers: token ? { "X-CSRF-TOKEN": token } : {},
-  });
+  const token = getXsrfToken();
+  router.post(route("logout"), token ? { _token: token } : {});
 };
 </script>
 
@@ -89,7 +94,7 @@ const logout = () => {
           :href="route(dashboardRoute)"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{
-            'bg-[#ffa236]/20 text-[#ffa236]': isRoadManager
+            'bg-[#ffa236]/20 text-[#ffa236]': isEventDashboard
               ? route().current('admin.events.*')
               : route().current('admin.dashboard')
           }"
@@ -99,7 +104,7 @@ const logout = () => {
         </Link>
 
         <Link
-          v-if="isAdmin"
+          v-if="canManageContent"
           :href="route('admin.artists.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.artists.*') }"
@@ -109,17 +114,22 @@ const logout = () => {
         </Link>
 
         <Link
-          v-if="isAdmin"
-          :href="route('admin.roadmanagers.index')"
+          v-if="canManageContent"
+          :href="route('admin.team.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
-          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.roadmanagers.*') }"
+          :class="{
+            'bg-[#ffa236]/20 text-[#ffa236]':
+              route().current('admin.team.*') ||
+              route().current('admin.roadmanagers.*') ||
+              route().current('admin.content-managers.*')
+          }"
         >
           <i class="fa-solid fa-clipboard-user"></i>
-          <span v-if="isSidebarOpen">Road managers</span>
+          <span v-if="isSidebarOpen">Equipo de trabajo</span>
         </Link>
 
         <Link
-          v-if="isAdmin"
+          v-if="canManageContent"
           :href="route('admin.releases.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.releases.*') }"
@@ -129,7 +139,7 @@ const logout = () => {
         </Link>
 
         <Link
-          v-if="isAdmin"
+          v-if="canManageContent"
           :href="route('admin.tracks.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.tracks.*') }"
@@ -139,7 +149,7 @@ const logout = () => {
         </Link>
 
         <Link
-          v-if="isAdmin"
+          v-if="canManageContent"
           :href="route('admin.events.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.events.*') }"
@@ -149,7 +159,7 @@ const logout = () => {
         </Link>
 
         <Link
-          v-if="isAdmin"
+          v-if="canManageContent"
           :href="route('admin.genres.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.genres.*') }"

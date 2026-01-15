@@ -1,6 +1,7 @@
 <script setup>
 import ArtistLayout from '@/Layouts/ArtistLayout.vue';
 import { Link } from '@inertiajs/vue3';
+import { formatMoney } from '@/utils/money';
 
 const props = defineProps({
     event: { type: Object, required: true },
@@ -37,15 +38,7 @@ const formatTime = (date) => {
 };
 
 const formatCurrency = (value, currency = 'USD') => {
-    const number = Number(value ?? 0);
-    if (Number.isNaN(number)) return `${currency} 0.00`;
-    // Use Intl.NumberFormat for locale-aware formatting. This will show currency symbol for common codes.
-    try {
-        return new Intl.NumberFormat('es-ES', { style: 'currency', currency }).format(number);
-    } catch (e) {
-        // Fallback to a simple formatted string if Intl doesn't support the currency code
-        return `${currency} ${number.toFixed(2)}`;
-    }
+    return formatMoney(value, currency);
 };
 
 const isPaid = () => {

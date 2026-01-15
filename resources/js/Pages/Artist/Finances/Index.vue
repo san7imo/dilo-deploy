@@ -2,6 +2,7 @@
 import ArtistLayout from "@/Layouts/ArtistLayout.vue";
 import { computed } from "vue";
 import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
+import { formatMoney } from "@/utils/money";
 
 const props = defineProps({
     summary: {
@@ -22,9 +23,8 @@ const pendingEventsCount = computed(() => {
 });
 
 const formatCurrency = (value) => {
-    const amount = Number(value ?? 0);
     const currency = props.summary.currency || "USD";
-    return `${currency} ${amount.toFixed(2)}`;
+    return formatMoney(value, currency);
 };
 
 const formatDate = (date) => {

@@ -1,29 +1,27 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-import { Link } from "@inertiajs/vue3";
+import { Link, usePage } from "@inertiajs/vue3";
 import axios from 'axios'
 import { computed, ref, watch } from 'vue'
+import { formatMoney } from "@/utils/money";
 
 const props = defineProps({
   events: Object,
   artists: Array,
   canManageEvents: { type: Boolean, default: false },
+  canSeeFinance: { type: Boolean, default: false },
 });
+
+const { props: pageProps } = usePage();
+const roleNames = computed(() => pageProps.auth?.user?.role_names || []);
+const isAdmin = computed(() => roleNames.value.includes("admin"));
 
 const selectedArtist = ref('todos');
 const selectedPeriod = ref('todos');
 const dateFrom = ref('');
 const dateTo = ref('');
 
-const formatMoney = (value, currency = 'USD') => {
-  const n = Number(value ?? 0)
-  if (Number.isNaN(n)) return `${currency} 0,00`
-  try {
-    return new Intl.NumberFormat('es-ES', { style: 'currency', currency }).format(n)
-  } catch (e) {
-    return `${currency} ${n.toFixed(2)}`
-  }
-}
+const formatCurrency = (value, currency = 'USD') => formatMoney(value, currency);
 
 // Local reactive copy of the events list so we can perform optimistic updates
 const localEvents = ref((props.events && props.events.data) ? [...props.events.data] : []);
@@ -185,6 +183,7 @@ const totals = computed(() => {
 })
 
 const canManageEvents = computed(() => !!props.canManageEvents);
+const canSeeFinance = computed(() => !!props.canSeeFinance);
 
 watch(selectedPeriod, (value) => {
   if (value !== 'personalizado') {
@@ -277,7 +276,7 @@ const deleteEvent = async (eventId) => {
         evento</Link>
     </div>
 
-    <div v-if="canManageEvents" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+    <div v-if="isAdmin" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">Total eventos</p>
         <p class="text-xl font-semibold text-white">{{ generalTotals.totalEvents }}</p>
@@ -300,32 +299,32 @@ const deleteEvent = async (eventId) => {
       </div>
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">Fee negociado</p>
-        <p class="text-xl font-semibold text-white">{{ formatMoney(generalTotals.totalFee, 'USD') }}</p>
+        <p class="text-xl font-semibold text-white">{{ formatCurrency(generalTotals.totalFee, 'USD') }}</p>
       </div>
     </div>
 
     <!-- Financial summary -->
-    <div v-if="canManageEvents" class="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-6">
+    <div v-if="isAdmin" class="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-6">
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">Ingresos totales</p>
-        <p class="text-xl font-semibold text-white">{{ formatMoney(totals.totalPaid, 'USD') }}</p>
+        <p class="text-xl font-semibold text-white">{{ formatCurrency(totals.totalPaid, 'USD') }}</p>
       </div>
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">Gastos totales</p>
-        <p class="text-xl font-semibold text-red-400">{{ formatMoney(totals.totalExpenses, 'USD') }}</p>
+        <p class="text-xl font-semibold text-red-400">{{ formatCurrency(totals.totalExpenses, 'USD') }}</p>
       </div>
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">Resultado neto</p>
-        <p class="text-xl font-semibold text-white">{{ formatMoney(totals.net, 'USD') }}</p>
+        <p class="text-xl font-semibold text-white">{{ formatCurrency(totals.net, 'USD') }}</p>
       </div>
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">70% Artista</p>
-        <p class="text-xl font-semibold text-[#ffa236]">{{ formatMoney(totals.artistShare, 'USD') }}</p>
+        <p class="text-xl font-semibold text-[#ffa236]">{{ formatCurrency(totals.artistShare, 'USD') }}</p>
         <p class="text-xs text-gray-400">{{ Math.round(totals.artistPct) }}%</p>
       </div>
       <div class="rounded-lg p-4 bg-[#0f0f0f] border border-[#232323]">
         <p class="text-xs text-gray-400">30% Compañía</p>
-        <p class="text-xl font-semibold text-gray-100">{{ formatMoney(totals.labelShare, 'USD') }}</p>
+        <p class="text-xl font-semibold text-gray-100">{{ formatCurrency(totals.labelShare, 'USD') }}</p>
         <p class="text-xs text-gray-400">{{ Math.round(totals.labelPct) }}%</p>
       </div>
     </div>
@@ -339,16 +338,21 @@ const deleteEvent = async (eventId) => {
             <th class="px-4 py-2 text-left">Ubicación</th>
             <th class="px-4 py-2 text-left">Tipo</th>
             <th class="px-4 py-2 text-left">Estado</th>
-            <th v-if="canManageEvents" class="px-4 py-2 text-left">Fee / Moneda</th>
-            <th v-if="canManageEvents" class="px-4 py-2 text-left">% Anticipo</th>
-            <th class="px-4 py-2 text-left">Pago final</th>
+            <th v-if="isAdmin" class="px-4 py-2 text-left">Fee / Moneda</th>
+            <th v-if="isAdmin" class="px-4 py-2 text-left">% Anticipo</th>
+            <th v-if="isAdmin" class="px-4 py-2 text-left">Pago final</th>
             <th class="px-4 py-2 text-left">Artista Principal</th>
-            <th class="px-4 py-2 text-right">{{ canManageEvents ? 'Acciones' : 'Finanzas' }}</th>
+            <th class="px-4 py-2 text-right">
+              {{ canManageEvents ? 'Acciones' : canSeeFinance ? 'Finanzas' : '' }}
+            </th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="filteredEvents.length === 0">
-            <td :colspan="canManageEvents ? 10 : 8" class="px-4 py-6 text-center text-gray-500">
+            <td
+              :colspan="isAdmin ? 10 : 7"
+              class="px-4 py-6 text-center text-gray-500"
+            >
               No hay eventos con los filtros seleccionados.
             </td>
           </tr>
@@ -389,18 +393,18 @@ const deleteEvent = async (eventId) => {
                 {{ event.status || 'Sin estado' }}
               </span>
             </td>
-            <td v-if="canManageEvents" class="px-4 py-3">
+            <td v-if="isAdmin" class="px-4 py-3">
               <div class="text-xs">
                 <p v-if="event.show_fee_total">
-                  {{ event.currency || 'USD' }} {{ Number(event.show_fee_total).toFixed(2) }}
+                  {{ formatCurrency(event.show_fee_total, event.currency || 'USD') }}
                 </p>
                 <p v-else>—</p>
               </div>
             </td>
-            <td v-if="canManageEvents" class="px-4 py-3">
+            <td v-if="isAdmin" class="px-4 py-3">
               <span class="text-xs">{{ event.advance_percentage ?? 50 }}%</span>
             </td>
-            <td class="px-4 py-3">
+            <td v-if="isAdmin" class="px-4 py-3">
               {{ event.full_payment_due_date ? new Date(event.full_payment_due_date).toLocaleDateString('es-ES') : '—'
               }}
             </td>
@@ -412,7 +416,11 @@ const deleteEvent = async (eventId) => {
                 Editar
               </Link>
 
-              <Link :href="route('admin.events.finance', event.id)" class="text-green-400 hover:underline text-sm">
+              <Link
+                v-if="canSeeFinance"
+                :href="route('admin.events.finance', event.id)"
+                class="text-green-400 hover:underline text-sm"
+              >
                 Finanzas
               </Link>
 

@@ -183,7 +183,7 @@ class Event extends Model
 
     public function scopeVisibleForUser(Builder $query, $user): Builder
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasRole('contentmanager')) {
             return $query;
         }
 

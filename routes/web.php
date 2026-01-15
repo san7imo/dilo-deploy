@@ -71,6 +71,10 @@ Route::middleware(['auth:sanctum', 'verified'])
             return inertia('Artist/Dashboard');
         }
 
+        if ($user->hasRole('contentmanager')) {
+            return redirect()->route('admin.events.index');
+        }
+
         if ($user->hasRole('roadmanager')) {
             return redirect()->route('admin.events.index');
         }
@@ -91,7 +95,9 @@ use App\Http\Controllers\Web\Admin\{
     ReleaseController as AdminReleaseController,
     TrackController as AdminTrackController,
     EventFinanceController,
-    RoadManagerController
+    RoadManagerController,
+    ContentManagerController,
+    TeamController
 };
 
 use App\Http\Controllers\Web\EventPaymentController;
@@ -103,14 +109,19 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
     ->get('/admin/dashboard/data', [DashboardController::class, 'index'])
     ->name('admin.dashboard.data');
 
+Route::middleware(['auth:sanctum', 'verified', 'role:admin|roadmanager|contentmanager'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('events', [AdminEventController::class, 'index'])
+            ->name('events.index');
+    });
+
 Route::middleware(['auth:sanctum', 'verified', 'role:admin|roadmanager'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        // ✅ FINANZAS POR EVENTO (ADMIN)  -> admin.events.finance
-        Route::get('events', [AdminEventController::class, 'index'])
-            ->name('events.index');
-
+        // ✅ FINANZAS POR EVENTO (ADMIN/ROADMANAGER)
         Route::get('events/{event}/finance', [EventFinanceController::class, 'show'])
             ->name('events.finance');
 
@@ -126,10 +137,13 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin|roadmanager'])
             ->name('events.expenses.store');
     });
 
-Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
+Route::middleware(['auth:sanctum', 'verified', 'role:admin|contentmanager'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
+        // Equipo de trabajo
+        Route::get('team', [TeamController::class, 'index'])
+            ->name('team.index');
 
         // --- Artistas ---
         Route::resource('artists', AdminArtistController::class)->except(['show']);
@@ -140,8 +154,29 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
         // --- Road managers ---
         Route::resource('roadmanagers', RoadManagerController::class)->except(['show']);
 
+        // --- Géneros ---
+        Route::resource('genres', AdminGenreController::class)->except(['show']);
+
+        // --- Lanzamientos ---
+        Route::resource('releases', AdminReleaseController::class)->except(['show']);
+
+        // --- Pistas ---
+        Route::resource('tracks', AdminTrackController::class)->except(['show']);
+    });
+
+Route::middleware(['auth:sanctum', 'verified', 'role:admin|contentmanager|roadmanager'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
         // --- Eventos ---
         Route::resource('events', AdminEventController::class)->except(['show', 'index']);
+    });
+
+Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::resource('content-managers', ContentManagerController::class)->except(['show']);
 
         Route::patch('events/{event}/payment-status', [EventFinanceController::class, 'updatePaymentStatus'])
             ->name('events.payment-status.update');
@@ -172,15 +207,6 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
 
         Route::put('events/{event}/expenses-sync', [EventFinanceController::class, 'syncExpenses'])
             ->name('events.expenses.sync');
-
-        // --- Géneros ---
-        Route::resource('genres', AdminGenreController::class)->except(['show']);
-
-        // --- Lanzamientos ---
-        Route::resource('releases', AdminReleaseController::class)->except(['show']);
-
-        // --- Pistas ---
-        Route::resource('tracks', AdminTrackController::class)->except(['show']);
     });
 
 

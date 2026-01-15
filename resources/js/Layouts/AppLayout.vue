@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { getXsrfToken } from '@/utils/csrf';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import Banner from '@/Components/Banner.vue';
 import Dropdown from '@/Components/Dropdown.vue';
@@ -22,14 +23,9 @@ const switchToTeam = (team) => {
     });
 };
 
-const getCsrfToken = () =>
-    document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
-
 const logout = () => {
-    const token = getCsrfToken();
-    router.post(route('logout'), { _token: token }, {
-        headers: token ? { 'X-CSRF-TOKEN': token } : {},
-    });
+    const token = getXsrfToken();
+    router.post(route('logout'), token ? { _token: token } : {});
 };
 </script>
 

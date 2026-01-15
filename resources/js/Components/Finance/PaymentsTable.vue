@@ -1,5 +1,6 @@
 <script setup>
 import { formatDateES } from "@/utils/date";
+import { formatMoney, formatMoneyWithSymbol } from "@/utils/money";
 
 defineProps({
     payments: { type: Array, default: () => [] },
@@ -34,11 +35,11 @@ const emit = defineEmits(["delete"]);
                         <td class="py-2 whitespace-nowrap">{{ formatDateES(p.payment_date) }}</td>
 
                         <td class="py-2 whitespace-nowrap">
-                            {{ p.currency }} {{ Number(p.amount_original ?? 0).toFixed(2) }}
+                            {{ formatMoney(p.amount_original, p.currency) }}
                         </td>
 
                         <td class="py-2 whitespace-nowrap">
-                            $ {{ Number(p.amount_base ?? 0).toFixed(2) }}
+                            {{ formatMoneyWithSymbol(p.amount_base) }}
                         </td>
 
                         <td class="py-2 whitespace-nowrap capitalize">

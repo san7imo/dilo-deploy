@@ -87,7 +87,7 @@ class EventPersonalExpenseService
         }
 
         if ($remaining > 0 && $amountBase > $remaining) {
-            $formatted = number_format($remaining, 2);
+            $formatted = number_format($remaining, 0, ',', '.');
             throw ValidationException::withMessages([
                 'amount_original' => "El gasto personal supera el 70% disponible del artista. Disponible: USD {$formatted}.",
             ]);

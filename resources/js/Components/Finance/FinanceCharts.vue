@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import DoughnutChart from "@/Components/Charts/DoughnutChart.vue";
 import BarChart from "@/Components/Charts/BarChart.vue";
+import { formatMoneyWithSymbol } from "@/utils/money";
 
 const props = defineProps({
     totals: {
@@ -190,7 +191,7 @@ const chartEventComparison = computed(() => {
     };
 });
 
-const format = (value) => `${props.currency} ${Number(value ?? 0).toFixed(2)}`;
+const format = (value) => formatMoneyWithSymbol(value, props.currency);
 const toNumber = (value) => {
     const parsed = Number(value ?? 0);
     return Number.isFinite(parsed) ? parsed : 0;

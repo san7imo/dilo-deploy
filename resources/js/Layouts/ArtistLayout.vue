@@ -2,19 +2,15 @@
 import logoBlanco from '@/Assets/Images/Logos/responsive-blanco.webp';
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { ref } from "vue";
+import { getXsrfToken } from "@/utils/csrf";
 
 const { props } = usePage();
 const user = props.auth?.user;
 const isSidebarOpen = ref(true);
 
-const getCsrfToken = () =>
-    document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
-
 const logout = () => {
-    const token = getCsrfToken();
-    router.post(route("logout"), { _token: token }, {
-        headers: token ? { "X-CSRF-TOKEN": token } : {},
-    });
+    const token = getXsrfToken();
+    router.post(route("logout"), token ? { _token: token } : {});
 };
 </script>
 

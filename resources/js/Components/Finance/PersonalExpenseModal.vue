@@ -1,5 +1,6 @@
 <script setup>
 import Modal from "@/Components/Modal.vue";
+import { formatMoney } from "@/utils/money";
 
 const props = defineProps({
     show: { type: Boolean, default: false },
@@ -31,7 +32,7 @@ const onBlurCurrency = () => {
                         Se descontará del 70% del artista.
                     </p>
                     <p v-if="remaining !== null" class="text-xs text-gray-500 mt-1">
-                        Disponible: USD {{ Number(remaining ?? 0).toFixed(2) }}
+                        Disponible: {{ formatMoney(remaining, "USD") }}
                     </p>
                     <p v-if="form.errors.base" class="text-red-500 text-sm mt-2">
                         {{ form.errors.base }}

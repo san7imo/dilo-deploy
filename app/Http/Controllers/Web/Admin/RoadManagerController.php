@@ -41,7 +41,7 @@ class RoadManagerController extends Controller
         $user->assignRole('roadmanager');
 
         return redirect()
-            ->route('admin.roadmanagers.index')
+            ->route('admin.team.index')
             ->with('success', 'Road manager creado correctamente');
     }
 
@@ -79,7 +79,7 @@ class RoadManagerController extends Controller
         $roadmanager->save();
 
         return redirect()
-            ->route('admin.roadmanagers.index')
+            ->route('admin.team.index')
             ->with('success', 'Road manager actualizado correctamente');
     }
 
@@ -92,7 +92,7 @@ class RoadManagerController extends Controller
         $roadmanager->delete();
 
         return redirect()
-            ->route('admin.roadmanagers.index')
+            ->route('admin.team.index')
             ->with('success', 'Road manager eliminado correctamente');
     }
 }

@@ -40,6 +40,10 @@ class EventService
             ->withSum('expenses as total_expenses_base', 'amount_base')
             ->orderBy('event_date', 'desc');
 
+        if ($user->hasRole('contentmanager')) {
+            return $query->paginate($perPage);
+        }
+
         if ($user->hasRole('roadmanager')) {
             $query->whereHas('roadManagers', function ($q) use ($user) {
                 $q->where('users.id', $user->id);

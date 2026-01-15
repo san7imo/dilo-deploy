@@ -10,6 +10,8 @@ import PaymentsTable from "@/Components/Finance/PaymentsTable.vue";
 import ExpensesTable from "@/Components/Finance/ExpensesTable.vue";
 import PersonalExpensesTable from "@/Components/Finance/PersonalExpensesTable.vue";
 import { formatDateES } from "@/utils/date";
+import { formatAmount, formatMoney, formatMoneyWithSymbol } from "@/utils/money";
+import { getXsrfToken } from "@/utils/csrf";
 
 const props = defineProps({
     event: { type: Object, required: true },
@@ -36,9 +38,11 @@ const paymentMethodOptions = [
     { value: "otro", label: "Otro" },
 ];
 
-const getCsrfToken = () =>
-    document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
-const csrfToken = getCsrfToken();
+const applyXsrfToken = (form) => {
+    const token = getXsrfToken();
+    if (token) form._token = token;
+    return token ? { "X-XSRF-TOKEN": token } : {};
+};
 
 const personalExpenseMethodOptions = [
     { value: "transferencia", label: "Transferencia bancaria" },
@@ -78,7 +82,6 @@ const expenseForm = useForm({
 });
 
 const personalExpenseForm = useForm({
-    _token: csrfToken,
     expense_date: new Date().toISOString().slice(0, 10),
     expense_type: "",
     name: "",
@@ -91,14 +94,12 @@ const personalExpenseForm = useForm({
 });
 
 const eventMetaForm = useForm({
-    _token: csrfToken,
     status: props.event.status || "",
     event_date: toDateInputValue(props.event.event_date),
     full_payment_due_date: toDateInputValue(props.event.full_payment_due_date),
 });
 
 const confirmForm = useForm({
-    _token: csrfToken,
     confirmed: true,
 });
 
@@ -213,13 +214,20 @@ const paidStatusAlert = computed(() => {
         return "Define el fee del show para calcular el estado de pago.";
     }
     if (!canMarkPaid.value) {
-        return `Faltan $${paidShortfall.value.toFixed(2)} USD para completar el pago.`;
+        return `Faltan $${formatAmount(paidShortfall.value)} USD para completar el pago.`;
     }
     if (paidOverage.value > 0) {
-        return `Pago completo. Excedente: $${paidOverage.value.toFixed(2)} USD.`;
+        return `Pago completo. Excedente: $${formatAmount(paidOverage.value)} USD.`;
     }
     return "Pago completo.";
 });
+
+const formatCurrency = (value, currency = "USD") => formatMoney(value, currency);
+const formatUsd = (value) => formatMoneyWithSymbol(value, "$");
+const formatSignedUsd = (value) => {
+    const sign = value >= 0 ? "+" : "-";
+    return `${sign} $${formatAmount(Math.abs(value))}`;
+};
 
 const eventStatusValue = computed(() => {
     const raw = eventMetaForm.status || props.event.status || "";
@@ -393,12 +401,11 @@ const submitPersonalExpense = () => {
     const routeName = isEditing
         ? route("admin.events.personal-expenses.update", editingPersonalExpense.value.id)
         : route("admin.events.personal-expenses.store", props.event.id);
-    const token = getCsrfToken();
-    personalExpenseForm._token = token;
+    const headers = applyXsrfToken(personalExpenseForm);
 
     personalExpenseForm[isEditing ? "put" : "post"](routeName, {
         preserveScroll: true,
-        headers: token ? { "X-CSRF-TOKEN": token } : {},
+        headers,
         onSuccess: () => {
             personalExpenseForm.reset(
                 "amount_original",
@@ -419,11 +426,10 @@ const deletePersonalExpense = (expenseId) => {
     if (!isAdmin.value) return;
     if (!confirm("¿Eliminar este gasto personal?")) return;
 
-    const token = getCsrfToken();
-    personalExpenseForm._token = token;
+    const headers = applyXsrfToken(personalExpenseForm);
     personalExpenseForm.delete(route("admin.events.personal-expenses.destroy", expenseId), {
         preserveScroll: true,
-        headers: token ? { "X-CSRF-TOKEN": token } : {},
+        headers,
         onSuccess: () => {
             if (editingPersonalExpense.value?.id === expenseId) {
                 editingPersonalExpense.value = null;
@@ -434,11 +440,10 @@ const deletePersonalExpense = (expenseId) => {
 };
 
 const updateEventDetails = () => {
-    const token = getCsrfToken();
-    eventMetaForm._token = token;
+    const headers = applyXsrfToken(eventMetaForm);
     eventMetaForm.patch(route("admin.events.details.update", props.event.id), {
         preserveScroll: true,
-        headers: token ? { "X-CSRF-TOKEN": token } : {},
+        headers,
     });
 };
 
@@ -446,11 +451,10 @@ const confirmRoadManagerPayment = () => {
     if (confirmForm.processing) return;
     if (roadManagerConfirmedAt.value) return;
 
-    const token = getCsrfToken();
-    confirmForm._token = token;
+    const headers = applyXsrfToken(confirmForm);
     confirmForm.patch(route("admin.events.roadmanager-payment.update", props.event.id), {
         preserveScroll: true,
-        headers: token ? { "X-CSRF-TOKEN": token } : {},
+        headers,
     });
 };
 
@@ -568,43 +572,43 @@ const closePersonalExpenseModal = () => {
                 <div class="card">
                     <p class="text-gray-400 text-xs uppercase tracking-wide">Fee negociado</p>
                     <p class="text-white text-xl font-semibold">
-                        {{ event.currency || "USD" }} {{ showFeeTotal.toFixed(2) }}
+                        {{ formatCurrency(showFeeTotal, event.currency || "USD") }}
                     </p>
                     <p class="text-gray-500 text-xs mt-1">Total acordado para el show.</p>
                 </div>
                 <div class="card">
                     <p class="text-gray-400 text-xs uppercase tracking-wide">Total pagado</p>
-                    <p class="text-white text-xl font-semibold">$ {{ totals.paid.toFixed(2) }}</p>
+                    <p class="text-white text-xl font-semibold">{{ formatUsd(totals.paid) }}</p>
                     <p class="text-gray-500 text-xs mt-1">Pagos registrados (USD).</p>
                 </div>
                 <div class="card">
                     <p class="text-gray-400 text-xs uppercase tracking-wide">Gastos del evento</p>
-                    <p class="text-red-400 text-xl font-semibold">$ {{ totals.expenses.toFixed(2) }}</p>
+                    <p class="text-red-400 text-xl font-semibold">{{ formatUsd(totals.expenses) }}</p>
                     <p class="text-gray-500 text-xs mt-1">Gastos generales (USD).</p>
                 </div>
                 <div class="card">
                     <p class="text-gray-400 text-xs uppercase tracking-wide">Neto del evento</p>
-                    <p class="text-white text-xl font-semibold">$ {{ totals.net.toFixed(2) }}</p>
+                    <p class="text-white text-xl font-semibold">{{ formatUsd(totals.net) }}</p>
                     <p class="text-gray-500 text-xs mt-1">Pagos − gastos.</p>
                 </div>
                 <div class="card">
                     <p class="text-gray-400 text-xs uppercase tracking-wide">30% Dilo</p>
-                    <p class="text-white text-xl font-semibold">$ {{ totals.shareLabel.toFixed(2) }}</p>
+                    <p class="text-white text-xl font-semibold">{{ formatUsd(totals.shareLabel) }}</p>
                     <p class="text-gray-500 text-xs mt-1">Sobre neto (USD).</p>
                 </div>
                 <div class="card">
                     <p class="text-gray-400 text-xs uppercase tracking-wide">70% Artista (antes)</p>
-                    <p class="text-[#ffa236] text-xl font-semibold">$ {{ totals.shareArtist.toFixed(2) }}</p>
+                    <p class="text-[#ffa236] text-xl font-semibold">{{ formatUsd(totals.shareArtist) }}</p>
                     <p class="text-gray-500 text-xs mt-1">Sobre neto (USD).</p>
                 </div>
                 <div class="card">
                     <p class="text-gray-400 text-xs uppercase tracking-wide">Gastos personales</p>
-                    <p class="text-red-400 text-xl font-semibold">$ {{ totalPersonalExpenses.toFixed(2) }}</p>
+                    <p class="text-red-400 text-xl font-semibold">{{ formatUsd(totalPersonalExpenses) }}</p>
                     <p class="text-gray-500 text-xs mt-1">Descuento al 70%.</p>
                 </div>
                 <div class="card">
                     <p class="text-gray-400 text-xs uppercase tracking-wide">70% Artista (después)</p>
-                    <p class="text-[#ffa236] text-xl font-semibold">$ {{ shareArtistAfterPersonal.toFixed(2) }}</p>
+                    <p class="text-[#ffa236] text-xl font-semibold">{{ formatUsd(shareArtistAfterPersonal) }}</p>
                     <p class="text-gray-500 text-xs mt-1">70% − gastos personales.</p>
                 </div>
             </div>
@@ -618,7 +622,7 @@ const closePersonalExpenseModal = () => {
                                 Corresponde al porcentaje restante despues del adelanto.
                             </p>
                             <p class="text-2xl font-semibold text-[#ffa236] mt-2">
-                                {{ event.currency || "USD" }} {{ roadManagerDue.toFixed(2) }}
+                                {{ formatCurrency(roadManagerDue, event.currency || "USD") }}
                             </p>
                         </div>
                         <div class="text-sm text-gray-300">
@@ -678,11 +682,11 @@ const closePersonalExpenseModal = () => {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="card">
                         <p class="text-gray-400 text-xs uppercase tracking-wide">Total pagos registrados por ti</p>
-                        <p class="text-white text-xl font-semibold">$ {{ roadManagerTotals.paid.toFixed(2) }}</p>
+                        <p class="text-white text-xl font-semibold">{{ formatUsd(roadManagerTotals.paid) }}</p>
                     </div>
                     <div class="card">
                         <p class="text-gray-400 text-xs uppercase tracking-wide">Total gastos registrados por ti</p>
-                        <p class="text-red-400 text-xl font-semibold">$ {{ roadManagerTotals.expenses.toFixed(2) }}</p>
+                        <p class="text-red-400 text-xl font-semibold">{{ formatUsd(roadManagerTotals.expenses) }}</p>
                     </div>
                 </div>
 
@@ -691,7 +695,7 @@ const closePersonalExpenseModal = () => {
                         class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
                         <div>
                             <h2 class="text-lg font-semibold">Tus pagos</h2>
-                            <p class="text-sm text-gray-400">Total: $ {{ roadManagerTotals.paid.toFixed(2) }}</p>
+                            <p class="text-sm text-gray-400">Total: {{ formatUsd(roadManagerTotals.paid) }}</p>
                         </div>
                         <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
                     </div>
@@ -707,7 +711,7 @@ const closePersonalExpenseModal = () => {
                         class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
                         <div>
                             <h2 class="text-lg font-semibold">Tus gastos</h2>
-                            <p class="text-sm text-gray-400">Total: $ {{ roadManagerTotals.expenses.toFixed(2) }}</p>
+                            <p class="text-sm text-gray-400">Total: {{ formatUsd(roadManagerTotals.expenses) }}</p>
                         </div>
                         <button type="button" class="btn-secondary" @click="openExpenseModal">+ Nuevo gasto</button>
                     </div>
@@ -832,7 +836,7 @@ const closePersonalExpenseModal = () => {
                                 'text-lg font-semibold',
                                 canMarkPaid ? 'text-green-300' : 'text-yellow-300'
                             ]">
-                                {{ canMarkPaid ? `+ $${paidOverage.toFixed(2)}` : `- $${paidShortfall.toFixed(2)}` }}
+                                {{ canMarkPaid ? formatSignedUsd(paidOverage) : formatSignedUsd(-paidShortfall) }}
                             </p>
                             <p class="text-gray-500 text-xs mt-1">
                                 Se calcula con el fee negociado y el total pagado.
@@ -875,7 +879,7 @@ const closePersonalExpenseModal = () => {
                             <p class="text-gray-400">Fee del show</p>
                             <p class="text-white font-semibold">
                                 <span>{{ event.currency || "USD" }}</span>
-                                <span class="ml-1">{{ Number(event.show_fee_total ?? 0).toFixed(2) }}</span>
+                                <span class="ml-1">{{ formatAmount(event.show_fee_total ?? 0) }}</span>
                             </p>
                             <p class="text-gray-400 mt-2">Moneda</p>
                             <p class="text-white font-semibold">{{ event.currency || "USD" }}</p>
@@ -929,7 +933,7 @@ const closePersonalExpenseModal = () => {
                     class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
                     <div>
                         <h2 class="text-lg font-semibold">Pagos</h2>
-                        <p class="text-sm text-gray-400">Total: $ {{ totals.paid.toFixed(2) }}</p>
+                        <p class="text-sm text-gray-400">Total: {{ formatUsd(totals.paid) }}</p>
                     </div>
                     <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
                 </div>
@@ -945,7 +949,7 @@ const closePersonalExpenseModal = () => {
                     class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
                     <div>
                         <h2 class="text-lg font-semibold">Gastos</h2>
-                        <p class="text-sm text-gray-400">Total: $ {{ totals.expenses.toFixed(2) }}</p>
+                        <p class="text-sm text-gray-400">Total: {{ formatUsd(totals.expenses) }}</p>
                     </div>
                     <button type="button" class="btn-secondary" @click="openExpenseModal">+ Nuevo gasto</button>
                 </div>
@@ -962,11 +966,11 @@ const closePersonalExpenseModal = () => {
                     <div>
                         <h2 class="text-lg font-semibold">Gastos personales</h2>
                         <p class="text-sm text-gray-400">
-                            Total: $ {{ totalPersonalExpenses.toFixed(2) }}
+                            Total: {{ formatUsd(totalPersonalExpenses) }}
                         </p>
                         <p class="text-xs text-gray-500 mt-1">
-                            70% disponible: $ {{ personalRemaining.toFixed(2) }} · 70% luego de gastos: $ {{
-                                shareArtistAfterPersonal.toFixed(2) }}
+                            70% disponible: {{ formatUsd(personalRemaining) }} · 70% luego de gastos: {{
+                                formatUsd(shareArtistAfterPersonal) }}
                         </p>
                     </div>
                     <button

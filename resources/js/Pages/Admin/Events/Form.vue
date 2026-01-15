@@ -1,6 +1,7 @@
 <script setup>
-import { useForm } from "@inertiajs/vue3";
-import { watch } from "vue";
+import { useForm, usePage } from "@inertiajs/vue3";
+import { computed, watch } from "vue";
+import { getXsrfToken } from "@/utils/csrf";
 
 const props = defineProps({
   event: { type: Object, default: () => ({}) },
@@ -8,6 +9,13 @@ const props = defineProps({
   roadManagers: { type: Array, default: () => [] },
   mode: { type: String, default: "create" },
 });
+
+const { props: pageProps } = usePage();
+const roleNames = computed(() => pageProps.auth?.user?.role_names || []);
+const currentUserId = computed(() => pageProps.auth?.user?.id || null);
+const canEditFinance = computed(() => roleNames.value.includes("admin"));
+const isRoadManager = computed(() => roleNames.value.includes("roadmanager"));
+const canAssignRoadManagers = computed(() => !isRoadManager.value);
 
 const form = useForm({
   title: props.event.title || "",
@@ -45,6 +53,16 @@ watch(
   { deep: true }
 );
 
+watch(
+  [isRoadManager, currentUserId],
+  ([roadManager, userId]) => {
+    if (props.mode === "create" && roadManager && userId) {
+      form.road_manager_ids = [userId];
+    }
+  },
+  { immediate: true }
+);
+
 const handleSubmit = () => {
   console.log("🎤 Enviando formulario de evento...", form.data());
 
@@ -55,11 +73,28 @@ const handleSubmit = () => {
       : route("admin.events.store");
 
   form
-    .transform((data) => ({
-      ...data,
-      _method: props.mode === "edit" ? "put" : "post",
-      _token: document.querySelector('meta[name="csrf-token"]')?.content,
-    }))
+    .transform((data) => {
+      const token = getXsrfToken();
+      const payload = {
+        ...data,
+        _method: props.mode === "edit" ? "put" : "post",
+        ...(token ? { _token: token } : {}),
+      };
+
+      if (!canEditFinance.value) {
+        delete payload.show_fee_total;
+        delete payload.currency;
+        delete payload.advance_percentage;
+        delete payload.advance_expected;
+        delete payload.full_payment_due_date;
+      }
+
+      if (!canAssignRoadManagers.value) {
+        delete payload.road_manager_ids;
+      }
+
+      return payload;
+    })
     .submit(method, url, {
       forceFormData: true,
       onStart: () => console.log("🚀 Enviando request a:", url),
@@ -161,8 +196,8 @@ const handleSubmit = () => {
       </p>
     </div>
 
-    <!-- Artistas -->
-    <div>
+    <!-- Finanzas del evento (solo admin) -->
+    <div v-if="canEditFinance">
       <label class="text-gray-300 text-sm">Finanzas del evento</label>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -199,7 +234,7 @@ const handleSubmit = () => {
       </p>
     </div>
 
-    <div>
+    <div v-if="canAssignRoadManagers">
       <label class="text-gray-300 text-sm">Road managers asignados</label>
       <select v-model="form.road_manager_ids" multiple class="input">
         <option v-for="rm in roadManagers" :key="rm.id" :value="rm.id">

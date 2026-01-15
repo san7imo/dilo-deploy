@@ -23,6 +23,10 @@ class RoleSeeder extends Seeder
             'name' => 'roadmanager',
             'guard_name' => 'web',
         ]);
+        $contentManagerRole = Role::firstOrCreate([
+            'name' => 'contentmanager',
+            'guard_name' => 'web',
+        ]);
       
 
         // Buscar a Diana y asignar rol
