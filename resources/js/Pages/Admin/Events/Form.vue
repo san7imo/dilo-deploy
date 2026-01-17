@@ -1,7 +1,6 @@
 <script setup>
 import { useForm, usePage } from "@inertiajs/vue3";
 import { computed, watch } from "vue";
-import { getXsrfToken } from "@/utils/csrf";
 
 const props = defineProps({
   event: { type: Object, default: () => ({}) },
@@ -26,6 +25,8 @@ const form = useForm({
   country: props.event.country || "",
   city: props.event.city || "",
   venue_address: props.event.venue_address || "",
+  whatsapp_event: props.event.whatsapp_event || "",
+  page_tickets: props.event.page_tickets || "",
   show_fee_total: props.event.show_fee_total || "",
   currency: props.event.currency || "USD",
   advance_percentage: props.event.advance_percentage || 50,
@@ -74,11 +75,9 @@ const handleSubmit = () => {
 
   form
     .transform((data) => {
-      const token = getXsrfToken();
       const payload = {
         ...data,
         _method: props.mode === "edit" ? "put" : "post",
-        ...(token ? { _token: token } : {}),
       };
 
       if (!canEditFinance.value) {
@@ -130,6 +129,22 @@ const handleSubmit = () => {
     <div>
       <label class="text-gray-300 text-sm">Ubicación</label>
       <input v-model="form.location" type="text" class="input" placeholder="Ciudad, país o venue" />
+    </div>
+
+    <!-- Contacto y boletería -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="text-gray-300 text-sm">WhatsApp del evento</label>
+        <input v-model="form.whatsapp_event" type="text" class="input"
+          placeholder="Ej: +57 300 123 4567 o https://wa.me/573001234567" />
+        <p class="text-gray-500 text-xs mt-1">Opcional. Se mostrará solo si tiene valor.</p>
+      </div>
+      <div>
+        <label class="text-gray-300 text-sm">Página de tickets</label>
+        <input v-model="form.page_tickets" type="text" class="input"
+          placeholder="https://tus-tickets.com/evento" />
+        <p class="text-gray-500 text-xs mt-1">Opcional. Se mostrará solo si tiene valor.</p>
+      </div>
     </div>
 
     <!-- Nuevo: Localización  -->

@@ -53,11 +53,7 @@ const hrefFor = (slug: string) => `/artistas/${slug}`
             class="relative flex-none w-64 snap-start group transition">
             <!-- Card con borde visible -->
             <div
-              class="relative h-80 flex flex-col bg-gradient-to-br from-zinc-900 to-black border border-white/10 rounded-xl overflow-hidden hover:border-[#ffa236]/40 transition-all duration-300">
-              <!-- Nombre arriba centrado -->
-              <div class="px-6 pt-4 text-center relative z-20">
-                <h3 class="text-lg font-semibold truncate text-white">{{ a.name }}</h3>
-              </div>
+              class="relative h-80 flex flex-col bg-black from-zinc-900 to-black rounded-xl overflow-hidden hover:border-[#ffa236]/40 transition-all duration-300">
 
               <!-- Imagen centrada -->
               <div class="flex-1 grid place-items-center px-4 relative z-0">
@@ -65,6 +61,12 @@ const hrefFor = (slug: string) => `/artistas/${slug}`
                   class="artist-img max-h-56 max-w-full w-auto h-auto object-contain transition-transform duration-500 group-hover:scale-105"
                   draggable="false" loading="lazy" decoding="async" />
               </div>
+
+                            <!-- Nombre arriba centrado -->
+              <div class="px-6 pt-4 text-center relative bottom-20 z-20">
+                <h3 class="text-lg font-semibold truncate text-white">{{ a.name }}</h3>
+              </div>
+            
 
               <!-- Overlay sutil en hover -->
               <div

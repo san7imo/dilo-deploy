@@ -2,7 +2,7 @@
 import { useForm } from "@inertiajs/vue3";
 import { ref } from "vue";
 import ImageGrid from "@/Components/ImageGrid.vue";
-import { withXsrfToken, xsrfHeader } from "@/utils/csrf";
+import { xsrfHeader } from "@/utils/csrf";
 
 const props = defineProps({
   artist: { type: Object, default: () => ({}) },
@@ -145,7 +145,7 @@ const handleDeleteImage = async (fieldKey) => {
           "Content-Type": "application/json",
           ...xsrfHeader(),
         },
-        body: JSON.stringify(withXsrfToken({ field: fieldKey })), // ej: 'banner_home'
+        body: JSON.stringify({ field: fieldKey }), // ej: 'banner_home'
       }
     );
 
@@ -192,7 +192,6 @@ const handleSubmit = () => {
     .transform((data) => ({
       ...data,
       _method: props.mode === "edit" ? "put" : "post",
-      ...withXsrfToken(),
       social_links: data.social_links,
     }))
     .submit(method, url, {

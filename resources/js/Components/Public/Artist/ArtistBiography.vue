@@ -35,6 +35,80 @@ const socialIconMap = {
   soundcloud: 'simple-icons:soundcloud',
   tidal: 'simple-icons:tidal',
 }
+
+const shareUrl = computed(() => {
+  if (typeof window !== 'undefined') return window.location.href
+  if (typeof route === 'function' && props.artist?.slug) {
+    return route('public.artists.show', props.artist.slug)
+  }
+  return ''
+})
+
+const shareMessage = computed(() => `Conoce a ${props.artist?.name || 'este artista'}`)
+const encodedUrl = computed(() => encodeURIComponent(shareUrl.value))
+const encodedText = computed(() => encodeURIComponent(shareMessage.value))
+
+const shareTargets = computed(() => [
+  {
+    key: 'whatsapp',
+    name: 'WhatsApp',
+    icon: 'simple-icons:whatsapp',
+    url: `https://wa.me/?text=${encodedText.value}%20${encodedUrl.value}`,
+  },
+  {
+    key: 'instagram',
+    name: 'Instagram',
+    icon: 'simple-icons:instagram',
+    url: `https://www.instagram.com/?url=${encodedUrl.value}`,
+  },
+  {
+    key: 'facebook',
+    name: 'Facebook',
+    icon: 'simple-icons:facebook',
+    url: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl.value}`,
+  },
+  {
+    key: 'x',
+    name: 'X',
+    icon: 'simple-icons:x',
+    url: `https://twitter.com/intent/tweet?text=${encodedText.value}&url=${encodedUrl.value}`,
+  },
+  {
+    key: 'telegram',
+    name: 'Telegram',
+    icon: 'simple-icons:telegram',
+    url: `https://t.me/share/url?url=${encodedUrl.value}&text=${encodedText.value}`,
+  },
+])
+
+const copied = ref(false)
+
+const copyLink = async () => {
+  if (!shareUrl.value) return
+
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shareUrl.value)
+    } else {
+      const textarea = document.createElement('textarea')
+      textarea.value = shareUrl.value
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'absolute'
+      textarea.style.left = '-9999px'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  } catch (error) {
+    console.error('No se pudo copiar el enlace', error)
+  }
+}
 </script>
 
 <template>
@@ -45,7 +119,7 @@ const socialIconMap = {
       <div class="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
     </div>
 
-    <div class="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Header -->
       <div class="mb-12 text-center">
         <h2 class="text-4xl md:text-5xl font-black text-white mb-2">
@@ -57,7 +131,7 @@ const socialIconMap = {
       <!-- Biografía -->
       <div v-if="artist.bio" class="relative">
         <div
-          class="bg-gradient-to-br from-zinc-900 via-zinc-900/50 to-black rounded-2xl ring-1 ring-white/10 p-8 md:p-12 backdrop-blur-sm">
+          class="bg-gradient-to-br from-zinc-900 via-zinc-900/50 to-black rounded-2xl ring-1 ring-white/10 p-10 md:p-14 backdrop-blur-sm">
           <!-- Comillas -->
           <div
             class="absolute -top-6 left-8 w-12 h-12 bg-white text-black rounded-full flex items-center justify-center text-2xl font-black">
@@ -88,7 +162,7 @@ const socialIconMap = {
         </div>
 
         <!-- Info extra -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-12">
           <!-- País -->
           <div v-if="artist.country" class="text-center p-6 bg-zinc-900/50 rounded-xl ring-1 ring-white/10">
             <p class="text-zinc-400 text-sm font-semibold uppercase mb-2">
@@ -115,13 +189,34 @@ const socialIconMap = {
             </div>
           </div>
 
-          <!-- Rol -->
+          <!-- Lanzamientos -->
           <div class="text-center p-6 bg-zinc-900/50 rounded-xl ring-1 ring-white/10">
             <p class="text-zinc-400 text-sm font-semibold uppercase mb-2">
-              En Dilo Records
+              Lanzamientos
             </p>
-            <p class="text-white text-2xl font-bold">Artista</p>
-            <p class="text-zinc-400 text-xs mt-1">desde siempre</p>
+            <p class="text-white text-2xl font-bold">
+              {{ artist.releases_count ?? 0 }}
+            </p>
+            <p class="text-zinc-400 text-xs mt-1">publicados</p>
+          </div>
+
+          <!-- Valor agregado -->
+          <div class="text-center p-6 bg-zinc-900/50 rounded-xl ring-1 ring-white/10">
+            <p class="text-zinc-400 text-sm font-semibold uppercase mb-3">
+              Comparte este artista
+            </p>
+            <div class="grid grid-cols-3 gap-3 justify-center">
+              <a v-for="network in shareTargets" :key="network.key"
+                :href="network.url" target="_blank" rel="noopener noreferrer"
+                class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-zinc-900 text-white ring-1 ring-white/10 hover:ring-white/20 hover:scale-105 transition">
+                <Icon :icon="network.icon" class="w-4 h-4" />
+              </a>
+              <button type="button" @click="copyLink"
+                class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-zinc-900 text-white ring-1 ring-white/10 hover:ring-white/20 hover:scale-105 transition"
+                :title="copied ? 'Copiado' : 'Copiar enlace'">
+                <Icon icon="mdi:link-variant" class="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

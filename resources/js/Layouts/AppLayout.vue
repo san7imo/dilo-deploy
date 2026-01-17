@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { getXsrfToken } from '@/utils/csrf';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import Banner from '@/Components/Banner.vue';
 import Dropdown from '@/Components/Dropdown.vue';
@@ -24,8 +23,7 @@ const switchToTeam = (team) => {
 };
 
 const logout = () => {
-    const token = getXsrfToken();
-    router.post(route('logout'), token ? { _token: token } : {});
+    router.post(route('logout'));
 };
 </script>
 

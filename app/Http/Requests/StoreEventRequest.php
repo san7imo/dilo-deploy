@@ -23,6 +23,8 @@ class StoreEventRequest extends FormRequest
             'country'     => 'nullable|string|max:100',
             'city'        => 'nullable|string|max:100',
             'venue_address' => 'nullable|string|max:255',
+            'whatsapp_event' => 'nullable|string|max:255',
+            'page_tickets' => 'nullable|string|max:255',
             'status'      => 'nullable|string|max:100',
             'show_fee_total' => 'nullable|numeric|min:0',
             'currency'    => 'nullable|string|size:3',

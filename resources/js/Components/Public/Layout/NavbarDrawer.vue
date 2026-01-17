@@ -31,7 +31,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
   >
     <aside
       v-if="open"
-      class="fixed right-0 top-0 z-50 h-dvh w-[88vw] sm:w-[26rem] bg-black/60 backdrop-blur-sm border-l border-white/5 shadow-2xl"
+      class="fixed right-0 top-0 z-50 h-dvh w-[68vw] sm:w-[18rem] bg-black/60 backdrop-blur-sm border-l border-white/5 shadow-2xl"
       role="dialog"
       aria-modal="true"
     >
@@ -46,7 +46,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
         </svg>
       </button>
 
-      <div class="h-full flex flex-col items-center justify-center gap-8 px-8">
+      <div class="h-full flex flex-col items-center justify-center gap-8 px-6">
         <a href="/" class="inline-flex flex-col items-center gap-3">
           <img
             :src="logoBlanco"
@@ -55,12 +55,12 @@ const emit = defineEmits<{ (e: 'close'): void }>()
           />
         </a>
 
-        <nav class="w-full max-w-xs text-center">
+        <nav class="w-full max-w-[14rem] text-center">
           <ul class="space-y-3">
-            <li><Link href="/artistas" class="block rounded-lg px-6 py-3 hover:bg-white/5 text-white/90">Artistas</Link></li>
-            <li><Link href="/eventos" class="block rounded-lg px-6 py-3 hover:bg-white/5 text-white/90">Eventos</Link></li>
+            <li><Link href="/artistas" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90">Artistas</Link></li>
+            <li><Link href="/eventos" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90">Eventos</Link></li>
             <li>
-              <div class="rounded-lg px-6 py-3 text-gray-400 bg-white/5 shadow-inner cursor-not-allowed transition flex items-center justify-center gap-3" aria-disabled="true" role="button" aria-pressed="true">
+              <div class="rounded-lg px-4 py-3 text-gray-400 bg-white/5 shadow-inner cursor-not-allowed transition flex items-center justify-center gap-3" aria-disabled="true" role="button" aria-pressed="true">
                 <span class="font-medium">Tienda</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <rect x="3" y="11" width="18" height="10" rx="2" ry="2" />
@@ -69,7 +69,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
               </div>
             </li>
             <li>
-              <div class="rounded-lg px-6 py-3 text-gray-400 bg-white/5 shadow-inner cursor-not-allowed transition flex items-center justify-center gap-3" aria-disabled="true" role="button" aria-pressed="true">
+              <div class="rounded-lg px-4 py-3 text-gray-400 bg-white/5 shadow-inner cursor-not-allowed transition flex items-center justify-center gap-3" aria-disabled="true" role="button" aria-pressed="true">
                 <span class="font-medium">Beats</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <rect x="3" y="11" width="18" height="10" rx="2" ry="2" />
@@ -77,9 +77,9 @@ const emit = defineEmits<{ (e: 'close'): void }>()
                 </svg>
               </div>
             </li>
-            <li><a href="https://ascaniopub.com/" target="_blank" rel="noopener noreferrer" class="block rounded-lg px-6 py-3 hover:bg-white/5 text-white/90">Editorial</a></li>
+            <li><a href="https://ascaniopub.com/" target="_blank" rel="noopener noreferrer" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90">Editorial</a></li>
             <li>
-              <div class="rounded-lg px-6 py-3 text-gray-400 bg-white/5 shadow-inner cursor-not-allowed transition flex items-center justify-center gap-3" aria-disabled="true" role="button" aria-pressed="true">
+              <div class="rounded-lg px-4 py-3 text-gray-400 bg-white/5 shadow-inner cursor-not-allowed transition flex items-center justify-center gap-3" aria-disabled="true" role="button" aria-pressed="true">
                 <span class="font-medium">Noticias</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <rect x="3" y="11" width="18" height="10" rx="2" ry="2" />

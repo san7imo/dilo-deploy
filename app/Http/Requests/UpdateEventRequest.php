@@ -23,6 +23,8 @@ class UpdateEventRequest extends FormRequest
             'country'     => 'sometimes|nullable|string|max:100',
             'city'        => 'sometimes|nullable|string|max:100',
             'venue_address' => 'sometimes|nullable|string|max:255',
+            'whatsapp_event' => 'sometimes|nullable|string|max:255',
+            'page_tickets' => 'sometimes|nullable|string|max:255',
             'status'      => 'sometimes|nullable|string|max:100',
             'show_fee_total' => 'sometimes|nullable|numeric|min:0',
             'currency'    => 'sometimes|nullable|string|size:3',

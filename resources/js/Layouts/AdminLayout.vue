@@ -2,7 +2,6 @@
 import logoBlanco from '@/Assets/Images/Logos/responsive-blanco.webp';
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
-import { getXsrfToken } from "@/utils/csrf";
 
 const { props } = usePage();
 const user = props.auth?.user;
@@ -36,8 +35,7 @@ const panelTitle = computed(() =>
 const isEventDashboard = computed(() => isRoadManager.value || isContentManager.value);
 
 const logout = () => {
-  const token = getXsrfToken();
-  router.post(route("logout"), token ? { _token: token } : {});
+  router.post(route("logout"));
 };
 </script>
 

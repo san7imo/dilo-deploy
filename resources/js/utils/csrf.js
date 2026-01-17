@@ -7,11 +7,6 @@ const readCookieValue = (name) => {
 
 export const getXsrfToken = () => readCookieValue("XSRF-TOKEN");
 
-export const withXsrfToken = (payload = {}) => {
-  const token = getXsrfToken();
-  return token ? { ...payload, _token: token } : payload;
-};
-
 export const xsrfHeader = () => {
   const token = getXsrfToken();
   return token ? { "X-XSRF-TOKEN": token } : {};

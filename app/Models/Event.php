@@ -35,6 +35,8 @@ class Event extends Model
         'country',
         'city',
         'venue_address',
+        'whatsapp_event',
+        'page_tickets',
         'show_fee_total',
         'currency',
         'advance_percentage',

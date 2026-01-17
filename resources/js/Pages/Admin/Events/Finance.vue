@@ -11,7 +11,6 @@ import ExpensesTable from "@/Components/Finance/ExpensesTable.vue";
 import PersonalExpensesTable from "@/Components/Finance/PersonalExpensesTable.vue";
 import { formatDateES } from "@/utils/date";
 import { formatAmount, formatMoney, formatMoneyWithSymbol } from "@/utils/money";
-import { getXsrfToken } from "@/utils/csrf";
 
 const props = defineProps({
     event: { type: Object, required: true },
@@ -37,12 +36,6 @@ const paymentMethodOptions = [
     { value: "paypal", label: "PayPal" },
     { value: "otro", label: "Otro" },
 ];
-
-const applyXsrfToken = (form) => {
-    const token = getXsrfToken();
-    if (token) form._token = token;
-    return token ? { "X-XSRF-TOKEN": token } : {};
-};
 
 const personalExpenseMethodOptions = [
     { value: "transferencia", label: "Transferencia bancaria" },
@@ -401,11 +394,8 @@ const submitPersonalExpense = () => {
     const routeName = isEditing
         ? route("admin.events.personal-expenses.update", editingPersonalExpense.value.id)
         : route("admin.events.personal-expenses.store", props.event.id);
-    const headers = applyXsrfToken(personalExpenseForm);
-
     personalExpenseForm[isEditing ? "put" : "post"](routeName, {
         preserveScroll: true,
-        headers,
         onSuccess: () => {
             personalExpenseForm.reset(
                 "amount_original",
@@ -426,10 +416,8 @@ const deletePersonalExpense = (expenseId) => {
     if (!isAdmin.value) return;
     if (!confirm("¿Eliminar este gasto personal?")) return;
 
-    const headers = applyXsrfToken(personalExpenseForm);
     personalExpenseForm.delete(route("admin.events.personal-expenses.destroy", expenseId), {
         preserveScroll: true,
-        headers,
         onSuccess: () => {
             if (editingPersonalExpense.value?.id === expenseId) {
                 editingPersonalExpense.value = null;
@@ -440,10 +428,8 @@ const deletePersonalExpense = (expenseId) => {
 };
 
 const updateEventDetails = () => {
-    const headers = applyXsrfToken(eventMetaForm);
     eventMetaForm.patch(route("admin.events.details.update", props.event.id), {
         preserveScroll: true,
-        headers,
     });
 };
 
@@ -451,10 +437,8 @@ const confirmRoadManagerPayment = () => {
     if (confirmForm.processing) return;
     if (roadManagerConfirmedAt.value) return;
 
-    const headers = applyXsrfToken(confirmForm);
     confirmForm.patch(route("admin.events.roadmanager-payment.update", props.event.id), {
         preserveScroll: true,
-        headers,
     });
 };
 
