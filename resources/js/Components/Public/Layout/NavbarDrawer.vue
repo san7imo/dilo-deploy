@@ -59,6 +59,7 @@ const emit = defineEmits<{ (e: 'close'): void }>()
           <ul class="space-y-3">
             <li><Link href="/artistas" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90">Artistas</Link></li>
             <li><Link href="/eventos" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90">Eventos</Link></li>
+            <li><Link href="/contacto" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90">Contacto</Link></li>
             <li>
               <div class="rounded-lg px-4 py-3 text-gray-400 bg-white/5 shadow-inner cursor-not-allowed transition flex items-center justify-center gap-3" aria-disabled="true" role="button" aria-pressed="true">
                 <span class="font-medium">Tienda</span>

@@ -13,11 +13,16 @@ use App\Http\Controllers\Web\Public\{
     ReleaseController as PublicReleaseController,
     TrackController as PublicTrackController,
     HomeController as PublicHomeController,
-    SitemapController as PublicSitemapController
+    SitemapController as PublicSitemapController,
+    ContactController as PublicContactController
 };
 
 // Página principal (landing pública)
 Route::get('/', [PublicHomeController::class, 'index'])->name('public.home');
+
+// Contacto
+Route::get('/contacto', [PublicContactController::class, 'show'])->name('public.contact');
+Route::post('/contacto', [PublicContactController::class, 'submit'])->name('public.contact.submit');
 
 // --- Artistas ---
 Route::prefix('artistas')->name('public.artists.')->group(function () {

@@ -40,7 +40,6 @@ const scrollRight = () => scrollContainer.value?.scrollBy({ left: 300, behavior:
 
 // ---------- Hover panel (inline) ----------
 const activeId = ref<number | null>(null)
-const panelStyle = ref<Record<string, string>>({})
 let closeTimer: any = null
 
 function normalizeKey(key: string): string {
@@ -79,29 +78,6 @@ function getIconColor(key: string): string {
 function showPanel(item: Item, e: MouseEvent) {
   if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
   activeId.value = item.id
-
-  const target = (e.currentTarget as HTMLElement) ?? null
-  if (!target) return
-  const rect = target.getBoundingClientRect()
-  const gap = 12
-  const panelWidth = 240
-  const topY = rect.top
-  const maxY = window.innerHeight - 16
-
-  const placeRight = rect.right + gap + panelWidth <= window.innerWidth
-  const left = placeRight ? `${gap + rect.width}px` : `${-gap - panelWidth}px`
-
-  let translateY = 0
-  const estimatedHeight = 190
-  if (topY + estimatedHeight > maxY) {
-    translateY = maxY - (topY + estimatedHeight)
-  }
-
-  panelStyle.value = {
-    left,
-    top: `0px`,
-    transform: `translateY(${translateY}px)`
-  }
 }
 function scheduleClose() {
   closeTimer = setTimeout(() => { activeId.value = null }, 150)
@@ -113,6 +89,33 @@ function togglePanel(item: Item, e: MouseEvent) {
   e.preventDefault()
   if (activeId.value === item.id) activeId.value = null
   else showPanel(item, e)
+}
+
+const buildReleaseUrl = (item: Item) => {
+  if (typeof route === 'function' && item.slug) {
+    return route('public.releases.show', item.slug)
+  }
+  return window.location.origin + `/releases/${item.slug ?? ''}`
+}
+
+const copyReleaseLink = async (item: Item) => {
+  const url = buildReleaseUrl(item)
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url)
+      return
+    }
+  } catch (_) {}
+
+  const textarea = document.createElement('textarea')
+  textarea.value = url
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'absolute'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+  document.execCommand('copy')
+  document.body.removeChild(textarea)
 }
 </script>
 
@@ -146,13 +149,13 @@ function togglePanel(item: Item, e: MouseEvent) {
               {{ item.artist.name }}
             </p>
 
-            <!-- Panel de plataformas (inline) -->
+            <!-- Panel de plataformas (overlay) -->
             <div v-if="activeId === item.id"
-              class="absolute z-20 w-64 bg-gradient-to-br from-zinc-900 via-zinc-900/98 to-black/95 backdrop-blur-sm border border-[#ffa236]/30 rounded-xl shadow-2xl p-5"
-              :style="panelStyle" @mouseenter.stop="cancelClose" @mouseleave="scheduleClose">
-              <div class="flex items-center gap-3 mb-4 pb-3 border-b border-white/10">
+              class="absolute inset-0 z-20 flex flex-col justify-start gap-3 bg-black/75 backdrop-blur-sm  p-3"
+              @mouseenter.stop="cancelClose" @mouseleave="scheduleClose">
+              <div class="flex items-center gap-3">
                 <img :src="item.cover || '/placeholder.webp'" :alt="item.title"
-                  class="w-12 h-12 rounded-lg object-cover ring-2 ring-[#ffa236]/20" />
+                  class="w-11 h-11 rounded-lg object-cover ring-2 ring-[#ffa236]/20" />
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-bold truncate text-white">{{ item.title }}</p>
                   <p v-if="item.artist?.name" class="text-xs text-gray-400 truncate">
@@ -162,18 +165,22 @@ function togglePanel(item: Item, e: MouseEvent) {
               </div>
 
               <div v-if="item.platforms?.length">
-                <p class="text-xs text-gray-400 uppercase tracking-wider mb-3 font-semibold">Escuchar en:</p>
-                <div class="grid grid-cols-3 gap-3">
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-2 font-semibold">Escuchar en:</p>
+                <div class="grid grid-cols-4 gap-2">
                   <a v-for="p in item.platforms" :key="p.key" :href="p.url" target="_blank" rel="noopener noreferrer"
-                    class="group flex flex-col items-center gap-2 p-2 rounded-lg bg-zinc-800/50 hover:bg-[#ffa236]/10 border border-transparent hover:border-[#ffa236]/30 transition-all duration-300"
+                    class="group flex items-center justify-center p-2.5 rounded-lg bg-zinc-900/70 hover:bg-[#ffa236]/10 border border-transparent hover:border-[#ffa236]/30 transition-all duration-300"
                     @click.stop :title="p.name" :aria-label="p.name">
                     <Icon :icon="getIconName(p.key)"
-                      class="w-10 h-10 opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
+                      class="w-7 h-7 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
                       :style="{ color: getIconColor(p.key) }" />
-                    <span
-                      class="text-[10px] text-gray-400 group-hover:text-[#ffa236] truncate max-w-full font-medium transition-colors">{{
-                        p.name }}</span>
                   </a>
+                  <button type="button"
+                    class="group flex items-center justify-center p-2.5 rounded-lg bg-zinc-900/70 hover:bg-[#ffa236]/10 border border-transparent hover:border-[#ffa236]/30 transition-all duration-300"
+                    @click.stop="copyReleaseLink(item)" aria-label="Copiar enlace" title="Copiar enlace">
+                    <Icon icon="mdi:link-variant"
+                      class="w-7 h-7 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
+                      style="color: #ffa236" />
+                  </button>
                 </div>
               </div>
               <p v-else class="text-sm text-gray-400 text-center py-4">
