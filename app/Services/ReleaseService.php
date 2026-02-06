@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Release;
+use App\Models\Track;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 
@@ -41,6 +42,33 @@ class ReleaseService
 
         $release = Release::create($data);
         Log::info('✅ [ReleaseService] Release creado', ['id' => $release->id, 'title' => $release->title]);
+
+        if ($release->isSingle()) {
+            $existingTrack = Track::where('release_id', $release->id)->exists();
+            if (!$existingTrack) {
+                $track = Track::create([
+                    'release_id' => $release->id,
+                    'title' => $release->title,
+                    'track_number' => 1,
+                    'spotify_url' => $release->spotify_url,
+                    'youtube_url' => $release->youtube_url,
+                    'apple_music_url' => $release->apple_music_url,
+                    'deezer_url' => $release->deezer_url,
+                    'amazon_music_url' => $release->amazon_music_url,
+                    'soundcloud_url' => $release->soundcloud_url,
+                    'tidal_url' => $release->tidal_url,
+                ]);
+
+                if ($release->artist_id) {
+                    $track->artists()->sync([$release->artist_id]);
+                }
+
+                Log::info('🎵 [ReleaseService] Track creado para single', [
+                    'track_id' => $track->id,
+                    'release_id' => $release->id,
+                ]);
+            }
+        }
 
         return $release->load(['artist', 'tracks']);
     }

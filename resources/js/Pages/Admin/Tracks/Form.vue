@@ -12,6 +12,7 @@ const props = defineProps({
 const form = useForm({
   release_id: props.track.release_id || "",
   title: props.track.title || "",
+  isrc: props.track.isrc || "",
   track_number: props.track.track_number || "",
   duration: props.track.duration || "",
   preview_url: props.track.preview_url || "",
@@ -64,12 +65,20 @@ const handleSubmit = () => {
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-6">
     <!-- Info principal -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div>
         <label class="text-gray-300 text-sm">Título de la pista</label>
         <input v-model="form.title" type="text" class="input" placeholder="Ej: Mi canción" />
         <p v-if="form.errors.title" class="text-red-500 text-sm mt-1">
           {{ form.errors.title }}
+        </p>
+      </div>
+
+      <div>
+        <label class="text-gray-300 text-sm">ISRC (opcional)</label>
+        <input v-model="form.isrc" type="text" class="input" placeholder="Ej: USRC17607839" />
+        <p v-if="form.errors.isrc" class="text-red-500 text-sm mt-1">
+          {{ form.errors.isrc }}
         </p>
       </div>
 

@@ -13,10 +13,10 @@ const logout = () => {
 </script>
 
 <template>
-    <div class="flex min-h-screen bg-[#0d0d0d] text-white font-['Roboto',sans-serif]">
+    <div class="flex min-h-screen bg-[#0d0d0d] text-white font-['Roboto',sans-serif] overflow-x-hidden">
         <!-- Sidebar -->
         <aside :class="[
-            'transition-all duration-300 ease-in-out bg-[#1d1d1b] border-r border-[#2a2a2a] flex flex-col',
+            'flex-shrink-0 transition-all duration-300 ease-in-out bg-[#1d1d1b] border-r border-[#2a2a2a] flex flex-col',
             isSidebarOpen ? 'w-64' : 'w-20'
         ]">
             <!-- Logo + Artist preview -->
@@ -102,13 +102,13 @@ const logout = () => {
         </aside>
 
         <!-- Contenido principal -->
-        <div class="flex-1 flex flex-col min-h-screen">
+        <div class="flex-1 flex flex-col min-h-screen min-w-0">
             <header class="h-14 bg-[#1d1d1b] border-b border-[#2a2a2a] flex items-center justify-between px-6">
                 <h1 class="text-lg font-semibold text-[#ffa236]">Panel del Artista</h1>
                 <div class="text-sm text-gray-400">Dilo Records</div>
             </header>
 
-            <main class="flex-1 overflow-y-auto p-6 bg-[#0f0f0f]">
+            <main class="flex-1 overflow-y-auto p-6 bg-[#0f0f0f] min-w-0">
                 <slot />
             </main>
         </div>

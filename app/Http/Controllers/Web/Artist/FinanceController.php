@@ -19,6 +19,7 @@ class FinanceController extends Controller
         return Inertia::render('Artist/Finances/Index', [
             'summary' => $payload['summary'],
             'events' => $payload['events'],
+            'eventsAll' => $payload['eventsAll'],
         ]);
     }
 }

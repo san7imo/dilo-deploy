@@ -20,7 +20,7 @@ class ReleaseController extends Controller
      */
     public function index()
     {
-        $releases = $this->releaseService->getAll(12);
+        $releases = $this->releaseService->getAll(10);
 
         return Inertia::render('Public/Releases/Index', [
             'releases' => $releases,

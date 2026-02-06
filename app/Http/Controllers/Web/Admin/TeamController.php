@@ -16,12 +16,14 @@ class TeamController extends Controller
         $roadManagers = User::role('roadmanager')
             ->select('id', 'name', 'email', 'email_verified_at')
             ->orderBy('name')
-            ->get();
+            ->paginate(10, ['id', 'name', 'email', 'email_verified_at'], 'road_page')
+            ->withQueryString();
 
         $contentManagers = User::role('contentmanager')
             ->select('id', 'name', 'email', 'email_verified_at')
             ->orderBy('name')
-            ->get();
+            ->paginate(10, ['id', 'name', 'email', 'email_verified_at'], 'content_page')
+            ->withQueryString();
 
         return Inertia::render('Admin/Team/Index', [
             'roadManagers' => $roadManagers,

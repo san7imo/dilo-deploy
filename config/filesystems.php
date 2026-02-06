@@ -38,6 +38,22 @@ return [
             'report' => false,
         ],
 
+        'royalties_private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
+        'contracts_private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/contracts'),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

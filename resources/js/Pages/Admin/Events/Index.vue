@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
+import PaginationLinks from "@/Components/PaginationLinks.vue";
 import { Link, usePage } from "@inertiajs/vue3";
 import axios from 'axios'
 import { computed, ref, watch } from 'vue'
@@ -437,6 +438,8 @@ const deleteEvent = async (eventId) => {
         </tbody>
       </table>
     </div>
+
+    <PaginationLinks v-if="props.events && props.events.links" :links="props.events.links" :meta="props.events.meta" class="justify-end mt-4" />
   </AdminLayout>
 </template>
 

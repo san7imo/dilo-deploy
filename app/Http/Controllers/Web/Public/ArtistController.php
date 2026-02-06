@@ -20,7 +20,7 @@ class ArtistController extends Controller
      */
     public function index()
     {
-        $artists = $this->artistService->getAll(12);
+        $artists = $this->artistService->getAll(10);
 
         return Inertia::render('Public/Artists/Index', [
             'artists' => $artists,

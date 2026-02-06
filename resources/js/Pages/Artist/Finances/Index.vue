@@ -3,6 +3,7 @@ import ArtistLayout from "@/Layouts/ArtistLayout.vue";
 import { computed } from "vue";
 import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
 import { formatMoney } from "@/utils/money";
+import PaginationLinks from "@/Components/PaginationLinks.vue";
 
 const props = defineProps({
     summary: {
@@ -10,14 +11,19 @@ const props = defineProps({
         default: () => ({}),
     },
     events: {
+        type: Object,
+        default: () => ({ data: [] }),
+    },
+    eventsAll: {
         type: Array,
         default: () => [],
     },
 });
 
+const eventList = computed(() => Array.isArray(props.events) ? props.events : (props.events?.data ?? []));
 
 const pendingEventsCount = computed(() => {
-    const total = props.summary.events_count || props.events.length || 0;
+    const total = props.summary.events_count || props.events?.total || props.eventsAll.length || eventList.value.length || 0;
     const paid = props.summary.paid_events_count || 0;
     return Math.max(total - paid, 0);
 });
@@ -56,11 +62,11 @@ const totals = computed(() => ({
                         Lo que tienes pagado, tu 70% estimado y el estado de cobro por evento.
                     </p>
                 </div>
-                <span class="text-sm text-gray-400">Total eventos: {{ summary.events_count || events.length }}</span>
+                <span class="text-sm text-gray-400">Total eventos: {{ summary.events_count || eventsAll.length || eventList.length }}</span>
             </div>
 
             <!-- Gráficas -->
-            <FinanceCharts :totals="totals" :events="events" currency="$" />
+            <FinanceCharts :totals="totals" :events="props.eventsAll" currency="$" />
 
             <!-- Eventos -->
             <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-xl p-6">
@@ -71,12 +77,12 @@ const totals = computed(() => ({
                     </div>
                 </div>
 
-                <div v-if="!events || events.length === 0" class="text-gray-500 text-sm">
+                <div v-if="!eventList || eventList.length === 0" class="text-gray-500 text-sm">
                     No hay eventos con finanzas registradas todavia.
                 </div>
 
                 <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div v-for="event in events" :key="event.id"
+                    <div v-for="event in eventList" :key="event.id"
                         class="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4 flex flex-col gap-3">
                         <div class="flex items-start justify-between gap-3">
                             <div>
@@ -139,6 +145,13 @@ const totals = computed(() => ({
                         </div>
                     </div>
                 </div>
+
+                <PaginationLinks
+                    v-if="props.events && props.events.links"
+                    :links="props.events.links"
+                    :meta="props.events.meta"
+                    class="justify-center mt-6"
+                />
             </div>
         </div>
     </ArtistLayout>

@@ -60,9 +60,9 @@ class EventFinanceAggregator
     /**
      * Resumen y eventos para finanzas del artista.
      */
-    public function artistOverview(Artist $artist): array
+    public function artistOverview(Artist $artist, int $perPage = 10): array
     {
-        $events = $artist->mainEvents()
+        $baseQuery = $artist->mainEvents()
             ->select('id', 'title', 'event_date', 'location', 'is_paid')
             ->withSum('payments as total_paid_base', 'amount_base')
             ->withSum(
@@ -73,12 +73,12 @@ class EventFinanceAggregator
             )
             ->withSum('expenses as total_expenses_base', 'amount_base')
             ->withSum('personalExpenses as total_personal_expenses_base', 'amount_base')
-            ->orderBy('event_date', 'desc')
-            ->get();
+            ->orderBy('event_date', 'desc');
 
-        $summary = $this->buildSummary($events);
+        $summaryEvents = (clone $baseQuery)->get();
+        $summary = $this->buildSummary($summaryEvents);
 
-        $eventsPayload = $events->map(function ($event) {
+        $mapEvent = function ($event) {
             $totalPaid = round($event->total_paid_base ?? 0, 2);
             $advancePaid = round($event->advance_paid_base ?? 0, 2);
             $expenses = round($event->total_expenses_base ?? 0, 2);
@@ -102,11 +102,18 @@ class EventFinanceAggregator
                 'status' => $event->is_paid ? 'pagado' : 'pendiente',
                 'is_upcoming' => $event->event_date?->isFuture(),
             ];
-        });
+        };
+
+        $eventsPayload = (clone $baseQuery)
+            ->paginate($perPage)
+            ->through($mapEvent);
+
+        $eventsAll = $summaryEvents->map($mapEvent);
 
         return [
             'summary' => $summary,
             'events' => $eventsPayload,
+            'eventsAll' => $eventsAll,
         ];
     }
 
@@ -137,9 +144,9 @@ class EventFinanceAggregator
     /**
      * Listado de eventos con finanzas para el index del artista.
      */
-    public function artistEventsList(Artist $artist, int $limit = 20)
+    public function artistEventsList(Artist $artist, int $perPage = 10)
     {
-        $events = $artist->mainEvents()
+        return $artist->mainEvents()
             ->select('id', 'title', 'event_date', 'location', 'is_paid')
             ->withSum('payments as total_paid_base', 'amount_base')
             ->withSum(
@@ -151,33 +158,31 @@ class EventFinanceAggregator
             ->withSum('expenses as total_expenses_base', 'amount_base')
             ->withSum('personalExpenses as total_personal_expenses_base', 'amount_base')
             ->orderBy('event_date', 'desc')
-            ->take($limit)
-            ->get();
+            ->paginate($perPage)
+            ->through(function ($event) {
+                $totalPaid = round($event->total_paid_base ?? 0, 2);
+                $totalExpenses = round($event->total_expenses_base ?? 0, 2);
+                $net = $totalPaid - $totalExpenses;
+                $personalExpenses = round($event->total_personal_expenses_base ?? 0, 2);
+                $shareArtist = round($net * 0.70, 2);
 
-        return $events->map(function ($event) {
-            $totalPaid = round($event->total_paid_base ?? 0, 2);
-            $totalExpenses = round($event->total_expenses_base ?? 0, 2);
-            $net = $totalPaid - $totalExpenses;
-            $personalExpenses = round($event->total_personal_expenses_base ?? 0, 2);
-            $shareArtist = round($net * 0.70, 2);
-
-            return [
-                'id' => $event->id,
-                'title' => $event->title,
-                'event_date' => $event->event_date?->toDateString(),
-                'location' => $event->location,
-                'total_paid_base' => $totalPaid,
-                'advance_paid_base' => round($event->advance_paid_base ?? 0, 2),
-                'total_expenses_base' => $totalExpenses,
-                'total_personal_expenses_base' => $personalExpenses,
-                'net_base' => round($net, 2),
-                'artist_share_estimated_base' => $shareArtist,
-                'artist_share_after_personal_base' => max(round($shareArtist - $personalExpenses, 2), 0),
-                'label_share_estimated_base' => round($net * 0.30, 2),
-                'status' => $event->is_paid ? 'pagado' : 'pendiente',
-                'is_upcoming' => $event->event_date?->isFuture(),
-            ];
-        });
+                return [
+                    'id' => $event->id,
+                    'title' => $event->title,
+                    'event_date' => $event->event_date?->toDateString(),
+                    'location' => $event->location,
+                    'total_paid_base' => $totalPaid,
+                    'advance_paid_base' => round($event->advance_paid_base ?? 0, 2),
+                    'total_expenses_base' => $totalExpenses,
+                    'total_personal_expenses_base' => $personalExpenses,
+                    'net_base' => round($net, 2),
+                    'artist_share_estimated_base' => $shareArtist,
+                    'artist_share_after_personal_base' => max(round($shareArtist - $personalExpenses, 2), 0),
+                    'label_share_estimated_base' => round($net * 0.30, 2),
+                    'status' => $event->is_paid ? 'pagado' : 'pendiente',
+                    'is_upcoming' => $event->event_date?->isFuture(),
+                ];
+            });
     }
 
     /**

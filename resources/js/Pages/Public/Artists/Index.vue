@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 import BannerFullWidth from '@/Components/Public/Artists/BannerFullWidth.vue'
 import ArtistCarousel from '@/Components/Public/Artists/ArtistCarousel.vue'
 import ArtistPlaylistCard from '@/Components/Public/Artists/ArtistPlaylistCard.vue'
+import PaginationLinks from '@/Components/PaginationLinks.vue'
 
 // Si tienes un layout público global, descomenta:
 import PublicLayout from '@/Layouts/PublicLayout.vue'
@@ -60,6 +61,13 @@ const handlePlay = ({ artist, track }) => {
         @play="handlePlay"
       />
     </div>
+
+    <PaginationLinks
+      v-if="props.artists && props.artists.links"
+      :links="props.artists.links"
+      :meta="props.artists.meta"
+      class="justify-center mt-8"
+    />
 
     <!-- Mini barra 'Now Playing' simple (temporal) -->
     <div v-if="nowPlaying" class="mt-8 sticky bottom-4">

@@ -1,10 +1,11 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
+import PaginationLinks from "@/Components/PaginationLinks.vue";
 import { Link, router } from "@inertiajs/vue3";
 
 const props = defineProps({
-  roadManagers: { type: Array, default: () => [] },
-  contentManagers: { type: Array, default: () => [] },
+  roadManagers: { type: Object, default: () => ({ data: [] }) },
+  contentManagers: { type: Object, default: () => ({ data: [] }) },
   canManageRoadManagers: { type: Boolean, default: false },
   canManageContentManagers: { type: Boolean, default: false },
 });
@@ -58,7 +59,7 @@ const handleDeleteContentManager = (id) => {
             </thead>
             <tbody>
               <tr
-                v-for="manager in roadManagers"
+                v-for="manager in roadManagers.data"
                 :key="manager.id"
                 class="border-b border-[#2a2a2a] hover:bg-[#2a2a2a]/30"
               >
@@ -90,7 +91,7 @@ const handleDeleteContentManager = (id) => {
                   </button>
                 </td>
               </tr>
-              <tr v-if="roadManagers.length === 0">
+              <tr v-if="roadManagers.data.length === 0">
                 <td colspan="4" class="py-6 text-center text-gray-400">
                   No hay road managers registrados.
                 </td>
@@ -98,6 +99,8 @@ const handleDeleteContentManager = (id) => {
             </tbody>
           </table>
         </div>
+
+        <PaginationLinks v-if="roadManagers.links" :links="roadManagers.links" :meta="roadManagers.meta" class="justify-center" />
       </section>
 
       <section class="space-y-4">
@@ -124,7 +127,7 @@ const handleDeleteContentManager = (id) => {
             </thead>
             <tbody>
               <tr
-                v-for="manager in contentManagers"
+                v-for="manager in contentManagers.data"
                 :key="manager.id"
                 class="border-b border-[#2a2a2a] hover:bg-[#2a2a2a]/30"
               >
@@ -156,7 +159,7 @@ const handleDeleteContentManager = (id) => {
                   </button>
                 </td>
               </tr>
-              <tr v-if="contentManagers.length === 0">
+              <tr v-if="contentManagers.data.length === 0">
                 <td colspan="4" class="py-6 text-center text-gray-400">
                   No hay gestores de contenido registrados.
                 </td>
@@ -164,6 +167,8 @@ const handleDeleteContentManager = (id) => {
             </tbody>
           </table>
         </div>
+
+        <PaginationLinks v-if="contentManagers.links" :links="contentManagers.links" :meta="contentManagers.meta" class="justify-center" />
       </section>
     </div>
   </AdminLayout>

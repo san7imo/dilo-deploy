@@ -1,59 +1,152 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Dilo Records – Plataforma de Gestion Musical
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Plataforma web para la gestion integral de artistas, lanzamientos, eventos y finanzas internas de Dilo Records. Incluye un sitio publico para discovery, un panel administrativo y un portal para artistas y road managers.
 
-## About Laravel
+## Stack Tecnologico
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Backend: Laravel 12, PHP 8.2
+- Frontend: Inertia.js + Vue 3
+- UI: Tailwind CSS
+- Auth: Jetstream + Sanctum
+- Roles y permisos: Spatie Laravel Permission
+- Archivos/imagenes: ImageKit
+- Build: Vite
+- DB: MySQL
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Modulos Principales
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Sitio Publico
+- Home con banners, lanzamientos, artistas y eventos.
+- Artistas: listado y detalle publico.
+- Eventos: listado y detalle publico.
+- Lanzamientos y tracks: listado y detalle publico.
+- Generos publicos.
+- Formulario de contacto (envio a diana@dilorecords.com).
+- Sitemaps publicos (artistas, releases, eventos).
 
-## Learning Laravel
+### Panel Administrativo (Admin)
+- Dashboard general.
+- Artistas: CRUD, imagenes (ImageKit) y perfiles publicos.
+- Lanzamientos: CRUD y plataformas.
+- Tracks: CRUD y previsualizaciones.
+- Generos: CRUD.
+- Eventos: CRUD, poster, ubicacion, estado.
+- Finanzas de eventos: pagos, gastos, gastos personales, estados y resumen.
+- Equipo de trabajo: road managers y gestores de contenido.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### Portal de Artista
+- Dashboard de artista.
+- Perfil publico (bio, redes, imagenes).
+- Mis eventos.
+- Finanzas del artista.
+- Mis lanzamientos y tracks.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Roles y Permisos
 
-## Laravel Sponsors
+- admin
+  - Acceso total a todos los modulos y finanzas.
+- contentmanager (gestor de contenido)
+  - Gestiona artistas, lanzamientos, tracks, generos y eventos.
+  - Acceso al modulo de equipo de trabajo.
+  - Sin acceso a finanzas.
+- roadmanager
+  - Gestiona eventos asignados y puede crear eventos.
+  - Acceso limitado a finanzas relacionadas a sus pagos.
+- artist
+  - Accede a su portal, eventos y finanzas personales.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Modelo de Datos (resumen)
 
-### Premium Partners
+- artists: perfiles publicos, bio, redes y recursos de imagen.
+- releases / tracks: discografia y reproducciones.
+- events: detalles, posters, estado y finanzas.
+- event_payments / event_expenses / event_personal_expenses: finanzas por evento.
+- genres: catalogo musical.
+- users + roles: administracion de accesos.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Campos publicos recientes en eventos:
+- whatsapp_event: numero o link de WhatsApp del evento.
+- page_tickets: URL de boleteria.
 
-## Contributing
+## Contacto
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- Ruta publica: /contacto
+- Envio de correos: SMTP configurado en .env
+- Destino: diana@dilorecords.com
 
-## Code of Conduct
+## Estructura (alto nivel)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- app/Http/Controllers/Web/Admin: panel admin.
+- app/Http/Controllers/Web/Public: sitio publico.
+- app/Http/Controllers/Web/Artist: portal del artista.
+- resources/js/Pages: vistas Inertia.
+- resources/js/Components: componentes reutilizables.
+- app/Services: ImageKit y servicios de dominio.
 
-## Security Vulnerabilities
+## Configuracion Local
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+1) Instalar dependencias:
+```
+composer install
+npm install
+```
 
-## License
+2) Copiar .env y configurar:
+```
+cp .env.example .env
+php artisan key:generate
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+3) Migrar y ejecutar:
+```
+php artisan migrate
+php artisan serve
+npm run dev
+```
+
+## Configuracion Produccion (recomendado)
+
+Ajustes clave en .env:
+- APP_ENV=production
+- APP_DEBUG=false
+- APP_URL=https://app.dilorecords.com
+- SESSION_DOMAIN=app.dilorecords.com
+- SESSION_SECURE_COOKIE=true
+- SESSION_COOKIE=dilorecords_app_session
+- SANCTUM_STATEFUL_DOMAINS=app.dilorecords.com
+
+Luego limpiar cache:
+```
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+```
+
+## Scripts utiles
+
+- Build assets:
+```
+npm run build
+```
+
+- Dev completo (backend, queue, logs, vite):
+```
+composer dev
+```
+
+- Tests:
+```
+composer test
+```
+
+## Roadmap sugerido
+
+- Consolidar permisos por rol con politicas y/o permisos granulares.
+- Mejorar logs de auditoria (quien creo/edito).
+- Panel de analytics para artistas y releases.
+- Integracion de pagos externos para eventos.
+
+---
+
+Si necesitas agregar nuevos modulos o documentar flujos especificos, indica el alcance y lo incorporo en el README.

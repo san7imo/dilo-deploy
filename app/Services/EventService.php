@@ -60,23 +60,25 @@ class EventService
     /**
      * Obtener próximos eventos (fecha >= hoy)
      */
-    public function getUpcoming(int $perPage = 12): LengthAwarePaginator
+    public function getUpcoming(int $perPage = 10, string $pageName = 'page'): LengthAwarePaginator
     {
         return Event::with(['artists', 'mainArtist'])
             ->whereDate('event_date', '>=', now())
             ->orderBy('event_date', 'asc')
-            ->paginate($perPage);
+            ->paginate($perPage, ['*'], $pageName)
+            ->withQueryString();
     }
 
     /**
      * Obtener eventos pasados (fecha < hoy)
      */
-    public function getPast(int $perPage = 12): LengthAwarePaginator
+    public function getPast(int $perPage = 10, string $pageName = 'page'): LengthAwarePaginator
     {
         return Event::with(['artists', 'mainArtist'])
             ->whereDate('event_date', '<', now())
             ->orderBy('event_date', 'desc')
-            ->paginate($perPage);
+            ->paginate($perPage, ['*'], $pageName)
+            ->withQueryString();
     }
 
     /**

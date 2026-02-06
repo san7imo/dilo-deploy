@@ -7,6 +7,7 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Database\Seeders\RoleSeeder;
 use Database\Seeders\AdminUserSeeder;
+use Database\Seeders\DevSampleSeeder;
 
 
 class DatabaseSeeder extends Seeder
@@ -24,6 +25,10 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             AdminUserSeeder::class,
         ]);
+
+        if (app()->environment('local')) {
+            $this->call(DevSampleSeeder::class);
+        }
 
         User::factory()->create([
             'name' => 'Test User',

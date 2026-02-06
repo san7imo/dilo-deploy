@@ -20,7 +20,7 @@ class GenreController extends Controller
      */
     public function index()
     {
-        $genres = $this->genreService->getAll(12);
+        $genres = $this->genreService->getAll(10);
 
         return Inertia::render('Public/Genres/Index', [
             'genres' => $genres,

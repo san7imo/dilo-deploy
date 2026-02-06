@@ -3,11 +3,12 @@ import ArtistLayout from '@/Layouts/ArtistLayout.vue';
 import { Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { formatMoney } from '@/utils/money';
+import PaginationLinks from '@/Components/PaginationLinks.vue';
 
 const props = defineProps({
     events: {
-        type: Array,
-        default: () => [],
+        type: Object,
+        default: () => ({ data: [] }),
     },
 });
 
@@ -25,15 +26,17 @@ const formatCurrency = (value) => {
     return formatMoney(value, "USD");
 };
 
+const eventList = computed(() => Array.isArray(props.events) ? props.events : (props.events?.data ?? []));
+
 const filteredEvents = computed(() => {
     if (filterType.value === 'todos') {
-        return props.events;
+        return eventList.value;
     } else if (filterType.value === 'proximos') {
-        return props.events.filter(event => event.is_upcoming);
+        return eventList.value.filter(event => event.is_upcoming);
     } else if (filterType.value === 'pasados') {
-        return props.events.filter(event => !event.is_upcoming);
+        return eventList.value.filter(event => !event.is_upcoming);
     }
-    return props.events;
+    return eventList.value;
 });
 
 const hasEvents = computed(() => Array.isArray(filteredEvents.value) && filteredEvents.value.length > 0);
@@ -162,6 +165,13 @@ const hasEvents = computed(() => Array.isArray(filteredEvents.value) && filtered
                     </div>
                 </Link>
             </div>
+
+            <PaginationLinks
+                v-if="props.events && props.events.links"
+                :links="props.events.links"
+                :meta="props.events.meta"
+                class="justify-center mt-8"
+            />
         </div>
     </ArtistLayout>
 </template>

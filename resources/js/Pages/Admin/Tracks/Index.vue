@@ -1,8 +1,15 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-import { Link } from "@inertiajs/vue3";
+import PaginationLinks from "@/Components/PaginationLinks.vue";
+import { Link, router } from "@inertiajs/vue3";
 
 defineProps({ tracks: Object });
+
+const handleDelete = (id) => {
+  if (confirm("¿Seguro que deseas eliminar esta pista?")) {
+    router.delete(route("admin.tracks.destroy", id));
+  }
+};
 </script>
 
 <template>
@@ -44,11 +51,25 @@ defineProps({ tracks: Object });
               >
                 Editar
               </Link>
+              <Link
+                :href="route('admin.tracks.splits.index', track.id)"
+                class="text-[#ffa236] hover:underline"
+              >
+                Splits
+              </Link>
+              <button
+                @click="handleDelete(track.id)"
+                class="text-red-400 hover:text-red-300"
+              >
+                Eliminar
+              </button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <PaginationLinks v-if="tracks.links" :links="tracks.links" :meta="tracks.meta" class="justify-end mt-4" />
   </AdminLayout>
 </template>
 

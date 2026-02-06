@@ -34,7 +34,7 @@ class ArtistService
      * para las tarjetas tipo playlist.
      */
     public function getAll(
-        int $perPage = 12,
+        int $perPage = 10,
         bool $withTracksForPlaylists = true,
         int $tracksLimit = 10
     ): LengthAwarePaginator {
@@ -166,7 +166,7 @@ class ArtistService
     }
 
     /** Búsqueda simple por nombre (público) */
-    public function search(string $term, int $perPage = 12): LengthAwarePaginator
+    public function search(string $term, int $perPage = 10): LengthAwarePaginator
     {
         $term = trim($term);
 
