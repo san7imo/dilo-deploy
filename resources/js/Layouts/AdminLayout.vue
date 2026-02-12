@@ -15,33 +15,32 @@ const roleNames = computed(() => {
 
 const isAdmin = computed(() => roleNames.value.includes("admin"));
 const isRoadManager = computed(() => roleNames.value.includes("roadmanager"));
+const isContentManager = computed(() => roleNames.value.includes("contentmanager"));
+const canManageContent = computed(() => isAdmin.value || isContentManager.value);
 const dashboardRoute = computed(() =>
   isRoadManager.value ? "admin.events.index" : "admin.dashboard"
 );
-const dashboardLabel = computed(() =>
-  isRoadManager.value ? "Finanzas" : "Dashboard"
-);
+const dashboardLabel = computed(() => "Dashboard");
 const panelTitle = computed(() =>
-  isRoadManager.value ? "Panel Road Manager" : "Panel de Administración"
+  isRoadManager.value
+    ? "Panel Road Manager"
+    : isContentManager.value
+      ? "Panel Gestor de Contenido"
+      : "Panel de Administración"
 );
-
-const getCsrfToken = () =>
-  document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+const isEventDashboard = computed(() => isRoadManager.value);
 
 const logout = () => {
-  const token = getCsrfToken();
-  router.post(route("logout"), { _token: token }, {
-    headers: token ? { "X-CSRF-TOKEN": token } : {},
-  });
+  router.post(route("logout"));
 };
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-[#0d0d0d] text-white font-['Roboto',sans-serif]">
+  <div class="flex min-h-screen bg-[#0d0d0d] text-white font-['Roboto',sans-serif] overflow-x-hidden">
     <!-- Sidebar -->
     <aside
       :class="[
-        'transition-all duration-300 ease-in-out bg-[#1d1d1b] border-r border-[#2a2a2a] flex flex-col',
+        'flex-shrink-0 transition-all duration-300 ease-in-out bg-[#1d1d1b] border-r border-[#2a2a2a] flex flex-col',
         isSidebarOpen ? 'w-64' : 'w-20'
       ]"
     >
@@ -89,7 +88,7 @@ const logout = () => {
           :href="route(dashboardRoute)"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{
-            'bg-[#ffa236]/20 text-[#ffa236]': isRoadManager
+            'bg-[#ffa236]/20 text-[#ffa236]': isEventDashboard
               ? route().current('admin.events.*')
               : route().current('admin.dashboard')
           }"
@@ -99,7 +98,7 @@ const logout = () => {
         </Link>
 
         <Link
-          v-if="isAdmin"
+          v-if="canManageContent"
           :href="route('admin.artists.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.artists.*') }"
@@ -109,17 +108,22 @@ const logout = () => {
         </Link>
 
         <Link
-          v-if="isAdmin"
-          :href="route('admin.roadmanagers.index')"
+          v-if="canManageContent"
+          :href="route('admin.team.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
-          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.roadmanagers.*') }"
+          :class="{
+            'bg-[#ffa236]/20 text-[#ffa236]':
+              route().current('admin.team.*') ||
+              route().current('admin.roadmanagers.*') ||
+              route().current('admin.content-managers.*')
+          }"
         >
           <i class="fa-solid fa-clipboard-user"></i>
-          <span v-if="isSidebarOpen">Road managers</span>
+          <span v-if="isSidebarOpen">Equipo de trabajo</span>
         </Link>
 
         <Link
-          v-if="isAdmin"
+          v-if="canManageContent"
           :href="route('admin.releases.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.releases.*') }"
@@ -129,7 +133,7 @@ const logout = () => {
         </Link>
 
         <Link
-          v-if="isAdmin"
+          v-if="canManageContent"
           :href="route('admin.tracks.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.tracks.*') }"
@@ -140,6 +144,16 @@ const logout = () => {
 
         <Link
           v-if="isAdmin"
+          :href="route('admin.royalties.dashboard')"
+          class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
+          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.royalties.*') }"
+        >
+          <i class="fa-solid fa-file-invoice-dollar"></i>
+          <span v-if="isSidebarOpen">Royalties</span>
+        </Link>
+
+        <Link
+          v-if="canManageContent"
           :href="route('admin.events.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.events.*') }"
@@ -149,7 +163,7 @@ const logout = () => {
         </Link>
 
         <Link
-          v-if="isAdmin"
+          v-if="canManageContent"
           :href="route('admin.genres.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.genres.*') }"
@@ -174,7 +188,7 @@ const logout = () => {
     </aside>
 
     <!-- Contenido principal -->
-    <div class="flex-1 flex flex-col min-h-screen">
+    <div class="flex-1 flex flex-col min-h-screen min-w-0">
       <!-- Navbar -->
       <header
         class="h-14 bg-[#1d1d1b] border-b border-[#2a2a2a] flex items-center justify-between px-6"
@@ -186,7 +200,7 @@ const logout = () => {
       </header>
 
       <!-- Contenido dinámico -->
-      <main class="flex-1 overflow-y-auto p-6 bg-[#0f0f0f]">
+      <main class="flex-1 overflow-y-auto p-6 bg-[#0f0f0f] min-w-0">
         <slot />
       </main>
     </div>

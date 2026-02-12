@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/vue3'
 import { Icon } from '@iconify/vue'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import PublicLayout from '@/Layouts/PublicLayout.vue'
+import ShareEventModal from '@/Components/Public/Events/ShareEventModal.vue'
 
 defineOptions({ layout: PublicLayout })
 
@@ -64,6 +65,15 @@ const eventPassed = computed(() => {
     return new Date(props.event.event_date) < new Date()
 })
 
+const showShareModal = ref(false)
+const shareUrl = computed(() => {
+    if (typeof window !== 'undefined') return window.location.href
+    if (typeof route === 'function' && props.event?.slug) {
+        return route('public.events.show', props.event.slug)
+    }
+    return ''
+})
+
 // Ejecutar contador cada segundo
 let countdownInterval = null
 
@@ -78,22 +88,37 @@ onUnmounted(() => {
     }
 })
 
-// WhatsApp link
 const whatsappMessage = encodeURIComponent(
     `Hola, me interesa el evento "${props.event.title}". ¿Me brindas más información?`
 )
-const whatsappLink = `https://wa.me/?text=${whatsappMessage}`
+
+const getWhatsAppLink = (value) => {
+    if (!value) return ''
+    const trimmed = String(value).trim()
+    if (!trimmed) return ''
+    if (/^https?:\/\//i.test(trimmed)) {
+        return trimmed
+    }
+    const cleanNumber = trimmed.replace(/\D/g, '')
+    if (!cleanNumber) return ''
+    return `https://wa.me/${cleanNumber}?text=${whatsappMessage}`
+}
+
+const getTicketsLink = (value) => {
+    if (!value) return ''
+    const trimmed = String(value).trim()
+    if (!trimmed) return ''
+    if (/^https?:\/\//i.test(trimmed)) {
+        return trimmed
+    }
+    return `https://${trimmed}`
+}
+
+const whatsappLink = computed(() => getWhatsAppLink(props.event.whatsapp_event))
+const ticketsLink = computed(() => getTicketsLink(props.event.page_tickets))
 
 const handleShare = () => {
-    if (navigator.share) {
-        navigator.share({
-            title: props.event.title,
-            text: props.event.description,
-            url: window.location.href
-        })
-    } else {
-        navigator.clipboard.writeText(window.location.href)
-    }
+    showShareModal.value = true
 }
 </script>
 
@@ -243,8 +268,15 @@ const handleShare = () => {
                             </div>
                         </div>
 
-                        <!-- CTA Contactar -->
-                        <a :href="whatsappLink" target="_blank"
+                        <!-- CTA Tickets -->
+                        <a v-if="ticketsLink" :href="ticketsLink" target="_blank" rel="noopener"
+                            class="flex items-center justify-center gap-2 w-full bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold py-4 rounded-xl transition">
+                            <Icon icon="mdi:ticket-confirmation-outline" class="text-lg" />
+                            Comprar entradas
+                        </a>
+
+                        <!-- CTA WhatsApp -->
+                        <a v-if="whatsappLink" :href="whatsappLink" target="_blank" rel="noopener"
                             class="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-4 rounded-xl transition">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" class="w-5 h-5 fill-white">
                                 <path
@@ -270,5 +302,12 @@ const handleShare = () => {
                 </aside>
             </div>
         </div>
+
+        <ShareEventModal
+            :event="event"
+            :share-url="shareUrl"
+            :is-open="showShareModal"
+            @close="showShareModal = false"
+        />
     </div>
 </template>

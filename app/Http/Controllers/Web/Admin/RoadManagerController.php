@@ -34,6 +34,7 @@ class RoadManagerController extends Controller
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
             'password' => Hash::make($data['password']),
             'email_verified_at' => !empty($data['email_verified']) ? now() : null,
         ]);
@@ -41,7 +42,7 @@ class RoadManagerController extends Controller
         $user->assignRole('roadmanager');
 
         return redirect()
-            ->route('admin.roadmanagers.index')
+            ->route('admin.team.index')
             ->with('success', 'Road manager creado correctamente');
     }
 
@@ -52,7 +53,7 @@ class RoadManagerController extends Controller
         }
 
         return Inertia::render('Admin/RoadManagers/Edit', [
-            'roadManager' => $roadmanager->only(['id', 'name', 'email', 'email_verified_at']),
+            'roadManager' => $roadmanager->only(['id', 'name', 'email', 'phone', 'email_verified_at']),
         ]);
     }
 
@@ -66,6 +67,7 @@ class RoadManagerController extends Controller
 
         $roadmanager->name = $data['name'];
         $roadmanager->email = $data['email'];
+        $roadmanager->phone = $data['phone'] ?? null;
         if (!empty($data['email_verified'])) {
             $roadmanager->email_verified_at = $roadmanager->email_verified_at ?? now();
         } else {
@@ -79,7 +81,7 @@ class RoadManagerController extends Controller
         $roadmanager->save();
 
         return redirect()
-            ->route('admin.roadmanagers.index')
+            ->route('admin.team.index')
             ->with('success', 'Road manager actualizado correctamente');
     }
 
@@ -92,7 +94,7 @@ class RoadManagerController extends Controller
         $roadmanager->delete();
 
         return redirect()
-            ->route('admin.roadmanagers.index')
+            ->route('admin.team.index')
             ->with('success', 'Road manager eliminado correctamente');
     }
 }

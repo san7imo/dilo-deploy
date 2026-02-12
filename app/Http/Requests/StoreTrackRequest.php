@@ -11,6 +11,15 @@ class StoreTrackRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('isrc')) {
+            $this->merge([
+                'isrc' => $this->normalizeIsrc($this->input('isrc')),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -19,6 +28,7 @@ class StoreTrackRequest extends FormRequest
 
             // Datos principales
             'title'        => 'required|string|max:255|unique:tracks,title',
+            'isrc'         => 'nullable|string|max:32',
             'track_number' => 'nullable|integer|min:1',
             'duration'     => 'nullable|string|max:10',
 
@@ -52,5 +62,14 @@ class StoreTrackRequest extends FormRequest
             'cover.max'             => 'La portada no debe superar los 4 MB de tamaño.',
             'artist_ids.*.exists'   => 'Uno o más artistas asociados no existen en el sistema.',
         ];
+    }
+
+    private function normalizeIsrc($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $normalized = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $value));
+        return $normalized !== '' ? $normalized : null;
     }
 }

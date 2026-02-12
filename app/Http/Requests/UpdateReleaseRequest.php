@@ -12,6 +12,15 @@ class UpdateReleaseRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('upc')) {
+            $this->merge([
+                'upc' => $this->normalizeUpc($this->input('upc')),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         // importante: la key del route model binding es 'release' (minúscula)
@@ -23,6 +32,7 @@ class UpdateReleaseRequest extends FormRequest
                 'sometimes','required','string','max:255',
                 Rule::unique('releases','title')->ignore($release?->id)
             ],
+            'upc'          => 'sometimes|nullable|string|max:32',
             'release_date' => 'sometimes|nullable|date',
             'type'         => 'sometimes|nullable|string|in:single,ep,album,mixtape,live,compilation',
             'description'  => 'sometimes|nullable|string',
@@ -52,5 +62,14 @@ class UpdateReleaseRequest extends FormRequest
             'cover_file.mimes'  => 'La portada debe ser JPEG, PNG o WebP.',
             'cover_file.max'    => 'La portada no puede superar 4MB.',
         ];
+    }
+
+    private function normalizeUpc($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $normalized = preg_replace('/\D/', '', (string) $value);
+        return $normalized !== '' ? $normalized : null;
     }
 }

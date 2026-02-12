@@ -35,9 +35,13 @@ class Event extends Model
         'country',
         'city',
         'venue_address',
+        'whatsapp_event',
+        'page_tickets',
         'show_fee_total',
         'currency',
         'advance_percentage',
+        'artist_share_percentage',
+        'label_share_percentage',
         'advance_expected',
         'full_payment_due_date',
         'status',
@@ -53,6 +57,8 @@ class Event extends Model
         'full_payment_due_date' => 'date',
         'show_fee_total' => 'decimal:2',
         'advance_percentage' => 'decimal:2',
+        'artist_share_percentage' => 'decimal:2',
+        'label_share_percentage' => 'decimal:2',
     ];
 
     /**
@@ -166,24 +172,52 @@ class Event extends Model
     }
 
     /**
-     * 70% del resultado neto para el artista.
+     * Porcentaje del resultado neto para el artista.
      */
     public function getArtistShareEstimatedBaseAttribute(): float
     {
-        return round($this->net_base * 0.70, 2);
+        $artistPct = is_numeric($this->artist_share_percentage)
+            ? (float) $this->artist_share_percentage
+            : null;
+        $labelPct = is_numeric($this->label_share_percentage)
+            ? (float) $this->label_share_percentage
+            : null;
+
+        if (is_null($artistPct) && !is_null($labelPct)) {
+            $artistPct = max(0, 100 - $labelPct);
+        }
+        if (is_null($artistPct)) {
+            $artistPct = 70;
+        }
+
+        return round($this->net_base * ($artistPct / 100), 2);
     }
 
     /**
-     * 30% del resultado neto para la compañía.
+     * Porcentaje del resultado neto para la compañía.
      */
     public function getLabelShareEstimatedBaseAttribute(): float
     {
-        return round($this->net_base * 0.30, 2);
+        $labelPct = is_numeric($this->label_share_percentage)
+            ? (float) $this->label_share_percentage
+            : null;
+        $artistPct = is_numeric($this->artist_share_percentage)
+            ? (float) $this->artist_share_percentage
+            : null;
+
+        if (is_null($labelPct) && !is_null($artistPct)) {
+            $labelPct = max(0, 100 - $artistPct);
+        }
+        if (is_null($labelPct)) {
+            $labelPct = 30;
+        }
+
+        return round($this->net_base * ($labelPct / 100), 2);
     }
 
     public function scopeVisibleForUser(Builder $query, $user): Builder
     {
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasRole('contentmanager')) {
             return $query;
         }
 

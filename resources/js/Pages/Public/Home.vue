@@ -4,6 +4,7 @@ import BannerCarousel from '@/Components/Public/Home/BannerCaroulse.vue'
 import ReleasesCarousel from '@/Components/Public/Home/ReleasesCarousel.vue'
 import ArtistsCarousel from '@/Components/Public/Home/ArtistsCarousel.vue'
 import EventsCarousel from '@/Components/Public/Home/EventsCarousel.vue'
+import ContactSection from '@/Components/Public/Home/ContactSection.vue'
 
 defineProps<{
   banners: any[]
@@ -25,6 +26,8 @@ defineProps<{
     <!-- Carrusel de eventos -->
     <EventsCarousel :items="events" />
 
+    <!-- Contacto -->
+    <ContactSection :contact="contact" />
 
   </PublicLayout>
 </template>

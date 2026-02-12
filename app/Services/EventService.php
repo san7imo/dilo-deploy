@@ -40,6 +40,10 @@ class EventService
             ->withSum('expenses as total_expenses_base', 'amount_base')
             ->orderBy('event_date', 'desc');
 
+        if ($user->hasRole('contentmanager')) {
+            return $query->paginate($perPage);
+        }
+
         if ($user->hasRole('roadmanager')) {
             $query->whereHas('roadManagers', function ($q) use ($user) {
                 $q->where('users.id', $user->id);
@@ -56,23 +60,25 @@ class EventService
     /**
      * Obtener próximos eventos (fecha >= hoy)
      */
-    public function getUpcoming(int $perPage = 12): LengthAwarePaginator
+    public function getUpcoming(int $perPage = 10, string $pageName = 'page'): LengthAwarePaginator
     {
         return Event::with(['artists', 'mainArtist'])
             ->whereDate('event_date', '>=', now())
             ->orderBy('event_date', 'asc')
-            ->paginate($perPage);
+            ->paginate($perPage, ['*'], $pageName)
+            ->withQueryString();
     }
 
     /**
      * Obtener eventos pasados (fecha < hoy)
      */
-    public function getPast(int $perPage = 12): LengthAwarePaginator
+    public function getPast(int $perPage = 10, string $pageName = 'page'): LengthAwarePaginator
     {
         return Event::with(['artists', 'mainArtist'])
             ->whereDate('event_date', '<', now())
             ->orderBy('event_date', 'desc')
-            ->paginate($perPage);
+            ->paginate($perPage, ['*'], $pageName)
+            ->withQueryString();
     }
 
     /**

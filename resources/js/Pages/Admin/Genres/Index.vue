@@ -1,7 +1,7 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
+import PaginationLinks from "@/Components/PaginationLinks.vue";
 import { Link, router } from "@inertiajs/vue3";
-import { ref } from "vue";
 
 const props = defineProps({
   genres: Object,
@@ -64,6 +64,8 @@ const handleDelete = (id) => {
           </tbody>
         </table>
       </div>
+
+      <PaginationLinks v-if="props.genres.links" :links="props.genres.links" :meta="props.genres.meta" class="justify-center" />
     </div>
   </AdminLayout>
 </template>

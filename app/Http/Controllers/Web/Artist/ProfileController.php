@@ -15,7 +15,7 @@ class ProfileController extends Controller
         $artistQuery = $user->artist()->with('genre:id,name')
             ->withCount(['tracks'])
             ->select(
-                'id', 'name', 'bio', 'country', 'genre_id',
+                'id', 'name', 'bio', 'country', 'phone', 'genre_id',
                 'banner_home_url', 'banner_artist_url', 'carousel_home_url', 'carousel_discography_url',
                 'social_links'
             );
@@ -34,6 +34,7 @@ class ProfileController extends Controller
             'name' => $artist->name,
             'bio' => $artist->bio,
             'country' => $artist->country,
+            'phone' => $artist->phone,
             'genre' => $artist->genre ? ['id' => $artist->genre->id, 'name' => $artist->genre->name] : null,
             'image_url' => $artist->image_url ?? null,
             'main_image_url' => $artist->main_image_url ?? null,
@@ -56,6 +57,7 @@ class ProfileController extends Controller
                 'name' => $artist->name,
                 'bio' => $artist->bio,
                 'country' => $artist->country,
+                'phone' => $artist->phone,
                 'genre' => $artist->genre ? ['id' => $artist->genre->id, 'name' => $artist->genre->name] : null,
                 'genre_id' => $artist->genre_id,
             ],
@@ -70,11 +72,16 @@ class ProfileController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'bio' => ['nullable', 'string'],
             'country' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
             'genre_id' => ['nullable', 'integer', 'exists:genres,id'],
         ]);
 
         // Limitar campos que el artista puede modificar
         $artist->update($data);
+
+        if (array_key_exists('phone', $data)) {
+            $request->user()->update(['phone' => $data['phone']]);
+        }
 
         return redirect()->route('artist.profile.edit')->with('success', 'Perfil actualizado');
     }

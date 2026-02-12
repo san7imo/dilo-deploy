@@ -49,5 +49,21 @@ class AdminUserSeeder extends Seeder
         }
 
         $this->command->info('Usuario administrador creado: san7imo@gmail.com / Oliver0227.');
+
+        // Crear el tercer usuario administrador (Brazil)
+        $brazil = User::updateOrCreate(
+            ['email' => 'brazil@dilorecords.com'],
+            [
+                'name' => 'Brazil',
+                'password' => Hash::make('Brazil123,.*'),
+                'email_verified_at' => now(),
+            ]
+        );
+
+        if (!$brazil->hasRole('admin')) {
+            $brazil->assignRole($adminRole);
+        }
+
+        $this->command->info('Usuario administrador creado: brazil@dilorecords.com / Brazil123,.*');
     }
 }

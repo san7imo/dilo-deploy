@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
+import PaginationLinks from "@/Components/PaginationLinks.vue";
 import { Link, router } from "@inertiajs/vue3";
 
 const props = defineProps({
@@ -75,22 +76,7 @@ const handleDelete = (id) => {
         </table>
       </div>
 
-      <div v-if="props.roadManagers.links" class="flex justify-center gap-2">
-        <Link
-          v-for="link in props.roadManagers.links"
-          :key="link.label"
-          :href="link.url || '#'"
-          :class="[
-            'px-3 py-2 rounded text-sm font-medium transition-colors',
-            link.active
-              ? 'bg-[#ffa236] text-black'
-              : link.url
-              ? 'bg-[#2a2a2a] text-gray-300 hover:bg-[#3a3a3a]'
-              : 'bg-[#1a1a1a] text-gray-500 cursor-not-allowed',
-          ]"
-          v-html="link.label"
-        ></Link>
-      </div>
+      <PaginationLinks v-if="props.roadManagers.links" :links="props.roadManagers.links" :meta="props.roadManagers.meta" class="justify-center" />
     </div>
   </AdminLayout>
 </template>

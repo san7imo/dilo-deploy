@@ -22,6 +22,7 @@ class Release extends Model
     protected $fillable = [
         'artist_id',
         'title',
+        'upc',
         'slug',
         'cover_url',  // Portada del lanzamiento
         'cover_id',   // ID en ImageKit (para eliminar o reemplazar)
@@ -135,5 +136,16 @@ class Release extends Model
         return $this->cover_url
             ? "{$this->cover_url}?tr=w-800,h-800,q-85,fo-auto"
             : null;
+    }
+
+    public function setUpcAttribute($value): void
+    {
+        if ($value === null) {
+            $this->attributes['upc'] = null;
+            return;
+        }
+
+        $normalized = preg_replace('/\D/', '', (string) $value);
+        $this->attributes['upc'] = $normalized !== '' ? $normalized : null;
     }
 }

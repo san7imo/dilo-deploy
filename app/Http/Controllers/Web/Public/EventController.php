@@ -20,8 +20,8 @@ class EventController extends Controller
      */
     public function index()
     {
-        $upcomingEvents = $this->eventService->getUpcoming(12);
-        $pastEvents = $this->eventService->getPast(12);
+        $upcomingEvents = $this->eventService->getUpcoming(10, 'upcoming_page');
+        $pastEvents = $this->eventService->getPast(10, 'past_page');
 
         return Inertia::render('Public/Events/Index', [
             'upcomingEvents' => $upcomingEvents,

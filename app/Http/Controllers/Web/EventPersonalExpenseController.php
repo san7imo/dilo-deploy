@@ -21,6 +21,10 @@ class EventPersonalExpenseController extends Controller
     ) {
         $data = $request->validated();
 
+        if ($request->hasFile('receipt_file')) {
+            $data['receipt_file'] = $request->file('receipt_file');
+        }
+
         $service->create($event, $data);
 
         return back()->with('success', 'Gasto personal registrado correctamente');
@@ -35,6 +39,10 @@ class EventPersonalExpenseController extends Controller
         EventPersonalExpenseService $service
     ) {
         $data = $request->validated();
+
+        if ($request->hasFile('receipt_file')) {
+            $data['receipt_file'] = $request->file('receipt_file');
+        }
 
         $service->update($personalExpense, $data);
 

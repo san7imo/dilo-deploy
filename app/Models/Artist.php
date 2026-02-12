@@ -30,6 +30,7 @@ class Artist extends Model
         'slug',
         'bio',
         'country',
+        'phone',
         'genre_id',
         'youtube_url',
         'presentation_video_url',

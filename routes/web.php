@@ -13,11 +13,16 @@ use App\Http\Controllers\Web\Public\{
     ReleaseController as PublicReleaseController,
     TrackController as PublicTrackController,
     HomeController as PublicHomeController,
-    SitemapController as PublicSitemapController
+    SitemapController as PublicSitemapController,
+    ContactController as PublicContactController
 };
 
 // Página principal (landing pública)
 Route::get('/', [PublicHomeController::class, 'index'])->name('public.home');
+
+// Contacto
+Route::get('/contacto', [PublicContactController::class, 'show'])->name('public.contact');
+Route::post('/contacto', [PublicContactController::class, 'submit'])->name('public.contact.submit');
 
 // --- Artistas ---
 Route::prefix('artistas')->name('public.artists.')->group(function () {
@@ -71,6 +76,10 @@ Route::middleware(['auth:sanctum', 'verified'])
             return inertia('Artist/Dashboard');
         }
 
+        if ($user->hasRole('contentmanager')) {
+            return inertia('Dashboard');
+        }
+
         if ($user->hasRole('roadmanager')) {
             return redirect()->route('admin.events.index');
         }
@@ -89,9 +98,15 @@ use App\Http\Controllers\Web\Admin\{
     EventController as AdminEventController,
     GenreController as AdminGenreController,
     ReleaseController as AdminReleaseController,
+    RoyaltyDashboardController,
+    RoyaltyStatementController,
+    TrackSplitAgreementController,
     TrackController as AdminTrackController,
     EventFinanceController,
-    RoadManagerController
+    RoadManagerController,
+    ContentManagerController,
+    CollaboratorController,
+    TeamController
 };
 
 use App\Http\Controllers\Web\EventPaymentController;
@@ -99,18 +114,23 @@ use App\Http\Controllers\Web\EventExpenseController;
 use App\Http\Controllers\Web\EventPersonalExpenseController;
 
 // Endpoint de datos del Dashboard Admin
-Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
+Route::middleware(['auth:sanctum', 'verified', 'role:admin|contentmanager'])
     ->get('/admin/dashboard/data', [DashboardController::class, 'index'])
     ->name('admin.dashboard.data');
+
+Route::middleware(['auth:sanctum', 'verified', 'role:admin|roadmanager|contentmanager'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('events', [AdminEventController::class, 'index'])
+            ->name('events.index');
+    });
 
 Route::middleware(['auth:sanctum', 'verified', 'role:admin|roadmanager'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        // ✅ FINANZAS POR EVENTO (ADMIN)  -> admin.events.finance
-        Route::get('events', [AdminEventController::class, 'index'])
-            ->name('events.index');
-
+        // ✅ FINANZAS POR EVENTO (ADMIN/ROADMANAGER)
         Route::get('events/{event}/finance', [EventFinanceController::class, 'show'])
             ->name('events.finance');
 
@@ -126,10 +146,13 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin|roadmanager'])
             ->name('events.expenses.store');
     });
 
-Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
+Route::middleware(['auth:sanctum', 'verified', 'role:admin|contentmanager'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
+        // Equipo de trabajo
+        Route::get('team', [TeamController::class, 'index'])
+            ->name('team.index');
 
         // --- Artistas ---
         Route::resource('artists', AdminArtistController::class)->except(['show']);
@@ -140,8 +163,55 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
         // --- Road managers ---
         Route::resource('roadmanagers', RoadManagerController::class)->except(['show']);
 
+        // --- Géneros ---
+        Route::resource('genres', AdminGenreController::class)->except(['show']);
+
+        // --- Lanzamientos ---
+        Route::resource('releases', AdminReleaseController::class)->except(['show']);
+
+        // --- Pistas ---
+        Route::resource('tracks', AdminTrackController::class)->except(['show']);
+    });
+
+Route::middleware(['auth:sanctum', 'verified', 'role:admin|contentmanager|roadmanager'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
         // --- Eventos ---
         Route::resource('events', AdminEventController::class)->except(['show', 'index']);
+    });
+
+Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('royalties', [RoyaltyDashboardController::class, 'index'])
+            ->name('royalties.dashboard');
+
+        // --- Royalties / Statements ---
+        Route::get('royalties/statements', [RoyaltyStatementController::class, 'index'])
+            ->name('royalties.statements.index');
+        Route::get('royalties/statements/create', [RoyaltyStatementController::class, 'create'])
+            ->name('royalties.statements.create');
+        Route::get('royalties/statements/{statement}', [RoyaltyStatementController::class, 'show'])
+            ->name('royalties.statements.show');
+        Route::post('royalties/statements', [RoyaltyStatementController::class, 'store'])
+            ->name('royalties.statements.store');
+        Route::post('royalties/statements/{statement}/process', [RoyaltyStatementController::class, 'process'])
+            ->name('royalties.statements.process');
+
+        // --- Tracks / Splits ---
+        Route::get('tracks/{track}/splits', [TrackSplitAgreementController::class, 'index'])
+            ->name('tracks.splits.index');
+        Route::get('tracks/{track}/splits/create', [TrackSplitAgreementController::class, 'create'])
+            ->name('tracks.splits.create');
+        Route::post('tracks/{track}/splits', [TrackSplitAgreementController::class, 'store'])
+            ->name('tracks.splits.store');
+        Route::get('tracks/{track}/splits/{agreement}/download', [TrackSplitAgreementController::class, 'download'])
+            ->name('tracks.splits.download');
+
+        Route::resource('content-managers', ContentManagerController::class)->except(['show']);
+        Route::resource('collaborators', CollaboratorController::class)->except(['show', 'index']);
 
         Route::patch('events/{event}/payment-status', [EventFinanceController::class, 'updatePaymentStatus'])
             ->name('events.payment-status.update');
@@ -172,15 +242,6 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
 
         Route::put('events/{event}/expenses-sync', [EventFinanceController::class, 'syncExpenses'])
             ->name('events.expenses.sync');
-
-        // --- Géneros ---
-        Route::resource('genres', AdminGenreController::class)->except(['show']);
-
-        // --- Lanzamientos ---
-        Route::resource('releases', AdminReleaseController::class)->except(['show']);
-
-        // --- Pistas ---
-        Route::resource('tracks', AdminTrackController::class)->except(['show']);
     });
 
 
@@ -191,6 +252,7 @@ use App\Http\Controllers\Web\Artist\ProfileController as ArtistProfileController
 use App\Http\Controllers\Web\Artist\EventController as ArtistEventController;
 use App\Http\Controllers\Web\Artist\DashboardController as ArtistDashboardApiController;
 use App\Http\Controllers\Web\Artist\FinanceController as ArtistFinanceController;
+use App\Http\Controllers\Web\Artist\TrackController as ArtistTrackController;
 
 Route::middleware(['auth:sanctum', 'verified', 'role:artist'])
     ->prefix('artist')
@@ -212,6 +274,13 @@ Route::middleware(['auth:sanctum', 'verified', 'role:artist'])
         // Eventos
         Route::get('/events', [ArtistEventController::class, 'index'])->name('events.index');
         Route::get('/events/{id}', [ArtistEventController::class, 'show'])->name('events.show');
+
+        // Mis canciones
+        Route::get('/tracks', [ArtistTrackController::class, 'index'])->name('tracks.index');
+        Route::get('/tracks/{track}/royalties', [ArtistTrackController::class, 'royalties'])
+            ->name('tracks.royalties.index');
+        Route::get('/tracks/{track}/royalties/{statement}', [ArtistTrackController::class, 'royaltyDetail'])
+            ->name('tracks.royalties.detail');
     });
 
 

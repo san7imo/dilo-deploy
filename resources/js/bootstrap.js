@@ -3,11 +3,7 @@ import axios from 'axios';
 window.axios = axios;
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
-// Include CSRF token from blade meta tag for non-GET requests
-const tokenMeta = document.querySelector('meta[name="csrf-token"]');
-if (tokenMeta) {
-	window.axios.defaults.headers.common['X-CSRF-TOKEN'] = tokenMeta.content;
-}
+// Let axios attach XSRF token from the XSRF-TOKEN cookie.
 
 // Always request JSON from the backend
 window.axios.defaults.headers.common['Accept'] = 'application/json';

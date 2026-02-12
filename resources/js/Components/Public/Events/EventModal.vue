@@ -22,19 +22,30 @@ const formattedDate = computed(() => {
   }).format(new Date(props.event.event_date))
 })
 
-// Whatsapp 
 const whatsappLink = computed(() => {
   const message = encodeURIComponent(
     `Hola, me interesa el evento "${props.event.title}". ¿Me brindas más información?`
   )
 
-  if (props.event.whatsapp_number) {
-
-    const cleanNumber = props.event.whatsapp_number.replace(/\D/g, '')
-    return `https://wa.me/${cleanNumber}?text=${message}`
+  if (!props.event.whatsapp_event) return ''
+  const raw = String(props.event.whatsapp_event).trim()
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) {
+    return raw
   }
 
-  return `https://wa.me/?text=${message}`
+  const cleanNumber = raw.replace(/\D/g, '')
+  return cleanNumber ? `https://wa.me/${cleanNumber}?text=${message}` : ''
+})
+
+const ticketsLink = computed(() => {
+  if (!props.event.page_tickets) return ''
+  const raw = String(props.event.page_tickets).trim()
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) {
+    return raw
+  }
+  return `https://${raw}`
 })
 
 const closeModal = () => emit('close')
@@ -111,8 +122,13 @@ const handleBackdropClick = (e) => {
             </div>
 
             <!-- CTA -->
-            <div class="flex gap-3 pt-4">
-              <a :href="whatsappLink" target="_blank"
+            <div class="flex flex-wrap gap-3 pt-4">
+              <a v-if="ticketsLink" :href="ticketsLink" target="_blank" rel="noopener"
+                class="flex-1 flex items-center justify-center gap-2 bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold py-3 rounded-lg transition">
+                Comprar entradas
+              </a>
+
+              <a v-if="whatsappLink" :href="whatsappLink" target="_blank" rel="noopener"
                 class="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg transition">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" class="w-5 h-5 fill-white">
                   <path

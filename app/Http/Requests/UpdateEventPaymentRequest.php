@@ -24,8 +24,10 @@ class UpdateEventPaymentRequest extends FormRequest
             'currency' => ['required', 'string', 'size:3'],
             'exchange_rate_to_base' => ['nullable', 'numeric', 'gt:0'],
             'payment_method' => ['required', 'string', 'max:255'],
+            'collaborator_id' => ['nullable', 'integer', 'exists:collaborators,id'],
             'is_advance' => ['boolean'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'receipt_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
 
@@ -41,9 +43,11 @@ class UpdateEventPaymentRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $currency = strtoupper(trim((string) $this->input('currency', '')));
+        $collaboratorId = $this->input('collaborator_id');
 
         $this->merge([
             'currency' => $currency ?: 'USD',
+            'collaborator_id' => $collaboratorId === '' ? null : $collaboratorId,
         ]);
     }
 }

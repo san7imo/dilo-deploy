@@ -23,10 +23,14 @@ class UpdateEventRequest extends FormRequest
             'country'     => 'sometimes|nullable|string|max:100',
             'city'        => 'sometimes|nullable|string|max:100',
             'venue_address' => 'sometimes|nullable|string|max:255',
+            'whatsapp_event' => 'sometimes|nullable|string|max:255',
+            'page_tickets' => 'sometimes|nullable|string|max:255',
             'status'      => 'sometimes|nullable|string|max:100',
             'show_fee_total' => 'sometimes|nullable|numeric|min:0',
             'currency'    => 'sometimes|nullable|string|size:3',
             'advance_percentage' => 'sometimes|nullable|numeric|min:0|max:100',
+            'artist_share_percentage' => 'sometimes|nullable|numeric|min:0|max:100',
+            'label_share_percentage' => 'sometimes|nullable|numeric|min:0|max:100',
             'advance_expected' => 'sometimes|boolean',
             'full_payment_due_date' => 'sometimes|nullable|date',
 
@@ -60,5 +64,33 @@ class UpdateEventRequest extends FormRequest
             'main_artist_id.in'     => 'El artista principal debe estar en la lista de artistas.',
             'event_date.required'   => 'La fecha del evento es obligatoria.',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $artist = $this->input('artist_share_percentage');
+            $label = $this->input('label_share_percentage');
+
+            if (is_null($artist) && is_null($label)) {
+                return;
+            }
+
+            if (is_null($artist) || is_null($label)) {
+                $validator->errors()->add(
+                    'artist_share_percentage',
+                    'Debes indicar el porcentaje del artista y de la disquera.'
+                );
+                return;
+            }
+
+            $sum = round(((float) $artist) + ((float) $label), 2);
+            if (abs($sum - 100) > 0.01) {
+                $validator->errors()->add(
+                    'artist_share_percentage',
+                    'La suma de porcentajes del artista y la disquera debe ser 100%.'
+                );
+            }
+        });
     }
 }

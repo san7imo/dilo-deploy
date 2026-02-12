@@ -28,6 +28,7 @@ class UpdateEventPersonalExpenseRequest extends FormRequest
             'amount_original' => ['required', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'size:3'],
             'exchange_rate_to_base' => ['nullable', 'numeric', 'gt:0'],
+            'receipt_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
 

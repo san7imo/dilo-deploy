@@ -22,6 +22,10 @@ class EventPaymentController extends Controller
         $data = $request->validated();
         $data['created_by'] = $request->user()?->id;
 
+        if ($request->hasFile('receipt_file')) {
+            $data['receipt_file'] = $request->file('receipt_file');
+        }
+
         // Si es USD, la tasa siempre es 1 
         if ($data['currency'] === 'USD') {
             $data['exchange_rate_to_base'] = 1;
@@ -42,6 +46,10 @@ class EventPaymentController extends Controller
     ) {
         $data = $request->validated();
 
+        if ($request->hasFile('receipt_file')) {
+            $data['receipt_file'] = $request->file('receipt_file');
+        }
+
         // Si es USD, la tasa siempre es 1 
         if ($data['currency'] === 'USD') {
             $data['exchange_rate_to_base'] = 1;
@@ -55,12 +63,12 @@ class EventPaymentController extends Controller
     /**
      * Eliminar un pago
      */
-    public function destroy(EventPayment $payment)
+    public function destroy(EventPayment $payment, EventPaymentService $service)
     {
         // Se valida contra el evento del pago
         $this->authorize('viewFinancial', $payment->event);
 
-        $payment->delete();
+        $service->delete($payment);
 
         return back()->with('success', 'Pago eliminado correctamente');
     }

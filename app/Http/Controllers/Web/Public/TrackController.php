@@ -20,7 +20,7 @@ class TrackController extends Controller
      */
     public function index()
     {
-        $tracks = $this->trackService->getAll(20);
+        $tracks = $this->trackService->getAll(10);
 
         return Inertia::render('Public/Tracks/Index', [
             'tracks' => $tracks,

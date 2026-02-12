@@ -40,15 +40,15 @@ const socialLinks = computed(() => {
 
     <!-- Contenido -->
     <div class="absolute inset-0 flex flex-col items-center justify-end pb-10">
-      <h2 class="text-4xl md:text-5xl font-black text-white mb-6">
+      <h2 class="text-xl md:text-xl font-black text-white mb-3">
         ¡Sígueme!
       </h2>
 
       <!-- Redes sociales -->
-      <div class="flex gap-6">
+      <div class="flex gap-5">
         <a v-for="item in socialLinks" :key="item.platform" :href="item.url" target="_blank" rel="noopener noreferrer"
-          :title="item.platform" class="group flex items-center justify-center w-14 h-14 rounded-full
-                 bg-white/10 hover:bg-white/20 transition-all duration-300
+          :title="item.platform" class="group flex  items-center justify-center w-6 h-6 rounded-full
+                 bg-white-8 hover:bg-white/20 transition-all duration-300
                  hover:scale-110">
           <Icon :icon="item.icon" class="w-7 h-7 text-white group-hover:opacity-90" />
         </a>

@@ -36,6 +36,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
     <NavbarDrawer :open="drawerOpen" @close="closeDrawer" />
 
     <!-- 🔹 Botón flotante WhatsApp -->
-    <WhatsAppButton phone="+573113545903" />
+    <WhatsAppButton phone="+34 608 52 94 93" />
   </div>
 </template>

@@ -1,6 +1,8 @@
 <script setup>
 import ArtistLayout from '@/Layouts/ArtistLayout.vue';
 import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { formatMoney } from '@/utils/money';
 
 const props = defineProps({
     event: { type: Object, required: true },
@@ -37,16 +39,18 @@ const formatTime = (date) => {
 };
 
 const formatCurrency = (value, currency = 'USD') => {
-    const number = Number(value ?? 0);
-    if (Number.isNaN(number)) return `${currency} 0.00`;
-    // Use Intl.NumberFormat for locale-aware formatting. This will show currency symbol for common codes.
-    try {
-        return new Intl.NumberFormat('es-ES', { style: 'currency', currency }).format(number);
-    } catch (e) {
-        // Fallback to a simple formatted string if Intl doesn't support the currency code
-        return `${currency} ${number.toFixed(2)}`;
-    }
+    return formatMoney(value, currency);
 };
+
+const artistSharePct = computed(() => {
+    const value = Number(props.event?.artist_share_percentage ?? 70);
+    return Number.isFinite(value) ? value : 70;
+});
+
+const labelSharePct = computed(() => {
+    const value = Number(props.event?.label_share_percentage ?? (100 - artistSharePct.value));
+    return Number.isFinite(value) ? value : Math.max(0, 100 - artistSharePct.value);
+});
 
 const isPaid = () => {
     if (props.event && typeof props.event.is_paid !== "undefined") {
@@ -105,7 +109,7 @@ const isPaid = () => {
 
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div class="rounded-xl border border-[#242424] bg-[#101010] p-4">
-                            <p class="text-gray-500 text-xs">Total pagado</p>
+                            <p class="text-gray-500 text-xs">Total ingresado</p>
                             <p class="text-white text-xl font-semibold">{{ formatCurrency(finance.total_paid_base) }}
                             </p>
                         </div>
@@ -120,7 +124,7 @@ const isPaid = () => {
                             }}</p>
                         </div>
                         <div class="rounded-xl border border-[#242424] bg-[#101010] p-4">
-                            <p class="text-gray-500 text-xs">Gastos personales</p>
+                            <p class="text-gray-500 text-xs">Pagos al artista</p>
                             <p class="text-red-400 text-xl font-semibold">{{
                                 formatCurrency(finance.total_personal_expenses_base) }}</p>
                         </div>
@@ -129,17 +133,17 @@ const isPaid = () => {
                             <p class="text-white text-xl font-semibold">{{ formatCurrency(finance.net_base) }}</p>
                         </div>
                         <div class="rounded-xl border border-[#242424] bg-[#101010] p-4 sm:col-span-2">
-                            <p class="text-gray-500 text-xs">30% Dilo</p>
+                            <p class="text-gray-500 text-xs">Disquera ({{ labelSharePct }}%)</p>
                             <p class="text-gray-100 text-xl font-semibold">{{
                                 formatCurrency(finance.label_share_estimated_base) }}</p>
                         </div>
                         <div class="rounded-xl border border-[#242424] bg-[#101010] p-4 sm:col-span-2">
-                            <p class="text-gray-500 text-xs">70% Artista (antes)</p>
+                            <p class="text-gray-500 text-xs">Artista ({{ artistSharePct }}%) antes</p>
                             <p class="text-[#ffa236] text-xl font-semibold">{{
                                 formatCurrency(finance.artist_share_estimated_base) }}</p>
                         </div>
                         <div class="rounded-xl border border-[#242424] bg-[#101010] p-4 sm:col-span-2">
-                            <p class="text-gray-500 text-xs">70% Artista (después)</p>
+                            <p class="text-gray-500 text-xs">Artista ({{ artistSharePct }}%) después</p>
                             <p class="text-[#ffa236] text-xl font-semibold">{{
                                 formatCurrency(finance.artist_share_after_personal_base) }}</p>
                         </div>
@@ -194,7 +198,7 @@ const isPaid = () => {
                     </div>
 
                     <div v-if="event.payments && event.payments.length" class="space-y-3">
-                        <h3 class="text-lg font-semibold text-white">Pagos registrados</h3>
+                        <h3 class="text-lg font-semibold text-white">Ingresos registrados</h3>
                         <div class="rounded-xl border border-[#242424] bg-[#0f0f0f] overflow-hidden">
                             <table class="w-full text-sm">
                                 <thead class="border-b border-[#2a2a2a] bg-[#0c0c0c]">
@@ -250,7 +254,7 @@ const isPaid = () => {
                     </div>
 
                     <div class="space-y-3">
-                        <h3 class="text-lg font-semibold text-white">Gastos personales</h3>
+                        <h3 class="text-lg font-semibold text-white">Pagos al artista</h3>
                         <div v-if="event.personal_expenses && event.personal_expenses.length"
                             class="rounded-xl border border-[#242424] bg-[#0f0f0f] overflow-hidden">
                             <table class="w-full text-sm">
@@ -286,7 +290,7 @@ const isPaid = () => {
                             </table>
                         </div>
                         <div v-else class="rounded-xl border border-[#242424] bg-[#0f0f0f] p-4 text-sm text-gray-400">
-                            No hay gastos personales registrados.
+                            No hay pagos al artista registrados.
                         </div>
                     </div>
                 </div>

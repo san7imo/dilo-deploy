@@ -1,6 +1,6 @@
 <script setup>
-import { useForm } from "@inertiajs/vue3";
-import { watch } from "vue";
+import { useForm, usePage } from "@inertiajs/vue3";
+import { computed, watch } from "vue";
 
 const props = defineProps({
   event: { type: Object, default: () => ({}) },
@@ -8,6 +8,13 @@ const props = defineProps({
   roadManagers: { type: Array, default: () => [] },
   mode: { type: String, default: "create" },
 });
+
+const { props: pageProps } = usePage();
+const roleNames = computed(() => pageProps.auth?.user?.role_names || []);
+const currentUserId = computed(() => pageProps.auth?.user?.id || null);
+const canEditFinance = computed(() => roleNames.value.includes("admin"));
+const isRoadManager = computed(() => roleNames.value.includes("roadmanager"));
+const canAssignRoadManagers = computed(() => !isRoadManager.value);
 
 const form = useForm({
   title: props.event.title || "",
@@ -18,9 +25,13 @@ const form = useForm({
   country: props.event.country || "",
   city: props.event.city || "",
   venue_address: props.event.venue_address || "",
+  whatsapp_event: props.event.whatsapp_event || "",
+  page_tickets: props.event.page_tickets || "",
   show_fee_total: props.event.show_fee_total || "",
   currency: props.event.currency || "USD",
   advance_percentage: props.event.advance_percentage || 50,
+  artist_share_percentage: props.event.artist_share_percentage ?? 70,
+  label_share_percentage: props.event.label_share_percentage ?? 30,
   advance_expected: props.event.advance_expected ?? true,
   full_payment_due_date: props.event.full_payment_due_date || "",
   status: props.event.status || "",
@@ -45,6 +56,16 @@ watch(
   { deep: true }
 );
 
+watch(
+  [isRoadManager, currentUserId],
+  ([roadManager, userId]) => {
+    if (props.mode === "create" && roadManager && userId) {
+      form.road_manager_ids = [userId];
+    }
+  },
+  { immediate: true }
+);
+
 const handleSubmit = () => {
   console.log("🎤 Enviando formulario de evento...", form.data());
 
@@ -55,11 +76,28 @@ const handleSubmit = () => {
       : route("admin.events.store");
 
   form
-    .transform((data) => ({
-      ...data,
-      _method: props.mode === "edit" ? "put" : "post",
-      _token: document.querySelector('meta[name="csrf-token"]')?.content,
-    }))
+    .transform((data) => {
+      const payload = {
+        ...data,
+        _method: props.mode === "edit" ? "put" : "post",
+      };
+
+      if (!canEditFinance.value) {
+        delete payload.show_fee_total;
+        delete payload.currency;
+        delete payload.advance_percentage;
+        delete payload.artist_share_percentage;
+        delete payload.label_share_percentage;
+        delete payload.advance_expected;
+        delete payload.full_payment_due_date;
+      }
+
+      if (!canAssignRoadManagers.value) {
+        delete payload.road_manager_ids;
+      }
+
+      return payload;
+    })
     .submit(method, url, {
       forceFormData: true,
       onStart: () => console.log("🚀 Enviando request a:", url),
@@ -95,6 +133,22 @@ const handleSubmit = () => {
     <div>
       <label class="text-gray-300 text-sm">Ubicación</label>
       <input v-model="form.location" type="text" class="input" placeholder="Ciudad, país o venue" />
+    </div>
+
+    <!-- Contacto y boletería -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="text-gray-300 text-sm">WhatsApp del evento</label>
+        <input v-model="form.whatsapp_event" type="text" class="input"
+          placeholder="Ej: +57 300 123 4567 o https://wa.me/573001234567" />
+        <p class="text-gray-500 text-xs mt-1">Opcional. Se mostrará solo si tiene valor.</p>
+      </div>
+      <div>
+        <label class="text-gray-300 text-sm">Página de tickets</label>
+        <input v-model="form.page_tickets" type="text" class="input"
+          placeholder="https://tus-tickets.com/evento" />
+        <p class="text-gray-500 text-xs mt-1">Opcional. Se mostrará solo si tiene valor.</p>
+      </div>
     </div>
 
     <!-- Nuevo: Localización  -->
@@ -138,7 +192,7 @@ const handleSubmit = () => {
           <option value="cancelado">Cancelado</option>
         </select>
         <p class="text-gray-500 text-xs mt-1">
-          Pagado solo aplica cuando los pagos cubren el fee del show.
+          Pagado solo aplica cuando los ingresos cubren el fee del show.
         </p>
       </div>
     </div>
@@ -161,8 +215,8 @@ const handleSubmit = () => {
       </p>
     </div>
 
-    <!-- Artistas -->
-    <div>
+    <!-- Finanzas del evento (solo admin) -->
+    <div v-if="canEditFinance">
       <label class="text-gray-300 text-sm">Finanzas del evento</label>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -178,8 +232,26 @@ const handleSubmit = () => {
           <input v-model="form.advance_percentage" type="number" step="0.01" class="input" placeholder="50" />
         </div>
         <div>
-          <label class="text-gray-300 text-sm">Fecha pago final</label>
+          <label class="text-gray-300 text-sm">Fecha de ingreso final</label>
           <input v-model="form.full_payment_due_date" type="date" class="input" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-gray-300 text-sm">% de participación</label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-gray-300 text-xs">Artista</label>
+              <input v-model="form.artist_share_percentage" type="number" step="0.01" class="input"
+                placeholder="70" />
+            </div>
+            <div>
+              <label class="text-gray-300 text-xs">Disquera</label>
+              <input v-model="form.label_share_percentage" type="number" step="0.01" class="input"
+                placeholder="30" />
+            </div>
+          </div>
+          <p v-if="form.errors.artist_share_percentage" class="text-red-500 text-sm mt-1">
+            {{ form.errors.artist_share_percentage }}
+          </p>
         </div>
       </div>
       <div class="mt-3 flex items-center gap-2">
@@ -199,7 +271,7 @@ const handleSubmit = () => {
       </p>
     </div>
 
-    <div>
+    <div v-if="canAssignRoadManagers">
       <label class="text-gray-300 text-sm">Road managers asignados</label>
       <select v-model="form.road_manager_ids" multiple class="input">
         <option v-for="rm in roadManagers" :key="rm.id" :value="rm.id">

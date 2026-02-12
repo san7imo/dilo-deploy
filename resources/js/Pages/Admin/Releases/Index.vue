@@ -1,10 +1,37 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-import { Link } from "@inertiajs/vue3";
+import PaginationLinks from "@/Components/PaginationLinks.vue";
+import { Link, router } from "@inertiajs/vue3";
+import { computed, ref } from "vue";
 
 const props = defineProps({
   releases: { type: Object, required: true }, // paginator
 });
+
+const searchQuery = ref("");
+const filteredReleases = computed(() => {
+  const list = props.releases?.data ?? [];
+  const q = searchQuery.value.trim().toLowerCase();
+  if (!q) return list;
+  return list.filter((release) => {
+    const title = (release.title || "").toLowerCase();
+    const artist = (release.artist?.name || "").toLowerCase();
+    const type = (release.type || "").toLowerCase();
+    const date = (release.release_date || "").toString().toLowerCase();
+    return (
+      title.includes(q) ||
+      artist.includes(q) ||
+      type.includes(q) ||
+      date.includes(q)
+    );
+  });
+});
+
+const handleDelete = (id) => {
+  if (confirm("¿Seguro que deseas eliminar este lanzamiento?")) {
+    router.delete(route("admin.releases.destroy", id));
+  }
+};
 </script>
 
 <template>
@@ -12,6 +39,15 @@ const props = defineProps({
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-semibold">Lanzamientos</h1>
       <Link :href="route('admin.releases.create')" class="btn-primary">Nuevo</Link>
+    </div>
+
+    <div class="mb-4">
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="input"
+        placeholder="Buscar por título, artista, tipo o fecha..."
+      />
     </div>
 
     <div class="bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg overflow-hidden">
@@ -27,7 +63,7 @@ const props = defineProps({
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in releases.data" :key="r.id" class="border-t border-[#2a2a2a]">
+          <tr v-for="r in filteredReleases" :key="r.id" class="border-t border-[#2a2a2a]">
             <td class="px-4 py-3">
               <img v-if="r.cover_url" :src="r.cover_url + '?tr=w-64,h-64,q-80,fo-auto'" class="w-12 h-12 rounded object-cover" />
             </td>
@@ -36,22 +72,36 @@ const props = defineProps({
             <td class="px-4 py-3 capitalize">{{ r.type || '–' }}</td>
             <td class="px-4 py-3">{{ r.release_date || '–' }}</td>
             <td class="px-4 py-3 text-right">
-              <Link :href="route('admin.releases.edit', r.id)" class="text-[#ffa236] hover:underline">Editar</Link>
+              <div class="flex items-center justify-end gap-3">
+                <Link :href="route('admin.releases.edit', r.id)" class="text-[#ffa236] hover:underline">Editar</Link>
+                <button
+                  @click="handleDelete(r.id)"
+                  class="text-red-400 hover:text-red-300"
+                  title="Eliminar"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="!filteredReleases.length">
+            <td class="px-4 py-6 text-center text-gray-500" colspan="6">
+              No hay lanzamientos con ese criterio.
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- paginación simple -->
-    <div class="flex items-center justify-end gap-2 mt-4">
-      <Link v-if="releases.prev_page_url" :href="releases.prev_page_url" class="px-3 py-1 border border-[#2a2a2a] rounded">Anterior</Link>
-      <Link v-if="releases.next_page_url" :href="releases.next_page_url" class="px-3 py-1 border border-[#2a2a2a] rounded">Siguiente</Link>
-    </div>
+    <PaginationLinks v-if="releases.links" :links="releases.links" :meta="releases.meta" class="justify-end mt-4" />
   </AdminLayout>
 </template>
 
 <style scoped>
+.input {
+  @apply w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white focus:border-[#ffa236] focus:ring-[#ffa236];
+}
+
 .btn-primary {
   @apply bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors;
 }

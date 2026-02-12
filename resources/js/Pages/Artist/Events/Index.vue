@@ -2,11 +2,13 @@
 import ArtistLayout from '@/Layouts/ArtistLayout.vue';
 import { Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import { formatMoney } from '@/utils/money';
+import PaginationLinks from '@/Components/PaginationLinks.vue';
 
 const props = defineProps({
     events: {
-        type: Array,
-        default: () => [],
+        type: Object,
+        default: () => ({ data: [] }),
     },
 });
 
@@ -21,18 +23,20 @@ const formatDate = (date) => {
 };
 
 const formatCurrency = (value) => {
-    return `USD ${Number(value ?? 0).toFixed(2)}`;
+    return formatMoney(value, "USD");
 };
+
+const eventList = computed(() => Array.isArray(props.events) ? props.events : (props.events?.data ?? []));
 
 const filteredEvents = computed(() => {
     if (filterType.value === 'todos') {
-        return props.events;
+        return eventList.value;
     } else if (filterType.value === 'proximos') {
-        return props.events.filter(event => event.is_upcoming);
+        return eventList.value.filter(event => event.is_upcoming);
     } else if (filterType.value === 'pasados') {
-        return props.events.filter(event => !event.is_upcoming);
+        return eventList.value.filter(event => !event.is_upcoming);
     }
-    return props.events;
+    return eventList.value;
 });
 
 const hasEvents = computed(() => Array.isArray(filteredEvents.value) && filteredEvents.value.length > 0);
@@ -47,7 +51,7 @@ const hasEvents = computed(() => Array.isArray(filteredEvents.value) && filtered
                     <div>
                         <p class="text-xs uppercase text-gray-500 tracking-[0.2em]">Agenda</p>
                         <h1 class="text-3xl font-bold text-white">Mis eventos</h1>
-                        <p class="text-gray-400">Pagos, fechas y detalles en un solo lugar.</p>
+                        <p class="text-gray-400">Ingresos, fechas y detalles en un solo lugar.</p>
                     </div>
                     <div class="flex items-center gap-3">
                         <span
@@ -91,7 +95,7 @@ const hasEvents = computed(() => Array.isArray(filteredEvents.value) && filtered
                     •
                 </div>
                 <p class="text-gray-300 text-lg">No tienes eventos registrados aún.</p>
-                <p class="text-gray-500 text-sm">Cuando agendes un evento, verás aquí sus pagos y fechas.</p>
+                <p class="text-gray-500 text-sm">Cuando agendes un evento, verás aquí sus ingresos y fechas.</p>
             </div>
 
             <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -134,7 +138,7 @@ const hasEvents = computed(() => Array.isArray(filteredEvents.value) && filtered
                             <p class="text-white font-semibold">{{ formatCurrency(event.total_paid_base) }}</p>
                         </div>
                         <div class="rounded-xl p-3 border border-[#222222] bg-[#0e0e0e]">
-                            <p class="text-gray-500 text-[11px]">Tu 70% estimado</p>
+                            <p class="text-gray-500 text-[11px]">Tu parte estimada</p>
                             <p class="text-[#ffa236] font-semibold">{{ formatCurrency(event.artist_share_estimated_base)
                                 }}</p>
                         </div>
@@ -161,6 +165,13 @@ const hasEvents = computed(() => Array.isArray(filteredEvents.value) && filtered
                     </div>
                 </Link>
             </div>
+
+            <PaginationLinks
+                v-if="props.events && props.events.links"
+                :links="props.events.links"
+                :meta="props.events.meta"
+                class="justify-center mt-8"
+            />
         </div>
     </ArtistLayout>
 </template>

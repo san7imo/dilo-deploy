@@ -11,11 +11,21 @@ class StoreReleaseRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('upc')) {
+            $this->merge([
+                'upc' => $this->normalizeUpc($this->input('upc')),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         return [
             'artist_id'    => 'required|exists:artists,id',
             'title'        => 'required|string|max:255|unique:releases,title',
+            'upc'          => 'nullable|string|max:32',
             'release_date' => 'nullable|date',
             'type'         => 'nullable|string|in:single,ep,album,mixtape,live,compilation',
             'description'  => 'nullable|string',
@@ -46,5 +56,14 @@ class StoreReleaseRequest extends FormRequest
             'cover_file.mimes'   => 'La portada debe ser JPEG, PNG o WebP.',
             'cover_file.max'     => 'La portada no puede superar 4MB.',
         ];
+    }
+
+    private function normalizeUpc($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $normalized = preg_replace('/\D/', '', (string) $value);
+        return $normalized !== '' ? $normalized : null;
     }
 }

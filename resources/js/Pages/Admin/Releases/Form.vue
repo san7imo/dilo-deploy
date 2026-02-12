@@ -10,6 +10,7 @@ const props = defineProps({
 const form = useForm({
   artist_id:       props.release.artist_id       ?? "",
   title:           props.release.title           ?? "",
+  upc:             props.release.upc             ?? "",
   type:            props.release.type            ?? "single",
   release_date:    props.release.release_date    ?? "",
   description:     props.release.description     ?? "",
@@ -93,6 +94,12 @@ const handleSubmit = () => {
       <div>
         <label class="text-gray-300 text-sm">Fecha de lanzamiento</label>
         <input v-model="form.release_date" type="date" class="input" />
+      </div>
+
+      <div>
+        <label class="text-gray-300 text-sm">UPC (opcional)</label>
+        <input v-model="form.upc" type="text" class="input" placeholder="Ej: 123456789012" />
+        <p v-if="form.errors.upc" class="text-red-500 text-xs mt-1">{{ form.errors.upc }}</p>
       </div>
     </div>
 

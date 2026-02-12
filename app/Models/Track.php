@@ -21,6 +21,7 @@ class Track extends Model
     protected $fillable = [
         'release_id',
         'title',
+        'isrc',
         'track_number',
         'duration',
         'cover_url',  // opcional, si la pista tiene su propio arte
@@ -56,6 +57,11 @@ class Track extends Model
         return $this->belongsToMany(Artist::class, 'track_artist');
     }
 
+    public function splitAgreements()
+    {
+        return $this->hasMany(TrackSplitAgreement::class);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Accessors / Helpers
@@ -85,6 +91,17 @@ class Track extends Model
     {
         $url = $this->effective_cover_url;
         return $url ? "{$url}?tr=w-800,h-800,q-85,fo-auto" : null;
+    }
+
+    public function setIsrcAttribute($value): void
+    {
+        if ($value === null) {
+            $this->attributes['isrc'] = null;
+            return;
+        }
+
+        $normalized = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $value));
+        $this->attributes['isrc'] = $normalized !== '' ? $normalized : null;
     }
 
     /**

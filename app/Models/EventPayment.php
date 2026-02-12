@@ -9,6 +9,7 @@ class EventPayment extends Model
 {
     protected $fillable = [
         'event_id',
+        'collaborator_id',
         'created_by',
         'payment_date',
         'amount_original',
@@ -18,6 +19,8 @@ class EventPayment extends Model
         'payment_method',
         'is_advance',
         'notes',
+        'receipt_url',
+        'receipt_id',
     ];
 
     protected $casts = [
@@ -39,5 +42,10 @@ class EventPayment extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function collaborator()
+    {
+        return $this->belongsTo(Collaborator::class);
     }
 }

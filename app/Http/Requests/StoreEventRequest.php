@@ -23,10 +23,14 @@ class StoreEventRequest extends FormRequest
             'country'     => 'nullable|string|max:100',
             'city'        => 'nullable|string|max:100',
             'venue_address' => 'nullable|string|max:255',
+            'whatsapp_event' => 'nullable|string|max:255',
+            'page_tickets' => 'nullable|string|max:255',
             'status'      => 'nullable|string|max:100',
             'show_fee_total' => 'nullable|numeric|min:0',
             'currency'    => 'nullable|string|size:3',
             'advance_percentage' => 'nullable|numeric|min:0|max:100',
+            'artist_share_percentage' => 'nullable|numeric|min:0|max:100',
+            'label_share_percentage' => 'nullable|numeric|min:0|max:100',
             'advance_expected' => 'boolean',
             'full_payment_due_date' => 'nullable|date',
 
@@ -60,5 +64,33 @@ class StoreEventRequest extends FormRequest
             'main_artist_id.in'     => 'El artista principal debe estar en la lista de artistas.',
             'event_date.required'   => 'La fecha del evento es obligatoria.',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $artist = $this->input('artist_share_percentage');
+            $label = $this->input('label_share_percentage');
+
+            if (is_null($artist) && is_null($label)) {
+                return;
+            }
+
+            if (is_null($artist) || is_null($label)) {
+                $validator->errors()->add(
+                    'artist_share_percentage',
+                    'Debes indicar el porcentaje del artista y de la disquera.'
+                );
+                return;
+            }
+
+            $sum = round(((float) $artist) + ((float) $label), 2);
+            if (abs($sum - 100) > 0.01) {
+                $validator->errors()->add(
+                    'artist_share_percentage',
+                    'La suma de porcentajes del artista y la disquera debe ser 100%.'
+                );
+            }
+        });
     }
 }

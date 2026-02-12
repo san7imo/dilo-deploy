@@ -2,6 +2,7 @@
 <script setup>
 import { computed } from 'vue'
 import EventCard from './EventCard.vue'
+import PaginationLinks from '@/Components/PaginationLinks.vue'
 
 const props = defineProps({
   events: { type: Object, required: true }, // paginator o array
@@ -35,6 +36,13 @@ const eventList = computed(() => {
           @select="emit('select', $event)"
         />
       </div>
+
+      <PaginationLinks
+        v-if="events && events.links"
+        :links="events.links"
+        :meta="events.meta"
+        class="justify-center mt-8"
+      />
     </div>
   </section>
 </template>
