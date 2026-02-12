@@ -30,3 +30,4 @@ public/build/
 bootstrap/cache/*.php
 !bootstrap/cache/.gitignore
 storage/app/public/
+/public/build.zip
