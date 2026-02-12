@@ -15,6 +15,7 @@ import { formatAmount, formatMoney, formatMoneyWithSymbol } from "@/utils/money"
 const props = defineProps({
     event: { type: Object, required: true },
     finance: { type: Object, default: () => ({}) },
+    collaborators: { type: Array, default: () => [] },
 });
 
 const { props: pageProps } = usePage();
@@ -27,6 +28,8 @@ const activeTab = ref("resumen"); // resumen | pagos | gastos | gastos-personale
 const showPaymentModal = ref(false);
 const showExpenseModal = ref(false);
 const showPersonalExpenseModal = ref(false);
+const editingPayment = ref(null);
+const editingExpense = ref(null);
 
 // Opciones
 const paymentMethodOptions = [
@@ -59,8 +62,10 @@ const paymentForm = useForm({
     currency: "USD",
     exchange_rate_to_base: 1,
     payment_method: "",
+    collaborator_id: "",
     is_advance: false,
     notes: "",
+    receipt_file: null,
 });
 
 const expenseForm = useForm({
@@ -84,6 +89,7 @@ const personalExpenseForm = useForm({
     amount_original: "",
     currency: "USD",
     exchange_rate_to_base: 1,
+    receipt_file: null,
 });
 
 const eventMetaForm = useForm({
@@ -135,6 +141,16 @@ watch(
     { immediate: true }
 );
 
+const artistSharePct = computed(() => {
+    const value = Number(props.event?.artist_share_percentage ?? 70);
+    return Number.isFinite(value) ? value : 70;
+});
+
+const labelSharePct = computed(() => {
+    const value = Number(props.event?.label_share_percentage ?? (100 - artistSharePct.value));
+    return Number.isFinite(value) ? value : Math.max(0, 100 - artistSharePct.value);
+});
+
 // Totales
 const totals = computed(() => {
     const paid = Number(props.finance?.total_paid_base ?? 0);
@@ -145,8 +161,8 @@ const totals = computed(() => {
         paid,
         expenses,
         net,
-        shareLabel: Number(props.finance?.share_label ?? net * 0.3),
-        shareArtist: Number(props.finance?.share_artist ?? net * 0.7),
+        shareLabel: Number(props.finance?.share_label ?? net * (labelSharePct.value / 100)),
+        shareArtist: Number(props.finance?.share_artist ?? net * (artistSharePct.value / 100)),
     };
 });
 
@@ -204,15 +220,15 @@ const autoPaidBadge = computed(() => {
 });
 const paidStatusAlert = computed(() => {
     if (showFeeTotal.value <= 0) {
-        return "Define el fee del show para calcular el estado de pago.";
+        return "Define el fee del show para calcular el estado de ingresos.";
     }
     if (!canMarkPaid.value) {
-        return `Faltan $${formatAmount(paidShortfall.value)} USD para completar el pago.`;
+        return `Faltan $${formatAmount(paidShortfall.value)} USD para completar el ingreso.`;
     }
     if (paidOverage.value > 0) {
-        return `Pago completo. Excedente: $${formatAmount(paidOverage.value)} USD.`;
+        return `Ingreso completo. Excedente: $${formatAmount(paidOverage.value)} USD.`;
     }
-    return "Pago completo.";
+    return "Ingreso completo.";
 });
 
 const formatCurrency = (value, currency = "USD") => formatMoney(value, currency);
@@ -272,7 +288,7 @@ const statusAlert = computed(() => {
     if (status === "cancelado") {
         return {
             title: "Evento cancelado",
-            message: "Revisa pagos y gastos para cerrar la contabilidad.",
+            message: "Revisa ingresos y gastos para cerrar la contabilidad.",
             className: "bg-red-500/10 border border-red-500/30 text-red-200",
         };
     }
@@ -345,10 +361,23 @@ const normalizePersonalExpenseCurrencyAndRate = () => {
 const submitPayment = () => {
     normalizePaymentCurrencyAndRate();
 
-    paymentForm.post(route("admin.events.payments.store", props.event.id), {
+    const isEditing = !!editingPayment.value;
+    const routeName = isEditing
+        ? route("admin.events.payments.update", editingPayment.value.id)
+        : route("admin.events.payments.store", props.event.id);
+    paymentForm[isEditing ? "put" : "post"](routeName, {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
-            paymentForm.reset("amount_original", "payment_method", "is_advance", "notes");
+            paymentForm.reset(
+                "amount_original",
+                "payment_method",
+                "collaborator_id",
+                "is_advance",
+                "notes",
+                "receipt_file"
+            );
+            editingPayment.value = null;
             showPaymentModal.value = false;
             activeTab.value = "pagos";
         },
@@ -357,21 +386,32 @@ const submitPayment = () => {
 
 const deletePayment = (paymentId) => {
     if (!isAdmin.value) return;
-    if (!confirm("¿Eliminar este pago?")) return;
+    if (!confirm("¿Eliminar este ingreso?")) return;
 
     paymentForm.delete(route("admin.events.payments.destroy", paymentId), {
         preserveScroll: true,
+        onSuccess: () => {
+            if (editingPayment.value?.id === paymentId) {
+                editingPayment.value = null;
+                showPaymentModal.value = false;
+            }
+        },
     });
 };
 
 const submitExpense = () => {
     normalizeExpenseCurrencyAndRate();
 
-    expenseForm.post(route("admin.events.expenses.store", props.event.id), {
+    const isEditing = !!editingExpense.value;
+    const routeName = isEditing
+        ? route("admin.events.expenses.update", editingExpense.value.id)
+        : route("admin.events.expenses.store", props.event.id);
+    expenseForm[isEditing ? "put" : "post"](routeName, {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             expenseForm.reset("amount_original", "name", "description", "category", "receipt_file");
+            editingExpense.value = null;
             showExpenseModal.value = false;
             activeTab.value = "gastos";
         },
@@ -384,6 +424,12 @@ const deleteExpense = (expenseId) => {
 
     expenseForm.delete(route("admin.events.expenses.destroy", expenseId), {
         preserveScroll: true,
+        onSuccess: () => {
+            if (editingExpense.value?.id === expenseId) {
+                editingExpense.value = null;
+                showExpenseModal.value = false;
+            }
+        },
     });
 };
 
@@ -395,6 +441,7 @@ const submitPersonalExpense = () => {
         ? route("admin.events.personal-expenses.update", editingPersonalExpense.value.id)
         : route("admin.events.personal-expenses.store", props.event.id);
     personalExpenseForm[isEditing ? "put" : "post"](routeName, {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             personalExpenseForm.reset(
@@ -403,7 +450,8 @@ const submitPersonalExpense = () => {
                 "name",
                 "description",
                 "payment_method",
-                "recipient"
+                "recipient",
+                "receipt_file"
             );
             editingPersonalExpense.value = null;
             showPersonalExpenseModal.value = false;
@@ -414,7 +462,7 @@ const submitPersonalExpense = () => {
 
 const deletePersonalExpense = (expenseId) => {
     if (!isAdmin.value) return;
-    if (!confirm("¿Eliminar este gasto personal?")) return;
+    if (!confirm("¿Eliminar este pago al artista?")) return;
 
     personalExpenseForm.delete(route("admin.events.personal-expenses.destroy", expenseId), {
         preserveScroll: true,
@@ -445,22 +493,64 @@ const confirmRoadManagerPayment = () => {
 const canSubmitEventDetails = computed(() => eventStatusValue.value !== "pagado" || canMarkPaid.value);
 
 const openPaymentModal = () => {
+    editingPayment.value = null;
+    paymentForm.clearErrors();
     paymentForm.payment_date = new Date().toISOString().slice(0, 10);
     paymentForm.currency = (paymentForm.currency || "USD").toUpperCase().trim() || "USD";
     if (paymentForm.currency === "USD") paymentForm.exchange_rate_to_base = 1;
+    paymentForm.collaborator_id = "";
+    paymentForm.receipt_file = null;
     showPaymentModal.value = true;
 };
 
 const openExpenseModal = () => {
+    editingExpense.value = null;
+    expenseForm.clearErrors();
     expenseForm.expense_date = new Date().toISOString().slice(0, 10);
     expenseForm.currency = (expenseForm.currency || "USD").toUpperCase().trim() || "USD";
     if (expenseForm.currency === "USD") expenseForm.exchange_rate_to_base = 1;
+    expenseForm.receipt_file = null;
+    showExpenseModal.value = true;
+};
+
+const editPayment = (payment) => {
+    if (!payment) return;
+    editingPayment.value = payment;
+    paymentForm.clearErrors();
+    paymentForm.payment_date = toDateInputValue(payment.payment_date) || new Date().toISOString().slice(0, 10);
+    paymentForm.amount_original = payment.amount_original ?? "";
+    paymentForm.currency = (payment.currency || "USD").toUpperCase().trim() || "USD";
+    paymentForm.exchange_rate_to_base =
+        payment.exchange_rate_to_base ?? paymentForm.exchange_rate_to_base ?? 1;
+    if (paymentForm.currency === "USD") paymentForm.exchange_rate_to_base = 1;
+    paymentForm.payment_method = payment.payment_method || "";
+    paymentForm.collaborator_id = payment.collaborator_id ?? "";
+    paymentForm.is_advance = !!payment.is_advance;
+    paymentForm.notes = payment.notes || "";
+    paymentForm.receipt_file = null;
+    showPaymentModal.value = true;
+};
+
+const editExpense = (expense) => {
+    if (!expense) return;
+    editingExpense.value = expense;
+    expenseForm.clearErrors();
+    expenseForm.expense_date = toDateInputValue(expense.expense_date) || new Date().toISOString().slice(0, 10);
+    expenseForm.name = expense.name || "";
+    expenseForm.description = expense.description || "";
+    expenseForm.category = expense.category || "";
+    expenseForm.amount_original = expense.amount_original ?? "";
+    expenseForm.currency = (expense.currency || "USD").toUpperCase().trim() || "USD";
+    expenseForm.exchange_rate_to_base =
+        expense.exchange_rate_to_base ?? expenseForm.exchange_rate_to_base ?? 1;
+    if (expenseForm.currency === "USD") expenseForm.exchange_rate_to_base = 1;
+    expenseForm.receipt_file = null;
     showExpenseModal.value = true;
 };
 
 const openPersonalExpenseModal = () => {
     if (personalRemaining.value <= 0) {
-        alert("No puedes agregar más gastos personales porque el 70% del artista ya está en 0.");
+        alert(`No puedes agregar más pagos al artista porque el ${artistSharePct.value}% del artista ya está en 0.`);
         return;
     }
 
@@ -477,6 +567,7 @@ const openPersonalExpenseModal = () => {
         (personalExpenseForm.currency || "USD").toUpperCase().trim() || "USD";
     personalExpenseForm.exchange_rate_to_base = 1;
     if (personalExpenseForm.currency === "USD") personalExpenseForm.exchange_rate_to_base = 1;
+    personalExpenseForm.receipt_file = null;
     showPersonalExpenseModal.value = true;
 };
 
@@ -495,6 +586,7 @@ const editPersonalExpense = (expense) => {
     personalExpenseForm.currency = (expense.currency || "USD").toUpperCase().trim() || "USD";
     personalExpenseForm.exchange_rate_to_base =
         expense.exchange_rate_to_base ?? personalExpenseForm.exchange_rate_to_base ?? 1;
+    personalExpenseForm.receipt_file = null;
     showPersonalExpenseModal.value = true;
 };
 
@@ -561,9 +653,9 @@ const closePersonalExpenseModal = () => {
                     <p class="text-gray-500 text-xs mt-1">Total acordado para el show.</p>
                 </div>
                 <div class="card">
-                    <p class="text-gray-400 text-xs uppercase tracking-wide">Total pagado</p>
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">Total ingresado</p>
                     <p class="text-white text-xl font-semibold">{{ formatUsd(totals.paid) }}</p>
-                    <p class="text-gray-500 text-xs mt-1">Pagos registrados (USD).</p>
+                    <p class="text-gray-500 text-xs mt-1">Ingresos registrados (USD).</p>
                 </div>
                 <div class="card">
                     <p class="text-gray-400 text-xs uppercase tracking-wide">Gastos del evento</p>
@@ -573,27 +665,35 @@ const closePersonalExpenseModal = () => {
                 <div class="card">
                     <p class="text-gray-400 text-xs uppercase tracking-wide">Neto del evento</p>
                     <p class="text-white text-xl font-semibold">{{ formatUsd(totals.net) }}</p>
-                    <p class="text-gray-500 text-xs mt-1">Pagos − gastos.</p>
+                    <p class="text-gray-500 text-xs mt-1">Ingresos − gastos.</p>
                 </div>
                 <div class="card">
-                    <p class="text-gray-400 text-xs uppercase tracking-wide">30% Dilo</p>
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">
+                        Disquera ({{ labelSharePct }}%)
+                    </p>
                     <p class="text-white text-xl font-semibold">{{ formatUsd(totals.shareLabel) }}</p>
                     <p class="text-gray-500 text-xs mt-1">Sobre neto (USD).</p>
                 </div>
                 <div class="card">
-                    <p class="text-gray-400 text-xs uppercase tracking-wide">70% Artista (antes)</p>
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">
+                        Artista ({{ artistSharePct }}%) antes
+                    </p>
                     <p class="text-[#ffa236] text-xl font-semibold">{{ formatUsd(totals.shareArtist) }}</p>
                     <p class="text-gray-500 text-xs mt-1">Sobre neto (USD).</p>
                 </div>
                 <div class="card">
-                    <p class="text-gray-400 text-xs uppercase tracking-wide">Gastos personales</p>
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">Pagos al artista</p>
                     <p class="text-red-400 text-xl font-semibold">{{ formatUsd(totalPersonalExpenses) }}</p>
-                    <p class="text-gray-500 text-xs mt-1">Descuento al 70%.</p>
+                    <p class="text-gray-500 text-xs mt-1">Descuento al {{ artistSharePct }}%.</p>
                 </div>
                 <div class="card">
-                    <p class="text-gray-400 text-xs uppercase tracking-wide">70% Artista (después)</p>
+                    <p class="text-gray-400 text-xs uppercase tracking-wide">
+                        Artista ({{ artistSharePct }}%) después
+                    </p>
                     <p class="text-[#ffa236] text-xl font-semibold">{{ formatUsd(shareArtistAfterPersonal) }}</p>
-                    <p class="text-gray-500 text-xs mt-1">70% − gastos personales.</p>
+                    <p class="text-gray-500 text-xs mt-1">
+                        {{ artistSharePct }}% − pagos al artista.
+                    </p>
                 </div>
             </div>
 
@@ -601,7 +701,7 @@ const closePersonalExpenseModal = () => {
                 <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
-                            <h2 class="text-lg font-semibold">Pago pendiente al road manager</h2>
+                            <h2 class="text-lg font-semibold">Ingreso pendiente al road manager</h2>
                             <p class="text-sm text-gray-400">
                                 Corresponde al porcentaje restante despues del adelanto.
                             </p>
@@ -617,10 +717,10 @@ const closePersonalExpenseModal = () => {
                                 :disabled="confirmForm.processing"
                                 @click="confirmRoadManagerPayment"
                             >
-                                Confirmar pago recibido
+                                Confirmar ingreso recibido
                             </button>
                             <div v-else class="text-green-400 font-semibold">
-                                Pago confirmado
+                                Ingreso confirmado
                                 <span v-if="roadManagerConfirmedAt" class="block text-xs text-gray-400 mt-1">
                                     {{ formatDateES(roadManagerConfirmedAt) }}
                                 </span>
@@ -665,7 +765,7 @@ const closePersonalExpenseModal = () => {
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="card">
-                        <p class="text-gray-400 text-xs uppercase tracking-wide">Total pagos registrados por ti</p>
+                        <p class="text-gray-400 text-xs uppercase tracking-wide">Total ingresos registrados por ti</p>
                         <p class="text-white text-xl font-semibold">{{ formatUsd(roadManagerTotals.paid) }}</p>
                     </div>
                     <div class="card">
@@ -678,16 +778,20 @@ const closePersonalExpenseModal = () => {
                     <div
                         class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
                         <div>
-                            <h2 class="text-lg font-semibold">Tus pagos</h2>
+                            <h2 class="text-lg font-semibold">Tus ingresos</h2>
                             <p class="text-sm text-gray-400">Total: {{ formatUsd(roadManagerTotals.paid) }}</p>
                         </div>
-                        <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
+                        <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo ingreso</button>
                     </div>
-                    <PaymentsTable
-                        :payments="event.payments || []"
-                        :can-delete="false"
-                        @delete="deletePayment"
-                    />
+                <PaymentsTable
+                    :payments="event.payments || []"
+                    :can-edit="isAdmin"
+                    :can-delete="false"
+                    :show-collaborator="isAdmin"
+                    :show-creator="isAdmin"
+                    @edit="editPayment"
+                    @delete="deletePayment"
+                />
                 </div>
 
                 <div class="space-y-4">
@@ -699,11 +803,14 @@ const closePersonalExpenseModal = () => {
                         </div>
                         <button type="button" class="btn-secondary" @click="openExpenseModal">+ Nuevo gasto</button>
                     </div>
-                    <ExpensesTable
-                        :expenses="event.expenses || []"
-                        :can-delete="false"
-                        @delete="deleteExpense"
-                    />
+                <ExpensesTable
+                    :expenses="event.expenses || []"
+                    :can-edit="isAdmin"
+                    :can-delete="false"
+                    :show-creator="isAdmin"
+                    @edit="editExpense"
+                    @delete="deleteExpense"
+                />
                 </div>
             </div>
 
@@ -721,7 +828,7 @@ const closePersonalExpenseModal = () => {
                     </button>
                     <button type="button" class="tab-btn"
                         :class="activeTab === 'pagos' ? 'tab-btn--active' : 'tab-btn--idle'" @click="activeTab = 'pagos'">
-                        Pagos
+                        Ingresos
                     </button>
                     <button type="button" class="tab-btn"
                         :class="activeTab === 'gastos' ? 'tab-btn--active' : 'tab-btn--idle'" @click="activeTab = 'gastos'">
@@ -730,7 +837,7 @@ const closePersonalExpenseModal = () => {
                     <button v-if="isAdmin" type="button" class="tab-btn"
                         :class="activeTab === 'gastos-personales' ? 'tab-btn--active' : 'tab-btn--idle'"
                         @click="activeTab = 'gastos-personales'">
-                        Gastos personales
+                        Pagos al artista
                     </button>
                     <button v-if="isAdmin" type="button" class="tab-btn"
                         :class="activeTab === 'analisis' ? 'tab-btn--active' : 'tab-btn--idle'"
@@ -739,7 +846,7 @@ const closePersonalExpenseModal = () => {
                     </button>
                     <div class="flex-1"></div>
                     <div class="flex gap-2">
-                        <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
+                        <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo ingreso</button>
                         <button type="button" class="btn-secondary" @click="openExpenseModal">+ Nuevo gasto</button>
                     </div>
                 </div>
@@ -783,7 +890,7 @@ const closePersonalExpenseModal = () => {
                             </p>
                         </div>
                         <div>
-                            <label class="text-gray-300 text-sm">Fecha pago final</label>
+                            <label class="text-gray-300 text-sm">Fecha de ingreso final</label>
                             <input v-model="eventMetaForm.full_payment_due_date" type="date" class="input" />
                             <p v-if="eventMetaForm.errors.full_payment_due_date" class="text-red-500 text-sm mt-1">
                                 {{ eventMetaForm.errors.full_payment_due_date }}
@@ -801,9 +908,9 @@ const closePersonalExpenseModal = () => {
                 <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
                     <div class="flex items-center justify-between mb-3">
                         <div>
-                            <h2 class="text-lg font-semibold">Estado de pago</h2>
+                            <h2 class="text-lg font-semibold">Estado de ingresos</h2>
                             <p class="text-sm text-gray-400">
-                                Automático según el total pagado vs el fee negociado.
+                                Automático según el total ingresado vs el fee negociado.
                             </p>
                         </div>
                         <span :class="[
@@ -875,7 +982,7 @@ const closePersonalExpenseModal = () => {
                             <p class="text-white font-semibold">{{ event.advance_expected ? "Sí" : "No" }}</p>
                         </div>
                         <div class="mini-card">
-                            <p class="text-gray-400">Fecha pago final</p>
+                            <p class="text-gray-400">Fecha de ingreso final</p>
                             <p class="text-white font-semibold">{{ event.full_payment_due_date ?
                                 formatDateES(event.full_payment_due_date) : "—" }}</p>
                         </div>
@@ -916,14 +1023,18 @@ const closePersonalExpenseModal = () => {
                 <div
                     class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
                     <div>
-                        <h2 class="text-lg font-semibold">Pagos</h2>
+                        <h2 class="text-lg font-semibold">Ingresos</h2>
                         <p class="text-sm text-gray-400">Total: {{ formatUsd(totals.paid) }}</p>
                     </div>
-                    <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo pago</button>
+                    <button type="button" class="btn-primary" @click="openPaymentModal">+ Nuevo ingreso</button>
                 </div>
                 <PaymentsTable
                     :payments="event.payments || []"
+                    :can-edit="isAdmin"
                     :can-delete="isAdmin"
+                    :show-collaborator="isAdmin"
+                    :show-creator="isAdmin"
+                    @edit="editPayment"
                     @delete="deletePayment"
                 />
             </div>
@@ -939,7 +1050,10 @@ const closePersonalExpenseModal = () => {
                 </div>
                 <ExpensesTable
                     :expenses="event.expenses || []"
+                    :can-edit="isAdmin"
                     :can-delete="isAdmin"
+                    :show-creator="isAdmin"
+                    @edit="editExpense"
                     @delete="deleteExpense"
                 />
             </div>
@@ -948,12 +1062,13 @@ const closePersonalExpenseModal = () => {
                 <div
                     class="flex flex-wrap items-center justify-between gap-3 bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-5">
                     <div>
-                        <h2 class="text-lg font-semibold">Gastos personales</h2>
+                        <h2 class="text-lg font-semibold">Pagos al artista</h2>
                         <p class="text-sm text-gray-400">
                             Total: {{ formatUsd(totalPersonalExpenses) }}
                         </p>
                         <p class="text-xs text-gray-500 mt-1">
-                            70% disponible: {{ formatUsd(personalRemaining) }} · 70% luego de gastos: {{
+                            {{ artistSharePct }}% disponible: {{ formatUsd(personalRemaining) }} ·
+                            {{ artistSharePct }}% luego de pagos: {{
                                 formatUsd(shareArtistAfterPersonal) }}
                         </p>
                     </div>
@@ -963,13 +1078,13 @@ const closePersonalExpenseModal = () => {
                         :disabled="personalRemaining <= 0"
                         @click="openPersonalExpenseModal"
                     >
-                        + Agregar gasto personal
+                        + Agregar pago al artista
                     </button>
                 </div>
 
                 <div v-if="personalRemaining <= 0" class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
                     <p class="text-amber-200 text-sm font-semibold">
-                        No puedes agregar más gastos personales porque el 70% del artista ya está en 0.
+                        No puedes agregar más pagos al artista porque el {{ artistSharePct }}% del artista ya está en 0.
                     </p>
                 </div>
 
@@ -987,12 +1102,18 @@ const closePersonalExpenseModal = () => {
             </div>
             </div>
 
-            <PaymentModal :show="showPaymentModal" :form="paymentForm" :payment-method-options="paymentMethodOptions"
-                :normalize-currency="normalizePaymentCurrencyAndRate" @close="showPaymentModal = false"
-                @submit="submitPayment" />
+            <PaymentModal
+                :show="showPaymentModal"
+                :form="paymentForm"
+                :payment-method-options="paymentMethodOptions"
+                :collaborators="collaborators"
+                :show-collaborator="isAdmin"
+                :normalize-currency="normalizePaymentCurrencyAndRate"
+                :is-editing="!!editingPayment"
+                @close="showPaymentModal = false" @submit="submitPayment" />
             <ExpenseModal :show="showExpenseModal" :form="expenseForm"
-                :normalize-currency="normalizeExpenseCurrencyAndRate" @close="showExpenseModal = false"
-                @submit="submitExpense" />
+                :normalize-currency="normalizeExpenseCurrencyAndRate" :is-editing="!!editingExpense"
+                @close="showExpenseModal = false" @submit="submitExpense" />
             <PersonalExpenseModal
                 :show="showPersonalExpenseModal"
                 :form="personalExpenseForm"

@@ -24,6 +24,7 @@ class UpdateContentManagerRequest extends FormRequest
                 'max:255',
                 Rule::unique('users', 'email')->ignore($contentManager?->id),
             ],
+            'phone' => ['nullable', 'string', 'max:50'],
             'password' => ['nullable', 'string', 'min:8'],
             'email_verified' => ['sometimes', 'boolean'],
         ];

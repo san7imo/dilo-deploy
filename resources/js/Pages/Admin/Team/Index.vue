@@ -6,8 +6,10 @@ import { Link, router } from "@inertiajs/vue3";
 const props = defineProps({
   roadManagers: { type: Object, default: () => ({ data: [] }) },
   contentManagers: { type: Object, default: () => ({ data: [] }) },
+  collaborators: { type: Object, default: () => ({ data: [] }) },
   canManageRoadManagers: { type: Boolean, default: false },
   canManageContentManagers: { type: Boolean, default: false },
+  canManageCollaborators: { type: Boolean, default: false },
 });
 
 const handleDeleteRoadManager = (id) => {
@@ -21,6 +23,13 @@ const handleDeleteContentManager = (id) => {
   if (!props.canManageContentManagers) return;
   if (confirm("Seguro que deseas eliminar este gestor de contenido?")) {
     router.delete(route("admin.content-managers.destroy", id));
+  }
+};
+
+const handleDeleteCollaborator = (id) => {
+  if (!props.canManageCollaborators) return;
+  if (confirm("Seguro que deseas eliminar este colaborador?")) {
+    router.delete(route("admin.collaborators.destroy", id));
   }
 };
 </script>
@@ -169,6 +178,81 @@ const handleDeleteContentManager = (id) => {
         </div>
 
         <PaginationLinks v-if="contentManagers.links" :links="contentManagers.links" :meta="contentManagers.meta" class="justify-center" />
+      </section>
+
+      <section class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-semibold text-[#ffa236]">Colaboradores</h2>
+          <Link
+            v-if="canManageCollaborators"
+            :href="route('admin.collaborators.create')"
+            class="bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors"
+          >
+            + Nuevo colaborador
+          </Link>
+        </div>
+
+        <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-xl p-4">
+          <table class="w-full text-sm text-gray-300">
+            <thead class="text-[#ffa236] text-left border-b border-[#2a2a2a]">
+              <tr>
+                <th class="py-3 px-4">Titular</th>
+                <th class="py-3 px-4">ID</th>
+                <th class="py-3 px-4">Tipo de cuenta</th>
+                <th class="py-3 px-4">Banco</th>
+                <th class="py-3 px-4">Dirección</th>
+                <th class="py-3 px-4">Cuenta</th>
+                <th class="py-3 px-4">País</th>
+                <th class="py-3 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="collaborator in collaborators.data"
+                :key="collaborator.id"
+                class="border-b border-[#2a2a2a] hover:bg-[#2a2a2a]/30"
+              >
+                <td class="py-3 px-4">{{ collaborator.account_holder }}</td>
+                <td class="py-3 px-4">{{ collaborator.holder_id }}</td>
+                <td class="py-3 px-4">{{ collaborator.account_type }}</td>
+                <td class="py-3 px-4">{{ collaborator.bank }}</td>
+                <td class="py-3 px-4">{{ collaborator.address }}</td>
+                <td class="py-3 px-4">{{ collaborator.account_number }}</td>
+                <td class="py-3 px-4">{{ collaborator.country }}</td>
+                <td class="py-3 px-4 text-right space-x-2">
+                  <Link
+                    v-if="canManageCollaborators"
+                    :href="route('admin.collaborators.edit', collaborator.id)"
+                    class="text-[#ffa236] hover:text-[#ffb54d]"
+                    title="Editar"
+                  >
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </Link>
+                  <button
+                    v-if="canManageCollaborators"
+                    @click="handleDeleteCollaborator(collaborator.id)"
+                    class="text-red-500 hover:text-red-400"
+                    title="Eliminar"
+                  >
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="collaborators.data.length === 0">
+                <td colspan="8" class="py-6 text-center text-gray-400">
+                  No hay colaboradores registrados.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <PaginationLinks
+          v-if="collaborators.links"
+          :links="collaborators.links"
+          :meta="collaborators.meta"
+          class="justify-center"
+        />
       </section>
     </div>
   </AdminLayout>

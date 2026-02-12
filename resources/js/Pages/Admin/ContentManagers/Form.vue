@@ -14,6 +14,7 @@ const defaultVerified =
 const form = useForm({
   name: props.contentManager.name || "",
   email: props.contentManager.email || "",
+  phone: props.contentManager.phone || "",
   password: "",
   email_verified: defaultVerified,
 });
@@ -43,6 +44,14 @@ const handleSubmit = () => {
         <input v-model="form.email" type="email" class="input" placeholder="correo@empresa.com" />
         <p v-if="form.errors.email" class="text-red-500 text-sm mt-1">
           {{ form.errors.email }}
+        </p>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1">Celular</label>
+        <input v-model="form.phone" type="tel" class="input" placeholder="Ej: +57 300 123 4567" />
+        <p v-if="form.errors.phone" class="text-red-500 text-sm mt-1">
+          {{ form.errors.phone }}
         </p>
       </div>
 

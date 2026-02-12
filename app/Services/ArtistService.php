@@ -202,6 +202,7 @@ class ArtistService
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
+                'phone' => $data['phone'] ?? null,
                 'password' => Hash::make($data['password']),
             ]);
 
@@ -242,16 +243,21 @@ class ArtistService
         $artist = $artist instanceof Artist ? $artist : Artist::findOrFail($artist);
         Log::info('✏️ [ArtistService] Actualizando artista', ['id' => $artist->id]);
 
-        if (array_key_exists('email', $data) || array_key_exists('password', $data)) {
+        if (array_key_exists('email', $data) || array_key_exists('password', $data) || array_key_exists('phone', $data)) {
             $user = $artist->user;
             if ($user) {
                 if (!empty($data['email'])) {
                     $user->email = $data['email'];
                 }
+                if (array_key_exists('phone', $data)) {
+                    $user->phone = $data['phone'];
+                }
                 if (!empty($data['password'])) {
                     $user->password = Hash::make($data['password']);
                 }
-                $user->save();
+                if ($user->isDirty()) {
+                    $user->save();
+                }
             }
             unset($data['email'], $data['password']);
         }

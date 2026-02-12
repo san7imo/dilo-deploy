@@ -34,6 +34,7 @@ class ContentManagerController extends Controller
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
             'password' => Hash::make($data['password']),
             'email_verified_at' => !empty($data['email_verified']) ? now() : null,
         ]);
@@ -52,7 +53,7 @@ class ContentManagerController extends Controller
         }
 
         return Inertia::render('Admin/ContentManagers/Edit', [
-            'contentManager' => $content_manager->only(['id', 'name', 'email', 'email_verified_at']),
+            'contentManager' => $content_manager->only(['id', 'name', 'email', 'phone', 'email_verified_at']),
         ]);
     }
 
@@ -66,6 +67,7 @@ class ContentManagerController extends Controller
 
         $content_manager->name = $data['name'];
         $content_manager->email = $data['email'];
+        $content_manager->phone = $data['phone'] ?? null;
 
         if (!empty($data['email_verified'])) {
             $content_manager->email_verified_at = $content_manager->email_verified_at ?? now();

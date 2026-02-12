@@ -4,10 +4,16 @@ import { formatMoney, formatMoneyWithSymbol } from "@/utils/money";
 
 defineProps({
     expenses: { type: Array, default: () => [] },
+    canEdit: { type: Boolean, default: false },
     canDelete: { type: Boolean, default: true },
+    showCreator: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["delete"]);
+const emit = defineEmits(["edit", "delete"]);
+
+const isRoadManagerEntry = (expense) => {
+    return !!expense?.creator?.roles?.some((role) => role?.name === "roadmanager");
+};
 </script>
 
 <template>
@@ -25,9 +31,10 @@ const emit = defineEmits(["delete"]);
                         <th class="py-2 text-left">Categoría</th>
                         <th class="py-2 text-left">Original</th>
                         <th class="py-2 text-left">USD</th>
+                        <th v-if="showCreator" class="py-2 text-left">Registrado por</th>
                         <th class="py-2 text-left">Descripción</th>
                         <th class="py-2 text-left">Comprobante</th>
-                        <th v-if="canDelete" class="py-2 text-right">Acciones</th>
+                        <th v-if="canEdit || canDelete" class="py-2 text-right">Acciones</th>
                     </tr>
                 </thead>
 
@@ -55,6 +62,17 @@ const emit = defineEmits(["delete"]);
                             {{ formatMoneyWithSymbol(g.amount_base) }}
                         </td>
 
+                        <td v-if="showCreator" class="py-2 whitespace-nowrap">
+                            <span
+                                v-if="g.creator && isRoadManagerEntry(g)"
+                                class="bg-blue-500/15 text-blue-300 px-2 py-1 rounded text-xs border border-blue-500/30"
+                            >
+                                Road manager
+                            </span>
+                            <span v-else-if="g.creator" class="text-gray-300">Admin</span>
+                            <span v-else class="text-gray-500">—</span>
+                        </td>
+
                         <td class="py-2 max-w-[280px]">
                             <span class="text-gray-300">
                                 {{ (g.description || "").trim() || "—" }}
@@ -74,8 +92,12 @@ const emit = defineEmits(["delete"]);
                             <span v-else class="text-gray-500">—</span>
                         </td>
 
-                        <td v-if="canDelete" class="py-2 text-right whitespace-nowrap">
-                            <button @click="emit('delete', g.id)" class="text-red-400 hover:underline">
+                        <td v-if="canEdit || canDelete" class="py-2 text-right whitespace-nowrap">
+                            <button v-if="canEdit" @click="emit('edit', g)"
+                                class="text-[#ffa236] hover:underline mr-3">
+                                Editar
+                            </button>
+                            <button v-if="canDelete" @click="emit('delete', g.id)" class="text-red-400 hover:underline">
                                 Eliminar
                             </button>
                         </td>

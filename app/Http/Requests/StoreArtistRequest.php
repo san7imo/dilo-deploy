@@ -20,6 +20,7 @@ class StoreArtistRequest extends FormRequest
             'password' => ['required', 'string', 'min:8'],
             'bio'     => ['nullable', 'string'],
             'country' => ['nullable', 'string', 'max:120'],
+            'phone' => ['nullable', 'string', 'max:50'],
             'genre_id' => ['nullable', 'exists:genres,id'],
 
             'banner_home'          => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],

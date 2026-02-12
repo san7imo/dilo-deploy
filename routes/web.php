@@ -105,6 +105,7 @@ use App\Http\Controllers\Web\Admin\{
     EventFinanceController,
     RoadManagerController,
     ContentManagerController,
+    CollaboratorController,
     TeamController
 };
 
@@ -210,6 +211,7 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
             ->name('tracks.splits.download');
 
         Route::resource('content-managers', ContentManagerController::class)->except(['show']);
+        Route::resource('collaborators', CollaboratorController::class)->except(['show', 'index']);
 
         Route::patch('events/{event}/payment-status', [EventFinanceController::class, 'updatePaymentStatus'])
             ->name('events.payment-status.update');

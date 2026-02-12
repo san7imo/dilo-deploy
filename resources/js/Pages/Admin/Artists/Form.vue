@@ -61,6 +61,7 @@ const form = useForm({
   name: props.artist.name || "",
   bio: props.artist.bio || "",
   country: props.artist.country || "",
+  phone: props.artist.phone || "",
   genre_id: props.artist.genre_id || "",
   social_links: prepareSocialLinks(),
   presentation_video_url: props.artist.presentation_video_url || "",
@@ -249,6 +250,14 @@ const handleSubmit = () => {
       <div>
         <label class="text-gray-300 text-sm">País</label>
         <input v-model="form.country" type="text" class="input" placeholder="Ej: Colombia" />
+      </div>
+
+      <div>
+        <label class="text-gray-300 text-sm">Celular</label>
+        <input v-model="form.phone" type="tel" class="input" placeholder="Ej: +57 300 123 4567" />
+        <p v-if="form.errors.phone" class="text-red-500 text-sm mt-1">
+          {{ form.errors.phone }}
+        </p>
       </div>
     </div>
 

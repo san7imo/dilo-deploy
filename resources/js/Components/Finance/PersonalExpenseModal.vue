@@ -26,10 +26,10 @@ const onBlurCurrency = () => {
             <div class="flex items-center justify-between gap-4">
                 <div>
                     <h2 class="text-lg font-semibold">
-                        {{ isEditing ? "Editar gasto personal" : "Registrar gasto personal" }}
+                        {{ isEditing ? "Editar pago al artista" : "Registrar pago al artista" }}
                     </h2>
                     <p class="text-sm text-gray-400">
-                        Se descontará del 70% del artista.
+                        Se descontará del porcentaje del artista.
                     </p>
                     <p v-if="remaining !== null" class="text-xs text-gray-500 mt-1">
                         Disponible: {{ formatMoney(remaining, "USD") }}
@@ -53,7 +53,7 @@ const onBlurCurrency = () => {
                 </div>
 
                 <div>
-                    <label class="text-gray-300 text-sm">Tipo de gasto</label>
+                    <label class="text-gray-300 text-sm">Tipo de pago</label>
                     <input v-model="form.expense_type" type="text" class="fin-input" placeholder="Ej: Viáticos" />
                     <p v-if="form.errors.expense_type" class="text-red-500 text-sm mt-1">
                         {{ form.errors.expense_type }}
@@ -61,7 +61,7 @@ const onBlurCurrency = () => {
                 </div>
 
                 <div>
-                    <label class="text-gray-300 text-sm">Nombre del gasto *</label>
+                    <label class="text-gray-300 text-sm">Nombre del pago *</label>
                     <input v-model="form.name" type="text" class="fin-input" placeholder="Ej: Hotel" />
                     <p v-if="form.errors.name" class="text-red-500 text-sm mt-1">
                         {{ form.errors.name }}
@@ -69,7 +69,7 @@ const onBlurCurrency = () => {
                 </div>
 
                 <div>
-                    <label class="text-gray-300 text-sm">Método del gasto *</label>
+                    <label class="text-gray-300 text-sm">Método del pago *</label>
                     <select v-model="form.payment_method" class="fin-input">
                         <option value="" disabled>Selecciona un método</option>
                         <option v-for="opt in paymentMethodOptions" :key="opt.value" :value="opt.value">
@@ -125,12 +125,25 @@ const onBlurCurrency = () => {
                     </p>
                 </div>
 
+                <div class="sm:col-span-2">
+                    <label class="text-gray-300 text-sm">Comprobante (imagen)</label>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        class="fin-input"
+                        @change="(e) => { form.receipt_file = e.target.files[0]; }"
+                    />
+                    <p v-if="form.errors.receipt_file" class="text-red-500 text-sm mt-1">
+                        {{ form.errors.receipt_file }}
+                    </p>
+                </div>
+
                 <div class="sm:col-span-2 flex justify-end gap-2 mt-2">
                     <button type="button" class="fin-btn-ghost" @click="emit('close')">
                         Cancelar
                     </button>
                     <button class="fin-btn-secondary" type="submit" :disabled="form.processing">
-                        {{ isEditing ? "Guardar cambios" : "Guardar gasto" }}
+                        {{ isEditing ? "Guardar cambios" : "Guardar pago" }}
                     </button>
                 </div>
             </form>

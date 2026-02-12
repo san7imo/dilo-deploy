@@ -5,7 +5,10 @@ const props = defineProps({
     show: { type: Boolean, default: false },
     form: { type: Object, required: true },
     paymentMethodOptions: { type: Array, default: () => [] },
+    collaborators: { type: Array, default: () => [] },
+    showCollaborator: { type: Boolean, default: false },
     normalizeCurrency: { type: Function, default: null },
+    isEditing: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["close", "submit"]);
@@ -22,8 +25,10 @@ const onBlurCurrency = () => {
         <div class="p-6 space-y-5 text-white">
             <div class="flex items-center justify-between gap-4">
                 <div>
-                    <h2 class="text-lg font-semibold">Registrar pago</h2>
-                    <p class="text-sm text-gray-400">Registra un pago y se convertirá a USD según la tasa.</p>
+                    <h2 class="text-lg font-semibold">
+                        {{ isEditing ? "Editar ingreso" : "Registrar ingreso" }}
+                    </h2>
+                    <p class="text-sm text-gray-400">Registra un ingreso y se convertirá a USD según la tasa.</p>
                 </div>
                 <button type="button" class="text-gray-300 hover:text-white" @click="emit('close')">
                     Cerrar
@@ -67,7 +72,7 @@ const onBlurCurrency = () => {
                 </div>
 
                 <div>
-                    <label class="text-gray-300 text-sm">Método de pago</label>
+                    <label class="text-gray-300 text-sm">Método de ingreso</label>
                     <select v-model="form.payment_method" class="fin-input">
                         <option value="" disabled>Selecciona un método</option>
                         <option v-for="opt in paymentMethodOptions" :key="opt.value" :value="opt.value">
@@ -80,6 +85,19 @@ const onBlurCurrency = () => {
                     </p>
                 </div>
 
+                <div v-if="showCollaborator">
+                    <label class="text-gray-300 text-sm">Recibe</label>
+                    <select v-model="form.collaborator_id" class="fin-input">
+                        <option value="">Selecciona un colaborador</option>
+                        <option v-for="c in collaborators" :key="c.id" :value="c.id">
+                            {{ c.account_holder }}{{ c.bank ? ` — ${c.bank}` : "" }}
+                        </option>
+                    </select>
+                    <p v-if="form.errors.collaborator_id" class="text-red-500 text-sm mt-1">
+                        {{ form.errors.collaborator_id }}
+                    </p>
+                </div>
+
                 <div class="flex items-center gap-2 mt-6">
                     <input v-model="form.is_advance" type="checkbox" class="fin-checkbox" />
                     <span class="text-gray-300 text-sm">¿Es anticipo?</span>
@@ -88,9 +106,22 @@ const onBlurCurrency = () => {
                 <div class="sm:col-span-2">
                     <label class="text-gray-300 text-sm">Notas</label>
                     <textarea v-model="form.notes" rows="3" class="fin-input"
-                        placeholder="Notas adicionales sobre este pago..." />
+                        placeholder="Notas adicionales sobre este ingreso..." />
                     <p v-if="form.errors.notes" class="text-red-500 text-sm mt-1">
                         {{ form.errors.notes }}
+                    </p>
+                </div>
+
+                <div class="sm:col-span-2">
+                    <label class="text-gray-300 text-sm">Comprobante (imagen)</label>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        class="fin-input"
+                        @change="(e) => { form.receipt_file = e.target.files[0]; }"
+                    />
+                    <p v-if="form.errors.receipt_file" class="text-red-500 text-sm mt-1">
+                        {{ form.errors.receipt_file }}
                     </p>
                 </div>
 
@@ -99,7 +130,7 @@ const onBlurCurrency = () => {
                         Cancelar
                     </button>
                     <button class="fin-btn-primary" type="submit" :disabled="form.processing">
-                        Guardar pago
+                        {{ isEditing ? "Guardar cambios" : "Guardar ingreso" }}
                     </button>
                 </div>
             </form>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SyncEventExpensesRequest;
+use App\Models\Collaborator;
 use App\Models\Event;
 use App\Models\EventExpense;
 use Illuminate\Http\Request;
@@ -27,6 +28,11 @@ class EventFinanceController extends Controller
         return Inertia::render('Admin/Events/Finance', [
             'event' => $payload['event'],
             'finance' => $payload['finance'],
+            'collaborators' => ($user && $user->hasRole('admin'))
+                ? Collaborator::query()
+                    ->orderBy('account_holder')
+                    ->get(['id', 'account_holder', 'bank', 'account_number'])
+                : [],
         ]);
     }
 

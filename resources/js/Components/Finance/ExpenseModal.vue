@@ -5,6 +5,7 @@ const props = defineProps({
     show: { type: Boolean, default: false },
     form: { type: Object, required: true },
     normalizeCurrency: { type: Function, default: null },
+    isEditing: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["close", "submit"]);
@@ -21,7 +22,9 @@ const onBlurCurrency = () => {
         <div class="p-6 space-y-5 text-white">
             <div class="flex items-center justify-between gap-4">
                 <div>
-                    <h2 class="text-lg font-semibold">Registrar gasto</h2>
+                    <h2 class="text-lg font-semibold">
+                        {{ isEditing ? "Editar gasto" : "Registrar gasto" }}
+                    </h2>
                     <p class="text-sm text-gray-400">Registra un gasto y se convertirá a USD según la tasa.</p>
                 </div>
                 <button type="button" class="text-gray-300 hover:text-white" @click="emit('close')">
@@ -123,7 +126,7 @@ const onBlurCurrency = () => {
                         Cancelar
                     </button>
                     <button class="fin-btn-secondary" type="submit" :disabled="form.processing">
-                        Guardar gasto
+                        {{ isEditing ? "Guardar cambios" : "Guardar gasto" }}
                     </button>
                 </div>
             </form>

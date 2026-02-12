@@ -199,6 +199,8 @@ class EventController extends Controller
             'show_fee_total',
             'currency',
             'advance_percentage',
+            'artist_share_percentage',
+            'label_share_percentage',
             'advance_expected',
             'full_payment_due_date',
         ];
@@ -222,6 +224,8 @@ class EventController extends Controller
             'show_fee_total',
             'currency',
             'advance_percentage',
+            'artist_share_percentage',
+            'label_share_percentage',
             'advance_expected',
             'full_payment_due_date',
             'total_paid_base',

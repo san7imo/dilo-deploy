@@ -59,7 +59,7 @@ const totals = computed(() => ({
                 <div>
                     <h1 class="text-2xl font-bold text-[#ffa236] mb-1">Finanzas del artista</h1>
                     <p class="text-gray-400 text-sm">
-                        Lo que tienes pagado, tu 70% estimado y el estado de cobro por evento.
+                        Lo que tienes ingresado, tu parte estimada y el estado de cobro por evento.
                     </p>
                 </div>
                 <span class="text-sm text-gray-400">Total eventos: {{ summary.events_count || eventsAll.length || eventList.length }}</span>
@@ -73,7 +73,7 @@ const totals = computed(() => ({
                 <div class="flex items-center justify-between mb-4">
                     <div>
                         <h2 class="text-lg font-semibold text-[#ffa236]">Eventos</h2>
-                        <p class="text-gray-400 text-sm">Tu estado de pagos por evento</p>
+                        <p class="text-gray-400 text-sm">Tu estado de ingresos por evento</p>
                     </div>
                 </div>
 
@@ -120,7 +120,7 @@ const totals = computed(() => ({
                                 <p class="text-white font-semibold">{{ formatCurrency(event.total_paid_base) }}</p>
                             </div>
                             <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-md p-3">
-                                <p class="text-gray-400 text-xs">Tu 70% estimado</p>
+                                <p class="text-gray-400 text-xs">Tu parte estimada</p>
                                 <p class="text-[#ffa236] font-semibold">{{
                                     formatCurrency(event.artist_share_estimated_base) }}</p>
                             </div>

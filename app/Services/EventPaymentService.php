@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Event;
 use App\Models\EventPayment;
+use App\Services\ImageKitService;
 
 class EventPaymentService
 {
@@ -12,6 +13,16 @@ class EventPaymentService
      */
     public function create(Event $event, array $data): EventPayment
     {
+        if (!empty($data['receipt_file'])) {
+            $imageKit = app(ImageKitService::class);
+            $result = $imageKit->upload($data['receipt_file'], '/event-payments');
+            if ($result) {
+                $data['receipt_url'] = $result['url'];
+                $data['receipt_id'] = $result['file_id'];
+            }
+            unset($data['receipt_file']);
+        }
+
         // Si la moneda ya es USD, el monto base es el mismo
         if ($data['currency'] === 'USD') {
             $data['exchange_rate_to_base'] = 1;
@@ -38,6 +49,19 @@ class EventPaymentService
     {
         $event = $payment->event;
 
+        if (!empty($data['receipt_file'])) {
+            $imageKit = app(ImageKitService::class);
+            if (!empty($payment->receipt_id)) {
+                $imageKit->delete($payment->receipt_id);
+            }
+            $result = $imageKit->upload($data['receipt_file'], '/event-payments');
+            if ($result) {
+                $data['receipt_url'] = $result['url'];
+                $data['receipt_id'] = $result['file_id'];
+            }
+            unset($data['receipt_file']);
+        }
+
         // Si la moneda es USD, el monto base es el mismo
         if ($data['currency'] === 'USD') {
             $data['exchange_rate_to_base'] = 1;
@@ -62,6 +86,11 @@ class EventPaymentService
     public function delete(EventPayment $payment): void
     {
         $event = $payment->event;
+
+        if (!empty($payment->receipt_id)) {
+            $imageKit = app(ImageKitService::class);
+            $imageKit->delete($payment->receipt_id);
+        }
 
         $payment->delete();
 

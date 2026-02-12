@@ -14,7 +14,7 @@ const emit = defineEmits(["edit", "delete"]);
 <template>
     <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-lg p-6">
         <div v-if="!expenses || expenses.length === 0" class="text-gray-400">
-            No hay gastos personales registrados.
+            No hay pagos al artista registrados.
         </div>
 
         <div v-else class="overflow-x-auto">
@@ -29,6 +29,7 @@ const emit = defineEmits(["edit", "delete"]);
                         <th class="py-2 text-left">Original</th>
                         <th class="py-2 text-left">USD</th>
                         <th class="py-2 text-left">Descripción</th>
+                        <th class="py-2 text-left">Comprobante</th>
                         <th v-if="canEdit || canDelete" class="py-2 text-right">Acciones</th>
                     </tr>
                 </thead>
@@ -69,6 +70,19 @@ const emit = defineEmits(["edit", "delete"]);
                             <span class="text-gray-300">
                                 {{ (g.description || "").trim() || "—" }}
                             </span>
+                        </td>
+
+                        <td class="py-2 whitespace-nowrap">
+                            <a
+                                v-if="g.receipt_url"
+                                :href="g.receipt_url"
+                                target="_blank"
+                                rel="noopener"
+                                class="text-[#ffa236] hover:underline"
+                            >
+                                Ver
+                            </a>
+                            <span v-else class="text-gray-500">—</span>
                         </td>
 
                         <td v-if="canEdit || canDelete" class="py-2 text-right whitespace-nowrap">

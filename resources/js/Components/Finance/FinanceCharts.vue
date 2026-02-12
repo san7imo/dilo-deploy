@@ -31,6 +31,65 @@ const props = defineProps({
 
 const filteredEvents = computed(() => (props.events && props.events.length ? props.events : []));
 
+const toNumber = (value) => {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+const getNetBase = (event) => Math.max(toNumber(event?.net_base), 0);
+const getArtistPct = (event) => {
+    const artistNum = Number(event?.artist_share_percentage);
+    if (Number.isFinite(artistNum)) return artistNum;
+    const labelNum = Number(event?.label_share_percentage);
+    if (Number.isFinite(labelNum)) return Math.max(0, 100 - labelNum);
+    return 70;
+};
+const getLabelPct = (event) => {
+    const labelNum = Number(event?.label_share_percentage);
+    if (Number.isFinite(labelNum)) return labelNum;
+    const artistNum = Number(event?.artist_share_percentage);
+    if (Number.isFinite(artistNum)) return Math.max(0, 100 - artistNum);
+    return 30;
+};
+const getArtistShare = (event) => {
+    if (event?.artist_share_estimated_base !== undefined && event?.artist_share_estimated_base !== null) {
+        return Math.max(toNumber(event.artist_share_estimated_base), 0);
+    }
+    const netBase = getNetBase(event);
+    return Math.max(netBase * (getArtistPct(event) / 100), 0);
+};
+const getLabelShare = (event) => {
+    if (event?.label_share_estimated_base !== undefined && event?.label_share_estimated_base !== null) {
+        return Math.max(toNumber(event.label_share_estimated_base), 0);
+    }
+    const netBase = getNetBase(event);
+    return Math.max(netBase * (getLabelPct(event) / 100), 0);
+};
+const formatPctLabel = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return null;
+    const text = Number.isInteger(num) ? String(num) : num.toFixed(2);
+    return text.replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+};
+const singleEvent = computed(() => (filteredEvents.value.length === 1 ? filteredEvents.value[0] : null));
+const artistSplitLabel = computed(() => {
+    const event = singleEvent.value;
+    if (!event) return "Artista";
+    const pct = formatPctLabel(getArtistPct(event));
+    return pct ? `Artista (${pct}%)` : "Artista";
+});
+const labelSplitLabel = computed(() => {
+    const event = singleEvent.value;
+    if (!event) return "Disquera";
+    const pct = formatPctLabel(getLabelPct(event));
+    return pct ? `Disquera (${pct}%)` : "Disquera";
+});
+const artistSplitHeading = computed(() => {
+    const event = singleEvent.value;
+    if (!event) return "Detalle del artista";
+    const pct = formatPctLabel(getArtistPct(event));
+    return pct ? `Detalle del artista (${pct}%)` : "Detalle del artista";
+});
+
 // Calcular totales filtrados
 const filteredTotals = computed(() => {
     const filtered = filteredEvents.value;
@@ -41,7 +100,8 @@ const filteredTotals = computed(() => {
         0
     );
     const net = paid - expenses;
-    const shareArtist = net * 0.70;
+    const shareArtist = filtered.reduce((sum, e) => sum + getArtistShare(e), 0);
+    const shareLabel = filtered.reduce((sum, e) => sum + getLabelShare(e), 0);
     const explicitAfter = filtered.reduce((sum, e) => {
         if (typeof e.artist_share_after_personal_base === "undefined" || e.artist_share_after_personal_base === null) {
             return sum;
@@ -62,7 +122,7 @@ const filteredTotals = computed(() => {
         expenses: Math.round(expenses * 100) / 100,
         personalExpenses: Math.round(personalExpenses * 100) / 100,
         net: Math.round(net * 100) / 100,
-        shareLabel: Math.round(net * 0.30 * 100) / 100,
+        shareLabel: Math.round(shareLabel * 100) / 100,
         shareArtist: Math.round(shareArtist * 100) / 100,
         shareArtistAfterPersonal: Math.round(shareArtistAfterPersonal * 100) / 100,
     };
@@ -89,11 +149,10 @@ const chartIncomeVsExpense = computed(() => ({
 }));
 
 const chartSplit = computed(() => {
-    const net = Math.max(Number(filteredTotals.value.net ?? 0), 0);
-    const shareLabel = filteredTotals.value.shareLabel ?? net * 0.30;
-    const shareArtist = filteredTotals.value.shareArtist ?? net * 0.70;
+    const shareLabel = Math.max(Number(filteredTotals.value.shareLabel ?? 0), 0);
+    const shareArtist = Math.max(Number(filteredTotals.value.shareArtist ?? 0), 0);
     return {
-        labels: ["30% Dilo", "70% Artista"],
+        labels: [labelSplitLabel.value, artistSplitLabel.value],
         values: [shareLabel, shareArtist],
         colors: [colors.label, colors.artist],
     };
@@ -105,7 +164,7 @@ const chartPersonalImpact = computed(() => {
     const remaining = Math.max(shareArtist - personalExpenses, 0);
 
     return {
-        labels: ["Gastos personales", "70% restante"],
+        labels: ["Pagos al artista", "Restante del artista"],
         values: [Math.min(personalExpenses, shareArtist), remaining],
         colors: [colors.personal, colors.remaining],
     };
@@ -144,43 +203,35 @@ const chartEventComparison = computed(() => {
                 borderRadius: 4,
             },
             {
-                label: "Gastos personales",
+                label: "Pagos al artista",
                 data: toShow.map((e) => Number(e.total_personal_expenses_base ?? 0)),
                 backgroundColor: colors.personal,
                 borderRadius: 4,
             },
             {
-                label: "30% Dilo",
+                label: "Disquera",
                 data: toShow.map((e) => {
-                    if (e.label_share_estimated_base !== undefined && e.label_share_estimated_base !== null) {
-                        return Math.max(toNumber(e.label_share_estimated_base), 0);
-                    }
-                    const netBase = getNetBase(e);
-                    return Math.max(netBase * 0.3, 0);
+                    return getLabelShare(e);
                 }),
                 backgroundColor: colors.label,
                 borderRadius: 4,
             },
             {
-                label: "70% artista",
+                label: "Artista",
                 data: toShow.map((e) => {
-                    if (e.artist_share_estimated_base !== undefined && e.artist_share_estimated_base !== null) {
-                        return Math.max(toNumber(e.artist_share_estimated_base), 0);
-                    }
-                    const netBase = getNetBase(e);
-                    return Math.max(netBase * 0.7, 0);
+                    return getArtistShare(e);
                 }),
                 backgroundColor: colors.artist,
                 borderRadius: 4,
             },
             {
-                label: "70% restante",
+                label: "Restante del artista",
                 data: toShow.map((e) => {
                     if (e.artist_share_after_personal_base !== undefined && e.artist_share_after_personal_base !== null) {
                         return Math.max(toNumber(e.artist_share_after_personal_base), 0);
                     }
                     const netBase = getNetBase(e);
-                    const shareArtist = netBase * 0.7;
+                    const shareArtist = getArtistShare(e);
                     const personal = toNumber(e.total_personal_expenses_base);
                     return Math.max(shareArtist - personal, 0);
                 }),
@@ -192,11 +243,6 @@ const chartEventComparison = computed(() => {
 });
 
 const format = (value) => formatMoneyWithSymbol(value, props.currency);
-const toNumber = (value) => {
-    const parsed = Number(value ?? 0);
-    return Number.isFinite(parsed) ? parsed : 0;
-};
-const getNetBase = (event) => Math.max(toNumber(event?.net_base), 0);
 const formatPercent = (value) => `${Number(value ?? 0).toFixed(1)}%`;
 const personalExpensePct = computed(() => {
     const shareArtist = Number(filteredTotals.value.shareArtist ?? 0);
@@ -252,7 +298,7 @@ const remainingArtistPct = computed(() => {
                 class="bg-gradient-to-br from-[#1a1a18] via-[#0f0f0d] to-[#0a0a08] border border-[#3a3a38] rounded-xl p-6 shadow-2xl hover:shadow-3xl hover:border-[#22c55e]/30 transition-all duration-300">
                 <div class="mb-4">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2 mb-1">
-                        Distribución (30/70)
+                        Distribución (Artista/Disquera)
                     </h3>
                     <div class="h-0.5 w-12 bg-gradient-to-r from-[#22c55e] to-transparent rounded"></div>
                 </div>
@@ -261,23 +307,23 @@ const remainingArtistPct = computed(() => {
                 <div class="mt-5 grid grid-cols-2 gap-3">
                     <div
                         class="bg-gradient-to-br from-green-800/20 to-green-700/10 border border-green-700/40 rounded-lg p-3 hover:border-green-600/60 transition-all">
-                        <p class="uppercase tracking-wider text-[10px] text-gray-400 font-semibold">Dilo (30%)</p>
+                        <p class="uppercase tracking-wider text-[10px] text-gray-400 font-semibold">{{ labelSplitLabel }}</p>
                         <p class="text-base font-bold text-green-500 mt-1">{{ format(filteredTotals.shareLabel) }}</p>
                     </div>
                     <div
                         class="bg-gradient-to-br from-green-400/10 to-green-300/5 border border-green-300/30 rounded-lg p-3 hover:border-green-300/60 transition-all">
-                        <p class="uppercase tracking-wider text-[10px] text-gray-400 font-semibold">Artista (70%)</p>
+                        <p class="uppercase tracking-wider text-[10px] text-gray-400 font-semibold">{{ artistSplitLabel }}</p>
                         <p class="text-base font-bold text-green-300 mt-1">{{ format(filteredTotals.shareArtist) }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Donut 3: Impacto gastos personales -->
+            <!-- Donut 3: Impacto pagos al artista -->
             <div
                 class="bg-gradient-to-br from-[#1a1a18] via-[#0f0f0d] to-[#0a0a08] border border-[#3a3a38] rounded-xl p-6 shadow-2xl hover:shadow-3xl hover:border-[#22c55e]/30 transition-all duration-300">
                 <div class="mb-4">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2 mb-1">
-                        70% del artista (con gastos)
+                        Parte del artista (con pagos)
                     </h3>
                     <div class="h-0.5 w-12 bg-gradient-to-r from-[#22c55e] to-transparent rounded"></div>
                 </div>
@@ -286,12 +332,12 @@ const remainingArtistPct = computed(() => {
                 <div class="mt-5 grid grid-cols-2 gap-3">
                     <div
                         class="bg-[#0f0f0d]/50 border border-orange-500/30 rounded-lg p-3 hover:bg-[#0f0f0d]/80 hover:border-orange-500/50 transition-all">
-                        <p class="uppercase tracking-wider text-[10px] text-gray-400 font-semibold">Gastos personales</p>
+                        <p class="uppercase tracking-wider text-[10px] text-gray-400 font-semibold">Pagos al artista</p>
                         <p class="text-base font-bold text-orange-400 mt-1">{{ format(filteredTotals.personalExpenses) }}</p>
                     </div>
                     <div
                         class="bg-[#0f0f0d]/50 border border-green-300/30 rounded-lg p-3 hover:bg-[#0f0f0d]/80 hover:border-green-300/50 transition-all">
-                        <p class="uppercase tracking-wider text-[10px] text-gray-400 font-semibold">70% restante</p>
+                        <p class="uppercase tracking-wider text-[10px] text-gray-400 font-semibold">Restante del artista</p>
                         <p class="text-base font-bold text-green-200 mt-1">{{
                             format(filteredTotals.shareArtistAfterPersonal) }}</p>
                     </div>
@@ -361,7 +407,7 @@ const remainingArtistPct = computed(() => {
                             <td class="py-2 text-right text-red-400 font-semibold">{{ format(filteredTotals.expenses) }}</td>
                         </tr>
                         <tr>
-                            <td class="py-2 text-gray-300">Gastos personales</td>
+                            <td class="py-2 text-gray-300">Pagos al artista</td>
                             <td class="py-2 text-right text-orange-400 font-semibold">{{ format(filteredTotals.personalExpenses) }}</td>
                         </tr>
                         <tr>
@@ -369,11 +415,11 @@ const remainingArtistPct = computed(() => {
                             <td class="py-2 text-right text-green-400 font-semibold">{{ format(filteredTotals.net) }}</td>
                         </tr>
                         <tr>
-                            <td class="py-2 text-gray-300">30% Dilo</td>
+                            <td class="py-2 text-gray-300">Disquera</td>
                             <td class="py-2 text-right text-green-500 font-semibold">{{ format(filteredTotals.shareLabel) }}</td>
                         </tr>
                         <tr>
-                            <td class="py-2 text-gray-300">70% Artista</td>
+                            <td class="py-2 text-gray-300">Artista</td>
                             <td class="py-2 text-right text-green-300 font-semibold">{{ format(filteredTotals.shareArtist) }}</td>
                         </tr>
                     </tbody>
@@ -383,8 +429,8 @@ const remainingArtistPct = computed(() => {
             <div
                 class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-xl p-6 shadow-lg">
                 <div class="mb-4">
-                    <h3 class="text-lg font-semibold text-white">Detalle 70% del artista</h3>
-                    <p class="text-xs text-gray-500">Gastos personales descontados del share del artista.</p>
+                    <h3 class="text-lg font-semibold text-white">{{ artistSplitHeading }}</h3>
+                    <p class="text-xs text-gray-500">Pagos al artista descontados del share del artista.</p>
                 </div>
                 <table class="w-full text-sm">
                     <thead class="text-xs uppercase text-gray-500">
@@ -395,18 +441,18 @@ const remainingArtistPct = computed(() => {
                     </thead>
                     <tbody class="divide-y divide-[#2a2a2a]">
                         <tr>
-                            <td class="py-2 text-gray-300">70% antes de gastos</td>
+                            <td class="py-2 text-gray-300">Antes de pagos al artista</td>
                             <td class="py-2 text-right text-green-300 font-semibold">{{ format(filteredTotals.shareArtist) }}</td>
                         </tr>
                         <tr>
-                            <td class="py-2 text-gray-300">Gastos personales</td>
+                            <td class="py-2 text-gray-300">Pagos al artista</td>
                             <td class="py-2 text-right text-orange-400 font-semibold">
                                 {{ format(filteredTotals.personalExpenses) }}
                                 <span class="text-xs text-gray-500 ml-2">({{ formatPercent(personalExpensePct) }})</span>
                             </td>
                         </tr>
                         <tr>
-                            <td class="py-2 text-gray-300">70% restante</td>
+                            <td class="py-2 text-gray-300">Restante del artista</td>
                             <td class="py-2 text-right text-green-200 font-semibold">
                                 {{ format(filteredTotals.shareArtistAfterPersonal) }}
                                 <span class="text-xs text-gray-500 ml-2">({{ formatPercent(remainingArtistPct) }})</span>

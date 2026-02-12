@@ -2,8 +2,28 @@
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PaginationLinks from "@/Components/PaginationLinks.vue";
 import { Link, router } from "@inertiajs/vue3";
+import { computed, ref } from "vue";
 
-defineProps({ tracks: Object });
+const props = defineProps({ tracks: Object });
+
+const searchQuery = ref("");
+const filteredTracks = computed(() => {
+  const list = props.tracks?.data ?? [];
+  const q = searchQuery.value.trim().toLowerCase();
+  if (!q) return list;
+  return list.filter((track) => {
+    const title = (track.title || "").toLowerCase();
+    const release = (track.release?.title || "").toLowerCase();
+    const artists = (track.artists || []).map((a) => (a.name || "").toLowerCase()).join(" ");
+    const duration = (track.duration || "").toString().toLowerCase();
+    return (
+      title.includes(q) ||
+      release.includes(q) ||
+      artists.includes(q) ||
+      duration.includes(q)
+    );
+  });
+});
 
 const handleDelete = (id) => {
   if (confirm("¿Seguro que deseas eliminar esta pista?")) {
@@ -19,6 +39,15 @@ const handleDelete = (id) => {
       <Link href="/admin/tracks/create" class="btn-primary">+ Nueva pista</Link>
     </div>
 
+    <div class="mb-4">
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="input"
+        placeholder="Buscar por título, lanzamiento, artista o duración..."
+      />
+    </div>
+
     <div class="overflow-x-auto bg-[#0f0f0f] rounded-lg shadow">
       <table class="min-w-full text-sm text-gray-300">
         <thead class="bg-[#1c1c1c] text-gray-400 uppercase text-xs">
@@ -32,7 +61,7 @@ const handleDelete = (id) => {
         </thead>
         <tbody>
           <tr
-            v-for="track in tracks.data"
+            v-for="track in filteredTracks"
             :key="track.id"
             class="border-b border-[#2a2a2a] hover:bg-[#181818]"
           >
@@ -65,6 +94,11 @@ const handleDelete = (id) => {
               </button>
             </td>
           </tr>
+          <tr v-if="!filteredTracks.length">
+            <td class="px-4 py-6 text-center text-gray-500" colspan="5">
+              No hay pistas con ese criterio.
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -74,6 +108,10 @@ const handleDelete = (id) => {
 </template>
 
 <style scoped>
+.input {
+  @apply w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white focus:border-[#ffa236] focus:ring-[#ffa236];
+}
+
 .btn-primary {
   @apply bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors;
 }

@@ -34,6 +34,7 @@ class RoadManagerController extends Controller
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
             'password' => Hash::make($data['password']),
             'email_verified_at' => !empty($data['email_verified']) ? now() : null,
         ]);
@@ -52,7 +53,7 @@ class RoadManagerController extends Controller
         }
 
         return Inertia::render('Admin/RoadManagers/Edit', [
-            'roadManager' => $roadmanager->only(['id', 'name', 'email', 'email_verified_at']),
+            'roadManager' => $roadmanager->only(['id', 'name', 'email', 'phone', 'email_verified_at']),
         ]);
     }
 
@@ -66,6 +67,7 @@ class RoadManagerController extends Controller
 
         $roadmanager->name = $data['name'];
         $roadmanager->email = $data['email'];
+        $roadmanager->phone = $data['phone'] ?? null;
         if (!empty($data['email_verified'])) {
             $roadmanager->email_verified_at = $roadmanager->email_verified_at ?? now();
         } else {

@@ -13,6 +13,8 @@ class EventPersonalExpense extends Model
         'expense_type',
         'name',
         'description',
+        'receipt_url',
+        'receipt_id',
         'payment_method',
         'recipient',
         'amount_original',

@@ -30,6 +30,8 @@ const form = useForm({
   show_fee_total: props.event.show_fee_total || "",
   currency: props.event.currency || "USD",
   advance_percentage: props.event.advance_percentage || 50,
+  artist_share_percentage: props.event.artist_share_percentage ?? 70,
+  label_share_percentage: props.event.label_share_percentage ?? 30,
   advance_expected: props.event.advance_expected ?? true,
   full_payment_due_date: props.event.full_payment_due_date || "",
   status: props.event.status || "",
@@ -84,6 +86,8 @@ const handleSubmit = () => {
         delete payload.show_fee_total;
         delete payload.currency;
         delete payload.advance_percentage;
+        delete payload.artist_share_percentage;
+        delete payload.label_share_percentage;
         delete payload.advance_expected;
         delete payload.full_payment_due_date;
       }
@@ -188,7 +192,7 @@ const handleSubmit = () => {
           <option value="cancelado">Cancelado</option>
         </select>
         <p class="text-gray-500 text-xs mt-1">
-          Pagado solo aplica cuando los pagos cubren el fee del show.
+          Pagado solo aplica cuando los ingresos cubren el fee del show.
         </p>
       </div>
     </div>
@@ -228,8 +232,26 @@ const handleSubmit = () => {
           <input v-model="form.advance_percentage" type="number" step="0.01" class="input" placeholder="50" />
         </div>
         <div>
-          <label class="text-gray-300 text-sm">Fecha pago final</label>
+          <label class="text-gray-300 text-sm">Fecha de ingreso final</label>
           <input v-model="form.full_payment_due_date" type="date" class="input" />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-gray-300 text-sm">% de participación</label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-gray-300 text-xs">Artista</label>
+              <input v-model="form.artist_share_percentage" type="number" step="0.01" class="input"
+                placeholder="70" />
+            </div>
+            <div>
+              <label class="text-gray-300 text-xs">Disquera</label>
+              <input v-model="form.label_share_percentage" type="number" step="0.01" class="input"
+                placeholder="30" />
+            </div>
+          </div>
+          <p v-if="form.errors.artist_share_percentage" class="text-red-500 text-sm mt-1">
+            {{ form.errors.artist_share_percentage }}
+          </p>
         </div>
       </div>
       <div class="mt-3 flex items-center gap-2">

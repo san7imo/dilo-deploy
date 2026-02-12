@@ -35,6 +35,7 @@ class UpdateArtistRequest extends FormRequest
             'password' => ['nullable', 'string', 'min:8'],
             'bio'     => ['sometimes', 'nullable', 'string'],
             'country' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
             'genre_id' => ['sometimes', 'nullable', 'exists:genres,id'],
 
             'banner_home'          => ['sometimes', 'nullable', 'image', 'mimes:jpeg,png,webp', 'max:4096'],
