@@ -26,3 +26,7 @@ Thumbs.db
 /storage/framework/cache/*
 /storage/framework/sessions/*
 /storage/logs/*
+public/build/
+bootstrap/cache/*.php
+!bootstrap/cache/.gitignore
+storage/app/public/
