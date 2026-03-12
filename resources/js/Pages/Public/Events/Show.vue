@@ -116,6 +116,89 @@ const getTicketsLink = (value) => {
 
 const whatsappLink = computed(() => getWhatsAppLink(props.event.whatsapp_event))
 const ticketsLink = computed(() => getTicketsLink(props.event.page_tickets))
+const locationSearchText = computed(() => {
+    return [props.event.venue_address, props.event.city, props.event.country, props.event.location]
+        .map((part) => String(part || '').trim())
+        .filter(Boolean)
+        .join(', ')
+})
+const mapsLink = computed(() => {
+    const manualUrl = getTicketsLink(props.event.google_maps_url)
+    if (manualUrl) return manualUrl
+
+    const hasCoords = props.event.latitude !== null && props.event.latitude !== '' &&
+        props.event.longitude !== null && props.event.longitude !== ''
+    if (hasCoords) {
+        return `https://www.google.com/maps?q=${encodeURIComponent(props.event.latitude)},${encodeURIComponent(props.event.longitude)}`
+    }
+
+    const placeId = String(props.event.google_maps_place_id || '').trim()
+    if (placeId) {
+        const query = locationSearchText.value || 'Evento'
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}&query_place_id=${encodeURIComponent(placeId)}`
+    }
+
+    if (locationSearchText.value) {
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationSearchText.value)}`
+    }
+
+    return ''
+})
+const mapsEmbedUrl = computed(() => {
+    const hasCoords = props.event.latitude !== null && props.event.latitude !== '' &&
+        props.event.longitude !== null && props.event.longitude !== ''
+    if (hasCoords) {
+        return `https://www.google.com/maps?q=${encodeURIComponent(props.event.latitude)},${encodeURIComponent(props.event.longitude)}&z=15&output=embed`
+    }
+
+    const placeId = String(props.event.google_maps_place_id || '').trim()
+    if (placeId) {
+        return `https://www.google.com/maps?q=place_id:${encodeURIComponent(placeId)}&output=embed`
+    }
+
+    if (locationSearchText.value) {
+        return `https://www.google.com/maps?q=${encodeURIComponent(locationSearchText.value)}&output=embed`
+    }
+
+    return ''
+})
+const organizerWebsiteLink = computed(() => getTicketsLink(props.event.organizer_website))
+const organizerWhatsappLink = computed(() => getWhatsAppLink(props.event.organizer_whatsapp))
+const organizerSocialLinks = computed(() => {
+    const links = [
+        { key: 'instagram', label: 'Instagram', value: props.event.organizer_instagram_url, icon: 'mdi:instagram' },
+        { key: 'facebook', label: 'Facebook', value: props.event.organizer_facebook_url, icon: 'mdi:facebook' },
+        { key: 'tiktok', label: 'TikTok', value: props.event.organizer_tiktok_url, icon: 'ic:baseline-tiktok' },
+        { key: 'x', label: 'X', value: props.event.organizer_x_url, icon: 'ri:twitter-x-fill' },
+    ]
+
+    return links
+        .map((item) => ({ ...item, href: getTicketsLink(item.value) }))
+        .filter((item) => item.href)
+})
+
+const hasOrganizerInfo = computed(() => {
+    return Boolean(
+        props.event.organizer_company_name ||
+        props.event.organizer_contact_name ||
+        props.event.organizer_logo_url ||
+        organizerWebsiteLink.value ||
+        organizerWhatsappLink.value ||
+        props.event.organizer_email ||
+        organizerSocialLinks.value.length
+    )
+})
+const sponsors = computed(() => {
+    if (!Array.isArray(props.event.sponsors)) return []
+
+    return props.event.sponsors
+        .map((item, index) => ({
+            key: `${String(item?.name || '').trim()}-${index}`,
+            name: String(item?.name || '').trim(),
+            image_url: String(item?.image_url || '').trim(),
+        }))
+        .filter((item) => item.name || item.image_url)
+})
 
 const handleShare = () => {
     showShareModal.value = true
@@ -217,6 +300,123 @@ const handleShare = () => {
                             <div v-if="event.venue_address">
                                 <p class="text-gray-400 text-sm uppercase tracking-wide">Dirección</p>
                                 <p class="text-lg font-medium">{{ event.venue_address }}</p>
+                            </div>
+
+                            <div v-if="mapsLink || mapsEmbedUrl" class="pt-2 space-y-3">
+                                <a
+                                    v-if="mapsLink"
+                                    :href="mapsLink"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="inline-flex items-center gap-2 rounded-lg bg-[#ffa236] hover:bg-[#ffb54d] px-4 py-2 text-sm font-semibold text-black transition"
+                                >
+                                    <Icon icon="mdi:map-marker-path" class="text-base" />
+                                    Ver en Google Maps
+                                </a>
+
+                                <div v-if="mapsEmbedUrl" class="overflow-hidden rounded-xl ring-1 ring-white/15">
+                                    <iframe
+                                        :src="mapsEmbedUrl"
+                                        width="100%"
+                                        height="280"
+                                        style="border:0;"
+                                        loading="lazy"
+                                        referrerpolicy="no-referrer-when-downgrade"
+                                        title="Mapa del evento"
+                                    ></iframe>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section v-if="hasOrganizerInfo" class="space-y-4">
+                        <h2 class="text-2xl font-bold">Organizador</h2>
+                        <div class="bg-zinc-900/50 rounded-2xl p-6 ring-1 ring-white/10 space-y-5">
+                            <div class="flex items-center gap-4">
+                                <img
+                                    v-if="event.organizer_logo_url"
+                                    :src="event.organizer_logo_url"
+                                    :alt="event.organizer_company_name || 'Organizador'"
+                                    class="w-14 h-14 rounded-xl object-cover ring-1 ring-white/20"
+                                />
+                                <div>
+                                    <p v-if="event.organizer_company_name" class="text-lg font-semibold text-white">
+                                        {{ event.organizer_company_name }}
+                                    </p>
+                                    <p v-if="event.organizer_contact_name" class="text-sm text-gray-300">
+                                        {{ event.organizer_contact_name }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap gap-2">
+                                <a
+                                    v-if="organizerWebsiteLink"
+                                    :href="organizerWebsiteLink"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-sm text-white transition"
+                                >
+                                    <Icon icon="mdi:web" class="text-base" />
+                                    Sitio web
+                                </a>
+
+                                <a
+                                    v-if="event.organizer_email"
+                                    :href="`mailto:${event.organizer_email}`"
+                                    class="inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-sm text-white transition"
+                                >
+                                    <Icon icon="mdi:email-outline" class="text-base" />
+                                    Correo
+                                </a>
+
+                                <a
+                                    v-if="organizerWhatsappLink"
+                                    :href="organizerWhatsappLink"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-green-500/20 hover:bg-green-500/30 text-sm text-green-300 transition"
+                                >
+                                    <Icon icon="ic:baseline-whatsapp" class="text-base" />
+                                    WhatsApp
+                                </a>
+
+                                <a
+                                    v-for="social in organizerSocialLinks"
+                                    :key="social.key"
+                                    :href="social.href"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-sm text-white transition"
+                                >
+                                    <Icon :icon="social.icon" class="text-base" />
+                                    {{ social.label }}
+                                </a>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section v-if="sponsors.length > 0" class="space-y-4">
+                        <h2 class="text-2xl font-bold">Sponsors</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div
+                                v-for="sponsor in sponsors"
+                                :key="sponsor.key"
+                                class="rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-4 flex items-center gap-3"
+                            >
+                                <img
+                                    v-if="sponsor.image_url"
+                                    :src="sponsor.image_url"
+                                    :alt="sponsor.name || 'Sponsor'"
+                                    class="h-12 w-12 rounded-lg object-cover ring-1 ring-white/15"
+                                />
+                                <div
+                                    v-else
+                                    class="h-12 w-12 rounded-lg bg-zinc-800 flex items-center justify-center ring-1 ring-white/10"
+                                >
+                                    <Icon icon="mdi:image-outline" class="text-xl text-gray-400" />
+                                </div>
+                                <p class="font-medium text-white">{{ sponsor.name || 'Sponsor' }}</p>
                             </div>
                         </div>
                     </section>

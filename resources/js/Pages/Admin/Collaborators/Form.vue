@@ -1,9 +1,11 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
+import FormActions from "@/Components/FormActions.vue";
 
 const props = defineProps({
   collaborator: { type: Object, default: () => ({}) },
   mode: { type: String, default: "create" },
+  cancelHref: { type: String, default: "" },
 });
 
 const form = useForm({
@@ -94,14 +96,11 @@ const handleSubmit = () => {
       </div>
     </div>
 
-    <div class="flex justify-end">
-      <button
-        type="submit"
-        class="bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors"
-      >
-        {{ props.mode === "edit" ? "Actualizar" : "Guardar" }}
-      </button>
-    </div>
+    <FormActions
+      :cancel-href="props.cancelHref"
+      :submit-label="props.mode === 'edit' ? 'Actualizar' : 'Guardar'"
+      :processing="form.processing"
+    />
   </form>
 </template>
 

@@ -1,10 +1,12 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
+import FormActions from "@/Components/FormActions.vue";
 
 const props = defineProps({
   release: { type: Object, default: () => ({}) },
   artists: { type: Array,  default: () => [] },
   mode:    { type: String, default: "create" }, // "create" | "edit"
+  cancelHref: { type: String, default: "" },
 });
 
 const form = useForm({
@@ -151,11 +153,11 @@ const handleSubmit = () => {
       </div>
     </div>
 
-    <div class="flex justify-end">
-      <button type="submit" class="btn-primary">
-        {{ props.mode === "edit" ? "Actualizar" : "Guardar" }}
-      </button>
-    </div>
+    <FormActions
+      :cancel-href="props.cancelHref"
+      :submit-label="props.mode === 'edit' ? 'Actualizar' : 'Guardar'"
+      :processing="form.processing"
+    />
   </form>
 </template>
 
@@ -163,8 +165,5 @@ const handleSubmit = () => {
 .input {
   @apply w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white
   focus:border-[#ffa236] focus:ring-[#ffa236];
-}
-.btn-primary {
-  @apply bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors;
 }
 </style>

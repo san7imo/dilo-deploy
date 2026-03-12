@@ -4,7 +4,10 @@ namespace App\Jobs;
 
 use App\Models\RoyaltyStatement;
 use App\Models\RoyaltyStatementLine;
-use App\Models\Track;
+use App\Services\RoyaltyAllocationService;
+use App\Services\Royalties\MasterRoyaltyDedupeService;
+use App\Services\Royalties\MasterRoyaltyLineCanonicalNormalizer;
+use App\Services\Royalties\MasterRoyaltyLineMatcher;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,6 +16,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -27,18 +31,23 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
         $this->statementId = $statementId;
     }
 
-    public function handle(): void
+    public function handle(
+        RoyaltyAllocationService $allocationService,
+        MasterRoyaltyLineCanonicalNormalizer $canonicalNormalizer,
+        MasterRoyaltyLineMatcher $lineMatcher,
+        MasterRoyaltyDedupeService $dedupeService
+    ): void
     {
         $statement = RoyaltyStatement::find($this->statementId);
         if (!$statement) {
             return;
         }
 
-        if ($statement->status !== 'uploaded') {
+        if (!in_array($statement->status, ['uploaded', 'failed'], true)) {
             return;
         }
 
-        $statement->update(['status' => 'processing']);
+        $this->prepareStatementForProcessing($statement);
 
         $disk = Storage::disk('royalties_private');
         $stream = $disk->readStream($statement->stored_path);
@@ -47,26 +56,19 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
             throw new \RuntimeException('No se pudo abrir el archivo para procesamiento.');
         }
 
-        $totalUnits = 0;
-        $totalNetUsd = 0.0;
         $label = null;
         $reportingPeriod = null;
         $reportingMonthDate = null;
         $activityPeriodFallback = null;
         $lineCount = 0;
+        $duplicateLineCount = 0;
         $batch = [];
+        $lineHashIndexByBatchPosition = [];
+        $seenLineHashes = [];
         $batchSize = 1000;
-        $trackCache = $this->buildTrackIsrcCache();
-        $hasExistingLines = RoyaltyStatementLine::where('royalty_statement_id', $statement->id)->exists();
-        $isrcKeys = ['isrc', 'isrc code', 'recording isrc', 'track isrc', 'song isrc', 'isrc#', 'isrc #'];
-        $upcKeys = ['upc', 'upc code', 'barcode', 'release upc', 'album upc', 'upc/ean', 'upc/ean code'];
-
         try {
-            [$headers, $normalizedHeaders] = $this->readHeaderRow($stream);
-
-            if (!in_array('royalty ($us)', $normalizedHeaders, true)) {
-                throw new \RuntimeException('El reporte debe estar en USD (Royalty ($US)).');
-            }
+            [$headers, $normalizedHeaders] = $this->readHeaderRow($stream, $statement->provider);
+            $this->validateRequiredColumnsForProvider($statement->provider, $normalizedHeaders);
 
             while (($row = fgetcsv($stream)) !== false) {
                 if ($this->isEmptyRow($row)) {
@@ -77,72 +79,77 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
                 $rawRow = array_combine($headers, $row);
                 $normalizedRow = $this->normalizeRowKeys($rawRow, $normalizedHeaders);
 
-                $label = $label ?: $this->firstValue($normalizedRow, ['label', 'label name']);
-                $reportingPeriod = $reportingPeriod ?: $this->firstValue($normalizedRow, [
-                    'reporting period',
-                    'statement period',
-                    'reporting period (month)',
-                    'reporting month',
-                    'statement month',
-                ]);
-                if (!$reportingMonthDate && $reportingPeriod) {
-                    $reportingMonthDate = $this->parseMonthDate($reportingPeriod);
+                $lineNumber = $lineCount + 1;
+                $canonical = $this->normalizeCanonicalRowByProvider(
+                    $statement->provider,
+                    $canonicalNormalizer,
+                    $rawRow,
+                    $normalizedRow,
+                    $lineNumber,
+                    (int) $statement->id
+                );
+
+                $label = $label ?: ($canonical['label_name'] ?? null);
+                $reportingPeriod = $reportingPeriod ?: ($canonical['statement_period_raw'] ?? null);
+                if (!$reportingMonthDate && !empty($canonical['statement_period_start'])) {
+                    $reportingMonthDate = Carbon::parse($canonical['statement_period_start'])->startOfMonth();
+                }
+                if (!$reportingMonthDate && !empty($canonical['confirmation_date'])) {
+                    $reportingMonthDate = Carbon::parse($canonical['confirmation_date'])->startOfMonth();
                 }
 
-                $isrcRaw = $this->firstValue($normalizedRow, $isrcKeys);
-                $upcRaw = $this->firstValue($normalizedRow, $upcKeys);
-                $isrc = $this->normalizeIsrc($isrcRaw);
-                $upc = $this->normalizeUpc($upcRaw);
-                $trackTitle = $this->firstValue($normalizedRow, ['track title', 'song title', 'track name', 'title', 'track']);
-                $channel = $this->firstValue($normalizedRow, ['digital service provider', 'dsp', 'service provider', 'channel']);
-                $country = $this->firstValue($normalizedRow, ['territory', 'country']);
-                $activityPeriodText = $this->firstValue($normalizedRow, ['activity period', 'activity period (month)', 'period']);
-                $activityMonthDate = $activityPeriodText ? $this->parseMonthDate($activityPeriodText) : null;
+                $isrc = $canonical['isrc'] ?? null;
+                $upc = $canonical['upc'] ?? null;
+                $trackTitle = $canonical['track_title'] ?? null;
+                $channel = $canonical['dsp_name'] ?? null;
+                $country = $canonical['territory_code'] ?? null;
+                $activityPeriodText = $canonical['activity_period_text'] ?? null;
+                $activityMonthDate = !empty($canonical['activity_month'])
+                    ? Carbon::parse($canonical['activity_month'])->startOfMonth()
+                    : null;
                 if (!$activityPeriodFallback && $activityPeriodText) {
                     $activityPeriodFallback = $activityPeriodText;
                 }
-                $units = $this->parseInt($this->firstValue($normalizedRow, ['count', 'units', 'quantity']));
-                $netTotalUsd = $this->parseMoney($this->firstValue($normalizedRow, ['royalty ($us)']));
+                $units = (int) ($canonical['units'] ?? 0);
+                $netTotalUsd = (float) ($canonical['amount_usd'] ?? 0);
 
-                $trackId = null;
-                if (!empty($isrc)) {
-                    $cacheKey = strtolower($isrc);
-                    $trackId = $trackCache[$cacheKey] ?? null;
+                $match = $lineMatcher->resolve($canonical);
+                $trackId = $match['track_id'] ?? null;
+                $matchStatus = $match['match_status'] ?? RoyaltyStatementLine::MATCH_STATUS_UNMATCHED;
+                $matchMeta = $match['match_meta'] ?? [];
+
+                $lineHash = $dedupeService->buildLineHash($normalizedRow, $canonical);
+                if (isset($seenLineHashes[$lineHash])) {
+                    $sourceLineId = (string) ($canonical['source_line_id'] ?? $lineNumber);
+                    if (isset($lineHashIndexByBatchPosition[$lineHash])) {
+                        $existingIndex = $lineHashIndexByBatchPosition[$lineHash];
+                        $batch[$existingIndex] = $this->markBatchRowAsDuplicate(
+                            $batch[$existingIndex],
+                            $sourceLineId
+                        );
+                    } else {
+                        $this->markPersistedLineAsDuplicate(
+                            (int) $statement->id,
+                            $lineHash,
+                            $sourceLineId
+                        );
+                    }
+
+                    $duplicateLineCount++;
+                    $lineCount++;
+                    continue;
                 }
-
-                $lineHashIsrc = $hasExistingLines
-                    ? $this->firstValue($normalizedRow, ['isrc'])
-                    : $isrcRaw;
-                $lineHashUpc = $hasExistingLines
-                    ? $this->firstValue($normalizedRow, ['upc'])
-                    : $upcRaw;
-
-                $lineHash = $this->buildLineHash($normalizedRow, [
-                    'isrc' => $lineHashIsrc,
-                    'upc' => $lineHashUpc,
-                    'track_title' => $trackTitle,
-                    'channel' => $channel,
-                    'country' => $country,
-                    'activity_period_text' => $activityPeriodText,
-                    'units' => $units,
-                    'net_total_usd' => $this->formatDecimal($netTotalUsd),
-                ]);
+                $seenLineHashes[$lineHash] = true;
 
                 $rawPayload = [
-                    'raw' => $rawRow,
-                    'derived' => [
-                        'label' => $label,
-                        'reporting_period' => $reportingPeriod,
-                        'isrc' => $isrc,
-                        'upc' => $upc,
-                        'track_title' => $trackTitle,
-                        'channel' => $channel,
-                        'country' => $country,
-                        'activity_period_text' => $activityPeriodText,
-                        'activity_month_date' => $activityMonthDate?->toDateString(),
-                        'units' => $units,
-                        'net_total_usd' => $this->formatDecimal($netTotalUsd),
+                    'source' => [
+                        'provider' => $statement->provider,
+                        'statement_id' => (string) $statement->id,
+                        'source_line_id' => $canonical['source_line_id'] ?? (string) $lineNumber,
+                        'importer_version' => MasterRoyaltyLineCanonicalNormalizer::IMPORTER_VERSION,
                     ],
+                    'canonical' => $canonical,
+                    'raw' => $rawRow,
                 ];
 
                 $batch[] = [
@@ -158,18 +165,20 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
                     'units' => $units,
                     'net_total_usd' => $this->formatDecimal($netTotalUsd),
                     'line_hash' => $lineHash,
+                    'match_status' => $matchStatus,
+                    'match_meta' => json_encode($matchMeta, JSON_UNESCAPED_UNICODE),
                     'raw' => json_encode($rawPayload, JSON_UNESCAPED_UNICODE),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
+                $lineHashIndexByBatchPosition[$lineHash] = count($batch) - 1;
 
-                $totalUnits += $units;
-                $totalNetUsd += $netTotalUsd;
                 $lineCount++;
 
                 if (count($batch) >= $batchSize) {
                     $this->upsertLines($batch);
                     $batch = [];
+                    $lineHashIndexByBatchPosition = [];
                 }
             }
 
@@ -177,9 +186,7 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
                 $this->upsertLines($batch);
             }
 
-            $totals = $hasExistingLines
-                ? $this->calculateTotalsFromDatabase($statement->id)
-                : ['units' => $totalUnits, 'net' => $totalNetUsd];
+            $totals = $this->calculateTotalsFromDatabase($statement->id);
 
             $this->finalizeStatement(
                 $statement,
@@ -188,12 +195,35 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
                 $reportingMonthDate,
                 $activityPeriodFallback,
                 $totals['units'],
-                $totals['net']
+                $totals['net'],
+                $dedupeService
             );
+
+            $statement->refresh();
+            if ($statement->is_reference_only) {
+                RoyaltyStatementLine::query()
+                    ->where('royalty_statement_id', $statement->id)
+                    ->update([
+                        'match_status' => RoyaltyStatementLine::MATCH_STATUS_REFERENCE_ONLY,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            if (!$statement->is_reference_only) {
+                $allocationService->rebuildForStatement($statement, [
+                    'trigger_source' => 'statement_processing_job',
+                    'reason' => 'statement_processed',
+                    'context' => [
+                        'provider' => $statement->provider,
+                        'statement_id' => $statement->id,
+                    ],
+                ]);
+            }
 
             Log::info('✅ [Royalties] Statement procesado', [
                 'statement_id' => $statement->id,
-                'lines' => $lineCount,
+                'lines_read' => $lineCount,
+                'lines_deduped_in_file' => $duplicateLineCount,
             ]);
         } catch (Throwable $e) {
             $statement->update(['status' => 'failed']);
@@ -209,7 +239,32 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
         }
     }
 
-    private function readHeaderRow($stream): array
+    private function prepareStatementForProcessing(RoyaltyStatement $statement): void
+    {
+        DB::transaction(function () use ($statement): void {
+            if (Schema::hasTable('royalty_allocations')) {
+                DB::table('royalty_allocations')
+                    ->where('royalty_statement_id', $statement->id)
+                    ->delete();
+            }
+
+            RoyaltyStatementLine::withTrashed()
+                ->where('royalty_statement_id', $statement->id)
+                ->forceDelete();
+
+            $statement->update([
+                'status' => 'processing',
+                'total_units' => 0,
+                'total_net_usd' => $this->formatDecimal(0),
+                'is_reference_only' => false,
+                'duplicate_of_statement_id' => null,
+            ]);
+        });
+
+        $statement->refresh();
+    }
+
+    private function readHeaderRow($stream, string $provider): array
     {
         $attempts = 0;
         while (($row = fgetcsv($stream)) !== false) {
@@ -221,7 +276,7 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
             $headers = array_map([$this, 'normalizeHeaderOriginal'], $row);
             $normalized = array_map([$this, 'normalizeHeader'], $headers);
 
-            if (in_array('royalty ($us)', $normalized, true) || in_array('digital service provider', $normalized, true)) {
+            if ($this->matchesProviderHeader($provider, $normalized)) {
                 return [$headers, $normalized];
             }
 
@@ -231,6 +286,92 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
         }
 
         throw new \RuntimeException('No se pudo detectar el encabezado del CSV.');
+    }
+
+    private function validateRequiredColumnsForProvider(string $provider, array $normalizedHeaders): void
+    {
+        $headers = array_values(array_unique($normalizedHeaders));
+
+        if ($provider === 'symphonic') {
+            if (!in_array('royalty ($us)', $headers, true)) {
+                throw new \RuntimeException('El reporte Symphonic debe estar en USD (Royalty ($US)).');
+            }
+
+            return;
+        }
+
+        if ($provider === 'sonosuite') {
+            $required = ['id', 'currency', 'net_total', 'channel', 'track_title', 'isrc'];
+            $missing = [];
+
+            foreach ($required as $column) {
+                if (!in_array($column, $headers, true)) {
+                    $missing[] = $column;
+                }
+            }
+
+            if (!empty($missing)) {
+                throw new \RuntimeException(
+                    'El CSV Sonosuite no contiene columnas requeridas: ' . implode(', ', $missing)
+                );
+            }
+
+            return;
+        }
+
+        throw new \RuntimeException("Proveedor no soportado para procesamiento: {$provider}");
+    }
+
+    private function matchesProviderHeader(string $provider, array $normalizedHeaders): bool
+    {
+        if ($provider === 'symphonic') {
+            return in_array('royalty ($us)', $normalizedHeaders, true)
+                || in_array('digital service provider', $normalizedHeaders, true);
+        }
+
+        if ($provider === 'sonosuite') {
+            $required = ['id', 'currency', 'net_total', 'channel', 'track_title', 'isrc'];
+            $hitCount = 0;
+
+            foreach ($required as $column) {
+                if (in_array($column, $normalizedHeaders, true)) {
+                    $hitCount++;
+                }
+            }
+
+            return $hitCount >= 5;
+        }
+
+        return false;
+    }
+
+    private function normalizeCanonicalRowByProvider(
+        string $provider,
+        MasterRoyaltyLineCanonicalNormalizer $canonicalNormalizer,
+        array $rawRow,
+        array $normalizedRow,
+        int $lineNumber,
+        int $statementId
+    ): array {
+        if ($provider === 'symphonic') {
+            return $canonicalNormalizer->normalizeSymphonicRow(
+                $rawRow,
+                $normalizedRow,
+                $lineNumber,
+                $statementId
+            );
+        }
+
+        if ($provider === 'sonosuite') {
+            return $canonicalNormalizer->normalizeSonosuiteRow(
+                $rawRow,
+                $normalizedRow,
+                $lineNumber,
+                $statementId
+            );
+        }
+
+        throw new \RuntimeException("Proveedor no soportado para normalizacion: {$provider}");
     }
 
     private function normalizeHeaderOriginal(string $value): string
@@ -286,37 +427,6 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
         return $row;
     }
 
-    private function firstValue(array $row, array $keys): ?string
-    {
-        foreach ($keys as $key) {
-            $normalizedKey = $this->normalizeHeader($key);
-            if (array_key_exists($normalizedKey, $row) && $row[$normalizedKey] !== '') {
-                return $row[$normalizedKey];
-            }
-        }
-        return null;
-    }
-
-    private function parseInt(?string $value): int
-    {
-        if ($value === null) {
-            return 0;
-        }
-        $normalized = str_replace([',', ' '], '', $value);
-        return (int) $normalized;
-    }
-
-    private function parseMoney(?string $value): float
-    {
-        if ($value === null || $value === '') {
-            return 0.0;
-        }
-        $negative = str_contains($value, '(') && str_contains($value, ')');
-        $normalized = str_replace(['$', ',', '(', ')', ' '], '', $value);
-        $amount = (float) $normalized;
-        return $negative ? -$amount : $amount;
-    }
-
     private function parseMonthDate(string $value): ?Carbon
     {
         $value = trim($value);
@@ -352,63 +462,9 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
         }
     }
 
-    private function buildLineHash(array $normalizedRow, array $canonical): string
-    {
-        $extras = ['delivery', 'sale/void', 'sale or void', 'sale/return', 'type', 'usage type'];
-        $payload = [];
-        foreach ($canonical as $key => $value) {
-            $payload[$key] = is_string($value) ? trim($value) : $value;
-        }
-
-        foreach ($extras as $extra) {
-            $normalizedKey = $this->normalizeHeader($extra);
-            if (array_key_exists($normalizedKey, $normalizedRow) && $normalizedRow[$normalizedKey] !== '') {
-                $payload[$normalizedKey] = $normalizedRow[$normalizedKey];
-            }
-        }
-
-        ksort($payload);
-        return sha1(json_encode($payload, JSON_UNESCAPED_UNICODE));
-    }
-
-    private function normalizeIsrc(?string $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-        $normalized = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $value));
-        return $normalized !== '' ? $normalized : null;
-    }
-
-    private function normalizeUpc(?string $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-        $normalized = preg_replace('/\D/', '', $value);
-        return $normalized !== '' ? $normalized : null;
-    }
-
     private function formatDecimal(float $value): string
     {
         return number_format($value, 6, '.', '');
-    }
-
-    private function buildTrackIsrcCache(): array
-    {
-        $cache = [];
-        $tracks = Track::query()
-            ->whereNotNull('isrc')
-            ->pluck('id', 'isrc');
-
-        foreach ($tracks as $isrc => $id) {
-            $normalized = $this->normalizeIsrc($isrc);
-            if ($normalized) {
-                $cache[strtolower($normalized)] = $id;
-            }
-        }
-
-        return $cache;
     }
 
     private function upsertLines(array $batch): void
@@ -416,7 +472,22 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
         DB::table('royalty_statement_lines')->upsert(
             $batch,
             ['royalty_statement_id', 'line_hash'],
-            ['track_id', 'isrc', 'upc', 'updated_at']
+            [
+                'track_id',
+                'match_status',
+                'match_meta',
+                'isrc',
+                'upc',
+                'track_title',
+                'channel',
+                'country',
+                'activity_period_text',
+                'activity_month_date',
+                'units',
+                'net_total_usd',
+                'raw',
+                'updated_at',
+            ]
         );
     }
 
@@ -439,7 +510,8 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
         ?Carbon $reportingMonthDate,
         ?string $activityPeriodFallback,
         int $totalUnits,
-        float $totalNetUsd
+        float $totalNetUsd,
+        MasterRoyaltyDedupeService $dedupeService
     ): void {
         if (!$reportingMonthDate && $activityPeriodFallback) {
             $reportingMonthDate = $this->parseMonthDate($activityPeriodFallback);
@@ -457,22 +529,37 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
             'total_units' => $totalUnits,
             'total_net_usd' => $this->formatDecimal($totalNetUsd),
             'status' => 'processed',
+            'is_reference_only' => false,
+            'duplicate_of_statement_id' => null,
         ];
 
         if ($label && $finalReportingPeriod) {
-            $statementKey = $this->normalizeStatementKey(
+            $statementKey = $dedupeService->normalizeStatementKey(
                 $statement->provider,
                 $label,
                 $finalReportingPeriod
             );
 
-            DB::transaction(function () use ($statement, $statementKey, $update) {
+            DB::transaction(function () use ($statement, $statementKey, $update, $dedupeService) {
                 $existing = RoyaltyStatement::where('statement_key', $statementKey)
                     ->lockForUpdate()
                     ->get(['id', 'version', 'is_current']);
 
                 $maxVersion = $existing->max('version') ?? 0;
                 $version = $maxVersion + 1;
+
+                $duplicateOfStatementId = $dedupeService->detectReferenceOnlyDuplicate($statement, $statementKey);
+                if ($duplicateOfStatementId !== null) {
+                    $statement->update(array_merge($update, [
+                        'statement_key' => $statementKey,
+                        'version' => $version,
+                        'is_current' => false,
+                        'is_reference_only' => true,
+                        'duplicate_of_statement_id' => $duplicateOfStatementId,
+                    ]));
+
+                    return;
+                }
 
                 RoyaltyStatement::where('statement_key', $statementKey)
                     ->where('is_current', true)
@@ -492,17 +579,68 @@ class ProcessRoyaltyStatementJob implements ShouldQueue
         $statement->update($update);
     }
 
-    private function normalizeStatementKey(string $provider, string $label, string $reportingPeriod): string
+    private function markBatchRowAsDuplicate(array $row, string $sourceLineId): array
     {
-        $normalize = function (string $value): string {
-            $value = strtolower(trim($value));
-            return preg_replace('/\s+/', ' ', $value);
-        };
+        $meta = [];
+        if (!empty($row['match_meta'])) {
+            $decoded = json_decode((string) $row['match_meta'], true);
+            if (is_array($decoded)) {
+                $meta = $decoded;
+            }
+        }
 
-        return implode('|', [
-            $normalize($provider),
-            $normalize($label),
-            $normalize($reportingPeriod),
-        ]);
+        $existingIds = data_get($meta, 'duplicate_source_line_ids', []);
+        if (!is_array($existingIds)) {
+            $existingIds = [];
+        }
+        $existingIds[] = $sourceLineId;
+
+        $meta['duplicate_source_line_ids'] = array_values(array_unique($existingIds));
+        $meta['duplicate_count'] = count($meta['duplicate_source_line_ids']);
+        $meta['duplicate_note'] = 'Linea duplicada dentro del mismo archivo; se conserva una sola ocurrencia para calculo.';
+
+        $row['match_status'] = RoyaltyStatementLine::MATCH_STATUS_DUPLICATE;
+        $row['match_meta'] = json_encode($meta, JSON_UNESCAPED_UNICODE);
+
+        return $row;
+    }
+
+    private function markPersistedLineAsDuplicate(int $statementId, string $lineHash, string $sourceLineId): void
+    {
+        $existing = DB::table('royalty_statement_lines')
+            ->where('royalty_statement_id', $statementId)
+            ->where('line_hash', $lineHash)
+            ->select('id', 'match_meta')
+            ->first();
+
+        if (!$existing) {
+            return;
+        }
+
+        $meta = [];
+        if (!empty($existing->match_meta)) {
+            $decoded = json_decode((string) $existing->match_meta, true);
+            if (is_array($decoded)) {
+                $meta = $decoded;
+            }
+        }
+
+        $existingIds = data_get($meta, 'duplicate_source_line_ids', []);
+        if (!is_array($existingIds)) {
+            $existingIds = [];
+        }
+        $existingIds[] = $sourceLineId;
+
+        $meta['duplicate_source_line_ids'] = array_values(array_unique($existingIds));
+        $meta['duplicate_count'] = count($meta['duplicate_source_line_ids']);
+        $meta['duplicate_note'] = 'Linea duplicada dentro del mismo archivo; se conserva una sola ocurrencia para calculo.';
+
+        DB::table('royalty_statement_lines')
+            ->where('id', $existing->id)
+            ->update([
+                'match_status' => RoyaltyStatementLine::MATCH_STATUS_DUPLICATE,
+                'match_meta' => json_encode($meta, JSON_UNESCAPED_UNICODE),
+                'updated_at' => now(),
+            ]);
     }
 }

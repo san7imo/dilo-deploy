@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Traits\LogsAuditTrail;
+use App\Traits\SoftDeletesUniqueValues;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Notifications\ResetPasswordNotification;
@@ -17,9 +20,14 @@ class User extends Authenticatable
     use HasApiTokens;
     use HasFactory;
     use HasProfilePhoto;
+    use LogsAuditTrail;
     use Notifiable;
+    use SoftDeletes;
+    use SoftDeletesUniqueValues;
     use TwoFactorAuthenticatable;
     use HasRoles; // Habilita roles y permisos (Spatie)
+
+    protected array $softDeleteUniqueColumns = ['email', 'identification_number'];
 
     /**
      * The attributes that are mass assignable.
@@ -28,8 +36,12 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'stage_name',
         'email',
         'phone',
+        'identification_number',
+        'identification_type',
+        'additional_information',
         'password',
     ];
 
@@ -64,6 +76,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'deleted_unique_snapshot' => 'array',
         ];
     }
 
@@ -83,6 +96,16 @@ class User extends Authenticatable
         return $this->belongsToMany(Event::class, 'event_road_manager')
             ->withPivot('payment_confirmed_at')
             ->withTimestamps();
+    }
+
+    public function splitParticipants()
+    {
+        return $this->hasMany(TrackSplitParticipant::class);
+    }
+
+    public function externalArtistInvitationsAccepted()
+    {
+        return $this->hasMany(ExternalArtistInvitation::class, 'accepted_user_id');
     }
 
     /**

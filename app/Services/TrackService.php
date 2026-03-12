@@ -87,7 +87,6 @@ class TrackService
      */
     public function delete(Track $track): void
     {
-        $track->artists()->detach(); // limpiar relaciones pivot
         $track->delete();
     }
 }

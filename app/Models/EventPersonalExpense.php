@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\LogsAuditTrail;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EventPersonalExpense extends Model
 {
+    use LogsAuditTrail, SoftDeletes;
+
     protected $fillable = [
         'event_id',
         'artist_id',

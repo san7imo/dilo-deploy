@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreReleaseRequest extends FormRequest
 {
@@ -24,7 +25,7 @@ class StoreReleaseRequest extends FormRequest
     {
         return [
             'artist_id'    => 'required|exists:artists,id',
-            'title'        => 'required|string|max:255|unique:releases,title',
+            'title'        => ['required', 'string', 'max:255', Rule::unique('releases', 'title')->whereNull('deleted_at')],
             'upc'          => 'nullable|string|max:32',
             'release_date' => 'nullable|date',
             'type'         => 'nullable|string|in:single,ep,album,mixtape,live,compilation',

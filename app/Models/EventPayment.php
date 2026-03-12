@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\LogsAuditTrail;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 
 class EventPayment extends Model
 {
+    use LogsAuditTrail, SoftDeletes;
+
     protected $fillable = [
         'event_id',
         'collaborator_id',

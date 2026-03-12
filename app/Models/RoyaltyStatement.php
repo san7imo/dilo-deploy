@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\LogsAuditTrail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\User;
 
 class RoyaltyStatement extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsAuditTrail, SoftDeletes;
 
     protected $fillable = [
         'provider',
@@ -22,6 +24,8 @@ class RoyaltyStatement extends Model
         'statement_key',
         'version',
         'is_current',
+        'is_reference_only',
+        'duplicate_of_statement_id',
         'status',
         'total_units',
         'total_net_usd',
@@ -31,6 +35,7 @@ class RoyaltyStatement extends Model
     protected $casts = [
         'reporting_month_date' => 'date',
         'is_current' => 'boolean',
+        'is_reference_only' => 'boolean',
         'total_units' => 'integer',
         'total_net_usd' => 'decimal:6',
     ];
@@ -38,6 +43,16 @@ class RoyaltyStatement extends Model
     public function lines()
     {
         return $this->hasMany(RoyaltyStatementLine::class);
+    }
+
+    public function allocations()
+    {
+        return $this->hasMany(RoyaltyAllocation::class);
+    }
+
+    public function duplicateOf()
+    {
+        return $this->belongsTo(self::class, 'duplicate_of_statement_id');
     }
 
     public function creator()

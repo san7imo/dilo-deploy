@@ -54,6 +54,11 @@ trait HasImages
         });
 
         static::deleting(function ($model) {
+            if (method_exists($model, 'isForceDeleting') && !$model->isForceDeleting()) {
+                // En soft delete preservamos assets para permitir restore.
+                return;
+            }
+
             $imageKit = app(ImageKitService::class);
             foreach ($model->getImageFieldPairs() as $urlField => $idField) {
                 if ($model->$idField) {

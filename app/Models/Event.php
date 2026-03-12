@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Traits\LogsAuditTrail;
+use App\Traits\SoftDeletesUniqueValues;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use App\Traits\HasImages;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,7 +14,9 @@ use App\Models\User;
 
 class Event extends Model
 {
-    use HasFactory, HasImages;
+    use HasFactory, HasImages, LogsAuditTrail, SoftDeletes, SoftDeletesUniqueValues;
+
+    protected array $softDeleteUniqueColumns = ['slug'];
 
     /**
      * Campos de imagen gestionados automáticamente por ImageKit.
@@ -37,6 +42,22 @@ class Event extends Model
         'venue_address',
         'whatsapp_event',
         'page_tickets',
+        'organizer_id',
+        'organizer_company_name',
+        'organizer_contact_name',
+        'organizer_logo_url',
+        'organizer_website',
+        'organizer_instagram_url',
+        'organizer_facebook_url',
+        'organizer_tiktok_url',
+        'organizer_x_url',
+        'organizer_whatsapp',
+        'organizer_email',
+        'sponsors',
+        'google_maps_url',
+        'google_maps_place_id',
+        'latitude',
+        'longitude',
         'show_fee_total',
         'currency',
         'advance_percentage',
@@ -59,6 +80,10 @@ class Event extends Model
         'advance_percentage' => 'decimal:2',
         'artist_share_percentage' => 'decimal:2',
         'label_share_percentage' => 'decimal:2',
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'sponsors' => 'array',
+        'deleted_unique_snapshot' => 'array',
     ];
 
     /**
@@ -91,6 +116,11 @@ class Event extends Model
     public function mainEvents()
     {
         return $this->hasMany(Event::class, 'main_artist_id');
+    }
+
+    public function organizer()
+    {
+        return $this->belongsTo(Organizer::class);
     }
 
     public function payments()

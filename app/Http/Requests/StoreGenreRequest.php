@@ -25,7 +25,7 @@ class StoreGenreRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('genres', 'name'),
+                Rule::unique('genres', 'name')->whereNull('deleted_at'),
             ],
         ];
     }

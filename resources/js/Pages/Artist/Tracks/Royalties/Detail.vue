@@ -52,7 +52,10 @@ const formatMoney = (value) => {
           <div v-if="summary.my_pct !== null">
             <span class="text-gray-500">Mi %:</span> {{ Number(summary.my_pct).toFixed(2) }}%
           </div>
-          <div v-if="summary.my_pct !== null">
+          <div v-else-if="summary.my_pct_variable">
+            <span class="text-gray-500">Mi %:</span> Variable por vigencia
+          </div>
+          <div v-if="summary.my_share_usd !== null">
             <span class="text-gray-500">Mi USD:</span> {{ formatMoney(summary.my_share_usd) }}
           </div>
           <div v-else class="text-xs text-[#ffa236]">

@@ -1,6 +1,8 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
+import DangerConfirmModal from "@/Components/DangerConfirmModal.vue";
 import PaginationLinks from "@/Components/PaginationLinks.vue";
+import RowActionMenu from "@/Components/RowActionMenu.vue";
 import { Link, router } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 
@@ -8,6 +10,9 @@ const props = defineProps({
   releases: { type: Object, required: true }, // paginator
 });
 
+const deleteModalOpen = ref(false);
+const deleteProcessing = ref(false);
+const pendingReleaseId = ref(null);
 const searchQuery = ref("");
 const filteredReleases = computed(() => {
   const list = props.releases?.data ?? [];
@@ -27,10 +32,27 @@ const filteredReleases = computed(() => {
   });
 });
 
-const handleDelete = (id) => {
-  if (confirm("¿Seguro que deseas eliminar este lanzamiento?")) {
-    router.delete(route("admin.releases.destroy", id));
-  }
+const openDeleteModal = (id) => {
+  pendingReleaseId.value = id;
+  deleteModalOpen.value = true;
+};
+
+const closeDeleteModal = () => {
+  if (deleteProcessing.value) return;
+  deleteModalOpen.value = false;
+  pendingReleaseId.value = null;
+};
+
+const handleDelete = () => {
+  if (!pendingReleaseId.value || deleteProcessing.value) return;
+
+  deleteProcessing.value = true;
+  router.delete(route("admin.releases.destroy", pendingReleaseId.value), {
+    onFinish: () => {
+      deleteProcessing.value = false;
+      closeDeleteModal();
+    },
+  });
 };
 </script>
 
@@ -38,7 +60,10 @@ const handleDelete = (id) => {
   <AdminLayout title="Lanzamientos">
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-semibold">Lanzamientos</h1>
-      <Link :href="route('admin.releases.create')" class="btn-primary">Nuevo</Link>
+      <div class="flex items-center gap-2">
+        <Link :href="route('admin.releases.trash')" class="btn-secondary">Papelera</Link>
+        <Link :href="route('admin.releases.create')" class="btn-primary">Nuevo</Link>
+      </div>
     </div>
 
     <div class="mb-4">
@@ -72,16 +97,21 @@ const handleDelete = (id) => {
             <td class="px-4 py-3 capitalize">{{ r.type || '–' }}</td>
             <td class="px-4 py-3">{{ r.release_date || '–' }}</td>
             <td class="px-4 py-3 text-right">
-              <div class="flex items-center justify-end gap-3">
-                <Link :href="route('admin.releases.edit', r.id)" class="text-[#ffa236] hover:underline">Editar</Link>
-                <button
-                  @click="handleDelete(r.id)"
-                  class="text-red-400 hover:text-red-300"
-                  title="Eliminar"
+              <RowActionMenu label="Acciones del lanzamiento">
+                <Link
+                  :href="route('admin.releases.edit', r.id)"
+                  class="block rounded px-3 py-2 text-sm text-gray-200 hover:bg-white/10"
                 >
-                  Eliminar
+                  Editar
+                </Link>
+                <button
+                  type="button"
+                  class="block w-full rounded px-3 py-2 text-left text-sm text-red-300 hover:bg-red-500/20"
+                  @click="openDeleteModal(r.id)"
+                >
+                  Mover a papelera
                 </button>
-              </div>
+              </RowActionMenu>
             </td>
           </tr>
           <tr v-if="!filteredReleases.length">
@@ -94,6 +124,16 @@ const handleDelete = (id) => {
     </div>
 
     <PaginationLinks v-if="releases.links" :links="releases.links" :meta="releases.meta" class="justify-end mt-4" />
+
+    <DangerConfirmModal
+      :show="deleteModalOpen"
+      title="Mover lanzamiento a papelera"
+      message="El lanzamiento se moverá a la papelera y podrá restaurarse después."
+      confirm-label="Mover a papelera"
+      :processing="deleteProcessing"
+      @close="closeDeleteModal"
+      @confirm="handleDelete"
+    />
   </AdminLayout>
 </template>
 
@@ -104,5 +144,9 @@ const handleDelete = (id) => {
 
 .btn-primary {
   @apply bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors;
+}
+
+.btn-secondary {
+  @apply bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white font-semibold px-4 py-2 rounded-md transition-colors;
 }
 </style>

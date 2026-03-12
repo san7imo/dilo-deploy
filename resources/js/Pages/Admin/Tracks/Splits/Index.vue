@@ -27,6 +27,9 @@ const formatDate = (value) => {
         <Link :href="route('admin.tracks.index')" class="text-gray-400 hover:text-white">
           Volver
         </Link>
+        <Link :href="route('admin.tracks.compositions.index', track.id)" class="text-gray-400 hover:text-white">
+          Composición y splits
+        </Link>
         <Link :href="route('admin.tracks.splits.create', track.id)" class="btn-primary">
           Create Split
         </Link>

@@ -128,7 +128,8 @@ class EventFinanceController extends Controller
         // Eliminar gastos que no están en el array enviado
         EventExpense::where('event_id', $event->id)
             ->whereNotIn('id', $incomingIds)
-            ->delete();
+            ->get()
+            ->each(fn (EventExpense $expense) => $expense->delete());
 
         // Crear o actualizar gastos
         foreach ($expensesData as $expenseData) {

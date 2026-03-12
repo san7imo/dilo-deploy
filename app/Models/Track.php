@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\LogsAuditTrail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\HasImages;
 
 class Track extends Model
 {
-    use HasFactory, HasImages;
+    use HasFactory, HasImages, LogsAuditTrail, SoftDeletes;
 
     /**
      * Campos de imagen gestionados automáticamente por ImageKit.
@@ -60,6 +62,12 @@ class Track extends Model
     public function splitAgreements()
     {
         return $this->hasMany(TrackSplitAgreement::class);
+    }
+
+    public function compositions()
+    {
+        return $this->belongsToMany(Composition::class, 'recording_compositions')
+            ->withTimestamps();
     }
 
     /*

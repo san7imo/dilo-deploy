@@ -1,12 +1,14 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
 import { ref, watch } from "vue";
+import FormActions from "@/Components/FormActions.vue";
 
 const props = defineProps({
   track: { type: Object, default: () => ({}) },
   releases: { type: Array, default: () => [] },
   artists: { type: Array, default: () => [] },
   mode: { type: String, default: "create" },
+  cancelHref: { type: String, default: "" },
 });
 
 const form = useForm({
@@ -154,11 +156,11 @@ const handleSubmit = () => {
       <p class="text-gray-500 text-xs mt-2">Puedes seleccionar varios artistas (Ctrl/Cmd + click).</p>
     </div>
 
-    <div class="flex justify-end">
-      <button type="submit" class="btn-primary">
-        {{ props.mode === "edit" ? "Actualizar pista" : "Guardar pista" }}
-      </button>
-    </div>
+    <FormActions
+      :cancel-href="props.cancelHref"
+      :submit-label="props.mode === 'edit' ? 'Actualizar pista' : 'Guardar pista'"
+      :processing="form.processing"
+    />
   </form>
 </template>
 
@@ -168,8 +170,5 @@ const handleSubmit = () => {
 }
 .input-file {
   @apply block w-full text-sm text-gray-400 border border-[#2a2a2a] rounded-md cursor-pointer bg-[#0f0f0f] file:bg-[#ffa236] file:text-black file:px-3 file:py-1;
-}
-.btn-primary {
-  @apply bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors;
 }
 </style>

@@ -19,6 +19,10 @@ class RoleSeeder extends Seeder
             'name' => 'artist',
             'guard_name' => 'web',
         ]);
+        Role::firstOrCreate([
+            'name' => 'external_artist',
+            'guard_name' => 'web',
+        ]);
         $roadManagerRole = Role::firstOrCreate([
             'name' => 'roadmanager',
             'guard_name' => 'web',

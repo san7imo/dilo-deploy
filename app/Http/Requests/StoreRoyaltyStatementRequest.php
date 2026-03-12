@@ -14,7 +14,7 @@ class StoreRoyaltyStatementRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'provider' => 'required|string|in:symphonic',
+            'provider' => 'required|string|in:symphonic,sonosuite',
             'file' => 'required|file|mimes:csv,txt',
         ];
     }

@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\LogsAuditTrail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TrackSplitAgreement extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsAuditTrail, SoftDeletes;
 
     protected $fillable = [
         'track_id',

@@ -22,7 +22,9 @@ class UpdateRoadManagerRequest extends FormRequest
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('users', 'email')->ignore($roadmanager?->id),
+                Rule::unique('users', 'email')
+                    ->ignore($roadmanager?->id)
+                    ->whereNull('deleted_at'),
             ],
             'phone' => ['nullable', 'string', 'max:50'],
             'password' => ['nullable', 'string', 'min:8'],

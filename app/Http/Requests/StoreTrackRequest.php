@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTrackRequest extends FormRequest
 {
@@ -27,7 +28,7 @@ class StoreTrackRequest extends FormRequest
             'release_id'   => 'nullable|exists:releases,id',
 
             // Datos principales
-            'title'        => 'required|string|max:255|unique:tracks,title',
+            'title'        => ['required', 'string', 'max:255', Rule::unique('tracks', 'title')->whereNull('deleted_at')],
             'isrc'         => 'nullable|string|max:32',
             'track_number' => 'nullable|integer|min:1',
             'duration'     => 'nullable|string|max:10',

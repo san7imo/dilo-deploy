@@ -1,9 +1,12 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
+import FormActions from "@/Components/FormActions.vue";
+import PasswordInput from "@/Components/PasswordInput.vue";
 
 const props = defineProps({
   roadManager: { type: Object, default: () => ({}) },
   mode: { type: String, default: "create" },
+  cancelHref: { type: String, default: "" },
 });
 
 const defaultVerified =
@@ -57,7 +60,13 @@ const handleSubmit = () => {
 
       <div>
         <label class="block text-sm font-medium text-gray-300 mb-1">Contrasena</label>
-        <input v-model="form.password" type="password" class="input" placeholder="Minimo 8 caracteres" />
+        <PasswordInput
+          id="roadmanager-password"
+          v-model="form.password"
+          input-class="input"
+          placeholder="Minimo 8 caracteres"
+          autocomplete="new-password"
+        />
         <p v-if="form.errors.password" class="text-red-500 text-sm mt-1">
           {{ form.errors.password }}
         </p>
@@ -79,14 +88,11 @@ const handleSubmit = () => {
       </div>
     </div>
 
-    <div class="flex justify-end">
-      <button
-        type="submit"
-        class="bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors"
-      >
-        {{ props.mode === "edit" ? "Actualizar" : "Guardar" }}
-      </button>
-    </div>
+    <FormActions
+      :cancel-href="props.cancelHref"
+      :submit-label="props.mode === 'edit' ? 'Actualizar' : 'Guardar'"
+      :processing="form.processing"
+    />
   </form>
 </template>
 

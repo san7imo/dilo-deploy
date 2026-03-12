@@ -27,7 +27,9 @@ class UpdateGenreRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('genres', 'name')->ignore($this->route('genre')->id),
+                Rule::unique('genres', 'name')
+                    ->ignore($this->route('genre')->id)
+                    ->whereNull('deleted_at'),
             ],
         ];
     }

@@ -200,9 +200,13 @@ class ArtistService
 
             // crear usuario
             $user = User::create([
-                'name' => $data['name'],
+                'name' => $data['legal_name'] ?? $data['name'],
+                'stage_name' => $data['name'],
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
+                'identification_type' => $data['identification_type'] ?? null,
+                'identification_number' => $data['identification_number'] ?? null,
+                'additional_information' => $data['additional_information'] ?? null,
                 'password' => Hash::make($data['password']),
             ]);
 
@@ -214,7 +218,14 @@ class ArtistService
             ]);
 
             // limpiar campos que no van a artists
-            unset($data['email'], $data['password']);
+            unset(
+                $data['email'],
+                $data['password'],
+                $data['legal_name'],
+                $data['identification_type'],
+                $data['identification_number'],
+                $data['additional_information']
+            );
 
             // uploads
             $this->handleUploads($data);
@@ -243,14 +254,38 @@ class ArtistService
         $artist = $artist instanceof Artist ? $artist : Artist::findOrFail($artist);
         Log::info('✏️ [ArtistService] Actualizando artista', ['id' => $artist->id]);
 
-        if (array_key_exists('email', $data) || array_key_exists('password', $data) || array_key_exists('phone', $data)) {
+        if (
+            array_key_exists('email', $data)
+            || array_key_exists('password', $data)
+            || array_key_exists('phone', $data)
+            || array_key_exists('name', $data)
+            || array_key_exists('legal_name', $data)
+            || array_key_exists('identification_type', $data)
+            || array_key_exists('identification_number', $data)
+            || array_key_exists('additional_information', $data)
+        ) {
             $user = $artist->user;
             if ($user) {
+                if (array_key_exists('name', $data)) {
+                    $user->stage_name = $data['name'];
+                }
+                if (array_key_exists('legal_name', $data) && !empty($data['legal_name'])) {
+                    $user->name = $data['legal_name'];
+                }
                 if (!empty($data['email'])) {
                     $user->email = $data['email'];
                 }
                 if (array_key_exists('phone', $data)) {
                     $user->phone = $data['phone'];
+                }
+                if (array_key_exists('identification_type', $data)) {
+                    $user->identification_type = $data['identification_type'];
+                }
+                if (array_key_exists('identification_number', $data)) {
+                    $user->identification_number = $data['identification_number'];
+                }
+                if (array_key_exists('additional_information', $data)) {
+                    $user->additional_information = $data['additional_information'];
                 }
                 if (!empty($data['password'])) {
                     $user->password = Hash::make($data['password']);
@@ -259,7 +294,14 @@ class ArtistService
                     $user->save();
                 }
             }
-            unset($data['email'], $data['password']);
+            unset(
+                $data['email'],
+                $data['password'],
+                $data['legal_name'],
+                $data['identification_type'],
+                $data['identification_number'],
+                $data['additional_information']
+            );
         }
 
         // Si cambió el nombre, re-slug opcional

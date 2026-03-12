@@ -4,6 +4,7 @@ import AuthenticationCardLogo from "@/Components/AuthenticationCardLogo.vue";
 import Checkbox from "@/Components/Checkbox.vue";
 import InputError from "@/Components/InputError.vue";
 import InputLabel from "@/Components/InputLabel.vue";
+import PasswordInput from "@/Components/PasswordInput.vue";
 import PrimaryButton from "@/Components/PrimaryButton.vue";
 import TextInput from "@/Components/TextInput.vue";
 
@@ -79,11 +80,10 @@ const submit = () => {
                         value="Contraseña"
                         class="text-gray-300 text-sm"
                     />
-                    <TextInput
+                    <PasswordInput
                         id="password"
                         v-model="form.password"
-                        type="password"
-                        class="mt-2 block w-full bg-[#111111] border border-[#2c2c2c] text-gray-100 focus:ring-[#ffa236] focus:border-[#ffa236] rounded-lg px-3 py-2 sm:py-3 text-sm sm:text-base"
+                        input-class="mt-2 block w-full bg-[#111111] border border-[#2c2c2c] text-gray-100 focus:ring-[#ffa236] focus:border-[#ffa236] rounded-lg px-3 py-2 sm:py-3 text-sm sm:text-base"
                         required
                         autocomplete="current-password"
                     />

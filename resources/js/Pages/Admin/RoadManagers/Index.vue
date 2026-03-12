@@ -1,16 +1,40 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
+import DangerConfirmModal from "@/Components/DangerConfirmModal.vue";
 import PaginationLinks from "@/Components/PaginationLinks.vue";
+import RowActionMenu from "@/Components/RowActionMenu.vue";
 import { Link, router } from "@inertiajs/vue3";
+import { ref } from "vue";
 
 const props = defineProps({
   roadManagers: Object,
 });
 
-const handleDelete = (id) => {
-  if (confirm("Seguro que deseas eliminar este road manager?")) {
-    router.delete(route("admin.roadmanagers.destroy", id));
-  }
+const deleteModalOpen = ref(false);
+const deleteProcessing = ref(false);
+const pendingRoadManagerId = ref(null);
+
+const openDeleteModal = (id) => {
+  pendingRoadManagerId.value = id;
+  deleteModalOpen.value = true;
+};
+
+const closeDeleteModal = () => {
+  if (deleteProcessing.value) return;
+  deleteModalOpen.value = false;
+  pendingRoadManagerId.value = null;
+};
+
+const handleDelete = () => {
+  if (!pendingRoadManagerId.value || deleteProcessing.value) return;
+
+  deleteProcessing.value = true;
+  router.delete(route("admin.roadmanagers.destroy", pendingRoadManagerId.value), {
+    onFinish: () => {
+      deleteProcessing.value = false;
+      closeDeleteModal();
+    },
+  });
 };
 </script>
 
@@ -19,12 +43,20 @@ const handleDelete = (id) => {
     <div class="space-y-6">
       <div class="flex justify-between items-center">
         <h1 class="text-2xl font-bold text-[#ffa236]">Road managers</h1>
-        <Link
-          :href="route('admin.roadmanagers.create')"
-          class="bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors"
-        >
-          + Nuevo road manager
-        </Link>
+        <div class="flex items-center gap-2">
+          <Link
+            :href="route('admin.roadmanagers.trash')"
+            class="bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white font-semibold px-4 py-2 rounded-md transition-colors"
+          >
+            Papelera
+          </Link>
+          <Link
+            :href="route('admin.roadmanagers.create')"
+            class="bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors"
+          >
+            + Nuevo road manager
+          </Link>
+        </div>
       </div>
 
       <div class="bg-[#1d1d1b] border border-[#2a2a2a] rounded-xl p-4">
@@ -52,19 +84,22 @@ const handleDelete = (id) => {
                   {{ manager.email_verified_at ? 'Si' : 'No' }}
                 </span>
               </td>
-              <td class="py-3 px-4 text-right space-x-2">
-                <Link
-                  :href="route('admin.roadmanagers.edit', manager.id)"
-                  class="text-[#ffa236] hover:text-[#ffb54d]"
-                >
-                  <i class="fa-solid fa-pen-to-square"></i>
-                </Link>
-                <button
-                  @click="handleDelete(manager.id)"
-                  class="text-red-500 hover:text-red-400"
-                >
-                  <i class="fa-solid fa-trash"></i>
-                </button>
+              <td class="py-3 px-4 text-right">
+                <RowActionMenu label="Acciones de road manager">
+                  <Link
+                    :href="route('admin.roadmanagers.edit', manager.id)"
+                    class="block rounded px-3 py-2 text-sm text-gray-200 hover:bg-white/10"
+                  >
+                    Editar
+                  </Link>
+                  <button
+                    type="button"
+                    class="block w-full rounded px-3 py-2 text-left text-sm text-red-300 hover:bg-red-500/20"
+                    @click="openDeleteModal(manager.id)"
+                  >
+                    Mover a papelera
+                  </button>
+                </RowActionMenu>
               </td>
             </tr>
             <tr v-if="props.roadManagers.data.length === 0">
@@ -78,5 +113,15 @@ const handleDelete = (id) => {
 
       <PaginationLinks v-if="props.roadManagers.links" :links="props.roadManagers.links" :meta="props.roadManagers.meta" class="justify-center" />
     </div>
+
+    <DangerConfirmModal
+      :show="deleteModalOpen"
+      title="Mover road manager a papelera"
+      message="Este usuario se moverá a la papelera y podrá restaurarse luego."
+      confirm-label="Mover a papelera"
+      :processing="deleteProcessing"
+      @close="closeDeleteModal"
+      @confirm="handleDelete"
+    />
   </AdminLayout>
 </template>

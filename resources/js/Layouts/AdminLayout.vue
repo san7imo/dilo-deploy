@@ -99,27 +99,32 @@ const logout = () => {
 
         <Link
           v-if="canManageContent"
+          :href="route('admin.events.index')"
+          class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
+          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.events.*') }"
+        >
+          <i class="fa-solid fa-calendar-days"></i>
+          <span v-if="isSidebarOpen">Eventos</span>
+        </Link>
+
+        <Link
+          v-if="canManageContent"
+          :href="route('admin.organizers.index')"
+          class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
+          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.organizers.*') }"
+        >
+          <i class="fa-solid fa-handshake"></i>
+          <span v-if="isSidebarOpen">Empresarios</span>
+        </Link>
+
+        <Link
+          v-if="canManageContent"
           :href="route('admin.artists.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
           :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.artists.*') }"
         >
           <i class="fa-solid fa-user"></i>
           <span v-if="isSidebarOpen">Artistas</span>
-        </Link>
-
-        <Link
-          v-if="canManageContent"
-          :href="route('admin.team.index')"
-          class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
-          :class="{
-            'bg-[#ffa236]/20 text-[#ffa236]':
-              route().current('admin.team.*') ||
-              route().current('admin.roadmanagers.*') ||
-              route().current('admin.content-managers.*')
-          }"
-        >
-          <i class="fa-solid fa-clipboard-user"></i>
-          <span v-if="isSidebarOpen">Equipo de trabajo</span>
         </Link>
 
         <Link
@@ -143,6 +148,16 @@ const logout = () => {
         </Link>
 
         <Link
+          v-if="canManageContent"
+          :href="route('admin.genres.index')"
+          class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
+          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.genres.*') }"
+        >
+          <i class="fa-solid fa-tags"></i>
+          <span v-if="isSidebarOpen">Géneros</span>
+        </Link>
+
+        <Link
           v-if="isAdmin"
           :href="route('admin.royalties.dashboard')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
@@ -154,22 +169,37 @@ const logout = () => {
 
         <Link
           v-if="canManageContent"
-          :href="route('admin.events.index')"
+          :href="route('admin.team.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
-          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.events.*') }"
+          :class="{
+            'bg-[#ffa236]/20 text-[#ffa236]':
+              route().current('admin.team.*') ||
+              route().current('admin.roadmanagers.*') ||
+              route().current('admin.content-managers.*')
+          }"
         >
-          <i class="fa-solid fa-calendar-days"></i>
-          <span v-if="isSidebarOpen">Eventos</span>
+          <i class="fa-solid fa-clipboard-user"></i>
+          <span v-if="isSidebarOpen">Equipo de trabajo</span>
         </Link>
 
         <Link
           v-if="canManageContent"
-          :href="route('admin.genres.index')"
+          :href="route('admin.workers.index')"
           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
-          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.genres.*') }"
+          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.workers.*') || route().current('admin.payroll-payments.*') }"
         >
-          <i class="fa-solid fa-tags"></i>
-          <span v-if="isSidebarOpen">Géneros</span>
+          <i class="fa-solid fa-wallet"></i>
+          <span v-if="isSidebarOpen">Nómina</span>
+        </Link>
+
+        <Link
+          v-if="isAdmin"
+          :href="route('admin.audit-logs.index')"
+          class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
+          :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('admin.audit-logs.*') }"
+        >
+          <i class="fa-solid fa-clipboard-list"></i>
+          <span v-if="isSidebarOpen">Auditoría</span>
         </Link>
       </nav>
 

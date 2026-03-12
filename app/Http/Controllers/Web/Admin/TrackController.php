@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTrackRequest;
 use App\Http\Requests\UpdateTrackRequest;
+use App\Models\{Artist, Release, RoyaltyStatementLine, Track, TrackSplitAgreement, TrackSplitParticipant};
 use App\Services\TrackService;
-use App\Models\{Track, Release, Artist};
-use Inertia\Inertia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class TrackController extends Controller
 {
@@ -104,5 +107,135 @@ class TrackController extends Controller
         return redirect()
             ->route('admin.tracks.index')
             ->with('success', 'Pista eliminada correctamente');
+    }
+
+    public function trash(Request $request)
+    {
+        Gate::authorize('trash.view.content');
+
+        $tracks = Track::onlyTrashed()
+            ->with(['release:id,title', 'artists:id,name'])
+            ->orderByDesc('deleted_at')
+            ->paginate(10)
+            ->through(function (Track $track): array {
+                $activeSplitAgreements = TrackSplitAgreement::query()
+                    ->where('track_id', $track->id)
+                    ->count();
+
+                $activeRoyaltyLines = RoyaltyStatementLine::query()
+                    ->where('track_id', $track->id)
+                    ->count();
+
+                $blockedReason = null;
+                if ($activeSplitAgreements > 0) {
+                    $blockedReason = "Tiene {$activeSplitAgreements} acuerdos de split activos.";
+                } elseif ($activeRoyaltyLines > 0) {
+                    $blockedReason = "Tiene {$activeRoyaltyLines} líneas de regalías activas.";
+                }
+
+                return [
+                    'id' => $track->id,
+                    'primary' => $track->title,
+                    'secondary' => trim(($track->release?->title ?? '-') . ' · ' . $track->artists->pluck('name')->implode(', '), ' ·'),
+                    'deleted_at' => $track->deleted_at,
+                    'can_force_delete' => $blockedReason === null,
+                    'force_delete_blocked_reason' => $blockedReason,
+                ];
+            });
+
+        if ($request->expectsJson()) {
+            return response()->json($tracks);
+        }
+
+        return Inertia::render('Admin/Trash/Index', [
+            'title' => 'Papelera · Pistas',
+            'items' => $tracks,
+            'restoreRoute' => 'admin.tracks.restore',
+            'forceDeleteRoute' => 'admin.tracks.force-delete',
+            'backRoute' => 'admin.tracks.index',
+        ]);
+    }
+
+    public function restore(int $trackId)
+    {
+        Gate::authorize('trash.manage.content');
+
+        $track = Track::onlyTrashed()->findOrFail($trackId);
+        $release = Release::withTrashed()->find($track->release_id);
+        if (!$release || $release->trashed()) {
+            return back()->withErrors([
+                'track' => 'No se puede restaurar la pista porque su lanzamiento está eliminado. Restaura primero el lanzamiento.',
+            ]);
+        }
+
+        DB::transaction(function () use ($track): void {
+            $track->restore();
+        });
+
+        return redirect()
+            ->route('admin.tracks.index')
+            ->with('success', 'Pista restaurada correctamente');
+    }
+
+    public function forceDelete(int $trackId)
+    {
+        Gate::authorize('trash.manage.content');
+
+        $track = Track::withTrashed()->findOrFail($trackId);
+
+        if (!$track->trashed()) {
+            return back()->withErrors([
+                'track' => 'Solo puedes eliminar permanentemente pistas en papelera.',
+            ]);
+        }
+
+        $activeSplitAgreements = TrackSplitAgreement::query()
+            ->where('track_id', $track->id)
+            ->count();
+
+        if ($activeSplitAgreements > 0) {
+            return back()->withErrors([
+                'track' => "No se puede eliminar permanentemente la pista: tiene {$activeSplitAgreements} acuerdos de split activos.",
+            ]);
+        }
+
+        $activeRoyaltyLines = RoyaltyStatementLine::query()
+            ->where('track_id', $track->id)
+            ->count();
+
+        if ($activeRoyaltyLines > 0) {
+            return back()->withErrors([
+                'track' => "No se puede eliminar permanentemente la pista: tiene {$activeRoyaltyLines} líneas de regalías activas.",
+            ]);
+        }
+
+        DB::transaction(function () use ($track): void {
+            TrackSplitAgreement::onlyTrashed()
+                ->where('track_id', $track->id)
+                ->get()
+                ->each(function (TrackSplitAgreement $agreement): void {
+                    TrackSplitParticipant::withTrashed()
+                        ->where('track_split_agreement_id', $agreement->id)
+                        ->get()
+                        ->each
+                        ->forceDelete();
+
+                    if (!empty($agreement->contract_path)) {
+                        $disk = Storage::disk('contracts_private');
+                        if ($disk->exists($agreement->contract_path)) {
+                            $disk->delete($agreement->contract_path);
+                        }
+                    }
+
+                    $agreement->forceDelete();
+                });
+
+            $track->artists()->detach();
+            $track->forceDelete();
+        });
+
+        return redirect()
+            ->route('admin.tracks.index')
+            ->with('success', 'Pista eliminada permanentemente');
     }
 }

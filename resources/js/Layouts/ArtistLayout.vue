@@ -1,11 +1,15 @@
 <script setup>
 import logoBlanco from '@/Assets/Images/Logos/responsive-blanco.webp';
 import { Link, router, usePage } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 const { props } = usePage();
 const user = props.auth?.user;
 const isSidebarOpen = ref(true);
+const roleNames = computed(() => user?.role_names ?? []);
+const isExternalArtistOnly = computed(() => {
+    return roleNames.value.includes("external_artist") && !roleNames.value.includes("artist");
+});
 
 const logout = () => {
     router.post(route("logout"));
@@ -44,7 +48,7 @@ const logout = () => {
 
             <!-- Navegación -->
             <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
-                <Link v-if="route().has('artist.profile.show')" :href="route('artist.profile.show')"
+                <Link v-if="route().has('artist.profile.show') && !isExternalArtistOnly" :href="route('artist.profile.show')"
                     class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
                     :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('artist.profile.*') }">
                     <i class="fa-solid fa-user"></i>
@@ -58,14 +62,14 @@ const logout = () => {
                     <span v-if="isSidebarOpen">Dashboard</span>
                 </Link>
 
-                <Link v-if="route().has('artist.finances.index')" :href="route('artist.finances.index')"
+                <Link v-if="route().has('artist.finances.index') && !isExternalArtistOnly" :href="route('artist.finances.index')"
                     class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
                     :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('artist.finances.index') }">
                     <i class="fa-solid fa-wallet"></i>
                     <span v-if="isSidebarOpen">Finanzas</span>
                 </Link>
 
-                <Link v-if="route().has('artist.events.index')" :href="route('artist.events.index')"
+                <Link v-if="route().has('artist.events.index') && !isExternalArtistOnly" :href="route('artist.events.index')"
                     class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
                     :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('artist.events.*') }">
                     <i class="fa-solid fa-calendar-days"></i>
@@ -79,7 +83,14 @@ const logout = () => {
                     <span v-if="isSidebarOpen">Mis canciones</span>
                 </Link>
 
-                <Link v-if="route().has('artist.releases.index')" :href="route('artist.releases.index')"
+                <Link v-if="route().has('artist.compositions.index')" :href="route('artist.compositions.index')"
+                    class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
+                    :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('artist.compositions.*') }">
+                    <i class="fa-solid fa-pen-nib"></i>
+                    <span v-if="isSidebarOpen">Mis composiciones</span>
+                </Link>
+
+                <Link v-if="route().has('artist.releases.index') && !isExternalArtistOnly" :href="route('artist.releases.index')"
                     class="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-[#2a2a2a] transition-colors"
                     :class="{ 'bg-[#ffa236]/20 text-[#ffa236]': route().current('artist.releases.*') }">
                     <i class="fa-solid fa-compact-disc"></i>

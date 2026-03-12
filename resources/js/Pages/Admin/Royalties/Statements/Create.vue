@@ -1,6 +1,8 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-import { Link, useForm } from "@inertiajs/vue3";
+import BackNavButton from "@/Components/BackNavButton.vue";
+import FormActions from "@/Components/FormActions.vue";
+import { useForm } from "@inertiajs/vue3";
 
 const props = defineProps({
   providers: { type: Array, default: () => [] },
@@ -23,9 +25,7 @@ const handleSubmit = () => {
   <AdminLayout title="Upload CSV">
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-semibold text-white">Upload CSV</h1>
-      <Link :href="route('admin.royalties.statements.index')" class="text-gray-400 hover:text-white">
-        Volver
-      </Link>
+      <BackNavButton :href="route('admin.royalties.statements.index')" />
     </div>
 
     <form @submit.prevent="handleSubmit" class="space-y-6 max-w-xl">
@@ -54,9 +54,12 @@ const handleSubmit = () => {
         </p>
       </div>
 
-      <div class="flex justify-end">
-        <button type="submit" class="btn-primary">Subir</button>
-      </div>
+      <FormActions
+        :cancel-href="route('admin.royalties.statements.index')"
+        submit-label="Subir"
+        processing-label="Subiendo..."
+        :processing="form.processing"
+      />
     </form>
   </AdminLayout>
 </template>
@@ -67,8 +70,5 @@ const handleSubmit = () => {
 }
 .input-file {
   @apply block w-full text-sm text-gray-400 border border-[#2a2a2a] rounded-md cursor-pointer bg-[#0f0f0f] file:bg-[#ffa236] file:text-black file:px-3 file:py-1;
-}
-.btn-primary {
-  @apply bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors;
 }
 </style>

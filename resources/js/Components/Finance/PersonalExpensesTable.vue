@@ -1,4 +1,5 @@
 <script setup>
+import RowActionMenu from "@/Components/RowActionMenu.vue";
 import { formatDateES } from "@/utils/date";
 import { formatMoney, formatMoneyWithSymbol } from "@/utils/money";
 
@@ -86,14 +87,24 @@ const emit = defineEmits(["edit", "delete"]);
                         </td>
 
                         <td v-if="canEdit || canDelete" class="py-2 text-right whitespace-nowrap">
-                            <button v-if="canEdit" @click="emit('edit', g)"
-                                class="text-[#ffa236] hover:underline mr-3">
-                                Editar
-                            </button>
-                            <button v-if="canDelete" @click="emit('delete', g.id)"
-                                class="text-red-400 hover:underline">
-                                Eliminar
-                            </button>
+                            <RowActionMenu label="Acciones del pago al artista">
+                                <button
+                                    v-if="canEdit"
+                                    type="button"
+                                    class="block w-full rounded px-3 py-2 text-left text-sm text-[#ffa236] hover:bg-white/10"
+                                    @click="emit('edit', g)"
+                                >
+                                    Editar
+                                </button>
+                                <button
+                                    v-if="canDelete"
+                                    type="button"
+                                    class="block w-full rounded px-3 py-2 text-left text-sm text-red-300 hover:bg-red-500/20"
+                                    @click="emit('delete', g.id)"
+                                >
+                                    Mover a papelera
+                                </button>
+                            </RowActionMenu>
                         </td>
                     </tr>
                 </tbody>

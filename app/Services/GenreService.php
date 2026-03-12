@@ -54,7 +54,6 @@ class GenreService
      */
     public function delete(Genre $genre): void
     {
-        $genre->releases()->detach(); // limpia la relación pivote
         $genre->delete();
     }
 }

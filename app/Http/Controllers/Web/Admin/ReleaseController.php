@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReleaseRequest;
 use App\Http\Requests\UpdateReleaseRequest;
+use App\Models\{Artist, Genre, Release, Track};
 use App\Services\ReleaseService;
-use App\Models\{Release, Artist, Genre};
-use Inertia\Inertia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 
 class ReleaseController extends Controller
 {
@@ -110,5 +112,105 @@ class ReleaseController extends Controller
         return redirect()
             ->route('admin.releases.index')
             ->with('success', 'Lanzamiento eliminado correctamente');
+    }
+
+    public function trash(Request $request)
+    {
+        Gate::authorize('trash.view.content');
+
+        $releases = Release::onlyTrashed()
+            ->with('artist:id,name')
+            ->orderByDesc('deleted_at')
+            ->paginate(10)
+            ->through(function (Release $release): array {
+                $activeTracks = Track::query()
+                    ->where('release_id', $release->id)
+                    ->count();
+
+                return [
+                    'id' => $release->id,
+                    'primary' => $release->title,
+                    'secondary' => $release->artist?->name,
+                    'deleted_at' => $release->deleted_at,
+                    'can_force_delete' => $activeTracks === 0,
+                    'force_delete_blocked_reason' => $activeTracks > 0
+                        ? "Tiene {$activeTracks} pistas activas."
+                        : null,
+                ];
+            });
+
+        if ($request->expectsJson()) {
+            return response()->json($releases);
+        }
+
+        return Inertia::render('Admin/Trash/Index', [
+            'title' => 'Papelera · Lanzamientos',
+            'items' => $releases,
+            'restoreRoute' => 'admin.releases.restore',
+            'forceDeleteRoute' => 'admin.releases.force-delete',
+            'backRoute' => 'admin.releases.index',
+        ]);
+    }
+
+    public function restore(int $releaseId)
+    {
+        Gate::authorize('trash.manage.content');
+
+        $release = Release::onlyTrashed()->findOrFail($releaseId);
+        $artist = Artist::withTrashed()->find($release->artist_id);
+        if (!$artist || $artist->trashed()) {
+            return back()->withErrors([
+                'release' => 'No se puede restaurar el lanzamiento porque su artista está eliminado. Restaura primero el artista.',
+            ]);
+        }
+
+        DB::transaction(function () use ($release): void {
+            $release->restore();
+
+            Track::onlyTrashed()
+                ->where('release_id', $release->id)
+                ->restore();
+        });
+
+        return redirect()
+            ->route('admin.releases.index')
+            ->with('success', 'Lanzamiento restaurado correctamente');
+    }
+
+    public function forceDelete(int $releaseId)
+    {
+        Gate::authorize('trash.manage.content');
+
+        $release = Release::withTrashed()->findOrFail($releaseId);
+
+        if (!$release->trashed()) {
+            return back()->withErrors([
+                'release' => 'Solo puedes eliminar permanentemente lanzamientos en papelera.',
+            ]);
+        }
+
+        $activeTracks = Track::query()
+            ->where('release_id', $release->id)
+            ->count();
+
+        if ($activeTracks > 0) {
+            return back()->withErrors([
+                'release' => "No se puede eliminar permanentemente el lanzamiento: tiene {$activeTracks} pistas activas.",
+            ]);
+        }
+
+        DB::transaction(function () use ($release): void {
+            Track::onlyTrashed()
+                ->where('release_id', $release->id)
+                ->get()
+                ->each
+                ->forceDelete();
+
+            $release->forceDelete();
+        });
+
+        return redirect()
+            ->route('admin.releases.index')
+            ->with('success', 'Lanzamiento eliminado permanentemente');
     }
 }

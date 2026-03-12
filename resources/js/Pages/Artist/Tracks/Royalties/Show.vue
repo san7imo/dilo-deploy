@@ -68,7 +68,11 @@ const formatMoney = (value) => {
             <span class="text-gray-500">Mi %</span>
             <span>{{ Number(card.my_pct).toFixed(2) }}%</span>
           </div>
-          <div v-if="card.my_pct !== null" class="flex justify-between">
+          <div v-else-if="card.my_pct_variable" class="flex justify-between">
+            <span class="text-gray-500">Mi %</span>
+            <span>Variable por vigencia</span>
+          </div>
+          <div v-if="card.my_share_usd !== null" class="flex justify-between">
             <span class="text-gray-500">Mi parte (USD)</span>
             <span class="text-white font-semibold">{{ formatMoney(card.my_share_usd) }}</span>
           </div>

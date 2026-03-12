@@ -1,6 +1,7 @@
 <script setup>
 import ArtistLayout from "@/Layouts/ArtistLayout.vue";
-import { useForm } from "@inertiajs/vue3";
+import BackNavButton from "@/Components/BackNavButton.vue";
+import { Link, useForm } from "@inertiajs/vue3";
 
 defineOptions({ layout: ArtistLayout });
 
@@ -23,7 +24,10 @@ const submit = () => {
 
 <template>
   <div class="space-y-6">
-    <h1 class="text-2xl font-bold text-[#ffa236]">Mi perfil</h1>
+    <div class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold text-[#ffa236]">Mi perfil</h1>
+      <BackNavButton :href="route('artist.profile.show')" />
+    </div>
 
     <form @submit.prevent="submit" class="space-y-6">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -57,8 +61,11 @@ const submit = () => {
       </div>
 
       <div class="flex justify-end gap-2">
+        <Link :href="route('artist.profile.show')" class="btn-ghost">
+          Cancelar
+        </Link>
         <button type="submit" class="btn-primary" :disabled="form.processing">
-          Guardar cambios
+          {{ form.processing ? "Guardando..." : "Guardar cambios" }}
         </button>
       </div>
     </form>
@@ -68,4 +75,5 @@ const submit = () => {
 <style scoped>
 .input { @apply w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white focus:border-[#ffa236] focus:ring-[#ffa236]; }
 .btn-primary { @apply bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors; }
+.btn-ghost { @apply bg-transparent hover:bg-white/5 text-gray-200 font-semibold px-4 py-2 rounded-md transition-colors border border-[#2a2a2a]; }
 </style>

@@ -2,15 +2,39 @@
 import { useForm } from "@inertiajs/vue3";
 import { ref } from "vue";
 import ImageGrid from "@/Components/ImageGrid.vue";
+import FormActions from "@/Components/FormActions.vue";
+import PasswordInput from "@/Components/PasswordInput.vue";
 import { xsrfHeader } from "@/utils/csrf";
 
 const props = defineProps({
   artist: { type: Object, default: () => ({}) },
   genres: { type: Array, default: () => [] },
   mode: { type: String, default: "create" },
+  cancelHref: { type: String, default: "" },
 });
 
 const isDeleting = ref(false);
+const identificationTypes = [
+  { value: "passport", label: "Pasaporte" },
+  { value: "national_id", label: "Documento nacional / ID nacional" },
+  { value: "residence_permit", label: "Permiso de residencia" },
+  { value: "tax_id", label: "Identificación fiscal (Tax ID)" },
+  { value: "driver_license", label: "Licencia de conducción" },
+  { value: "other", label: "Otro" },
+];
+
+const normalizeIdentificationType = (value) => {
+  const map = {
+    cc: "national_id",
+    ti: "national_id",
+    ce: "residence_permit",
+    nit: "tax_id",
+  };
+
+  if (!value) return "";
+
+  return map[value] || value;
+};
 
 // Normalizar social_links
 const prepareSocialLinks = () => {
@@ -59,9 +83,13 @@ const prepareSocialLinks = () => {
 
 const form = useForm({
   name: props.artist.name || "",
+  legal_name: props.artist.user?.name || "",
   bio: props.artist.bio || "",
   country: props.artist.country || "",
   phone: props.artist.phone || "",
+  identification_type: normalizeIdentificationType(props.artist.user?.identification_type),
+  identification_number: props.artist.user?.identification_number || "",
+  additional_information: props.artist.user?.additional_information || "",
   genre_id: props.artist.genre_id || "",
   social_links: prepareSocialLinks(),
   presentation_video_url: props.artist.presentation_video_url || "",
@@ -216,16 +244,25 @@ const handleSubmit = () => {
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-6">
     <!-- Datos principales -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div>
-        <label class="text-gray-300 text-sm">Nombre del artista</label>
-        <input v-model="form.name" type="text" class="input" placeholder="Nombre artístico" />
-        <p v-if="form.errors.name" class="text-red-500 text-sm mt-1">
-          {{ form.errors.name }}
-        </p>
-      </div>
-
+    <div class="bg-[#151513] border border-[#2a2a2a] rounded-lg p-4 space-y-4">
+      <h3 class="text-[#ffa236] font-semibold">Datos del artista</h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-gray-300 text-sm">Nombre artístico</label>
+          <input v-model="form.name" type="text" class="input" placeholder="Nombre artístico" />
+          <p v-if="form.errors.name" class="text-red-500 text-sm mt-1">
+            {{ form.errors.name }}
+          </p>
+        </div>
+
+        <div>
+          <label class="text-gray-300 text-sm">Nombre legal completo</label>
+          <input v-model="form.legal_name" type="text" class="input" placeholder="Nombre real completo" />
+          <p v-if="form.errors.legal_name" class="text-red-500 text-sm mt-1">
+            {{ form.errors.legal_name }}
+          </p>
+        </div>
+
         <div>
           <label class="text-gray-300 text-sm">Correo del artista</label>
           <input v-model="form.email" type="email" class="input" placeholder="artista@email.com" />
@@ -236,7 +273,13 @@ const handleSubmit = () => {
 
         <div>
           <label class="text-gray-300 text-sm">Contraseña</label>
-          <input v-model="form.password" type="password" class="input" placeholder="Minimo 8 caracteres" />
+          <PasswordInput
+            id="artist-password"
+            v-model="form.password"
+            input-class="input"
+            placeholder="Minimo 8 caracteres"
+            autocomplete="new-password"
+          />
           <p v-if="form.errors.password" class="text-red-500 text-sm mt-1">
             {{ form.errors.password }}
           </p>
@@ -244,19 +287,58 @@ const handleSubmit = () => {
             Deja en blanco para no cambiarla.
           </p>
         </div>
+
+        <div>
+          <label class="text-gray-300 text-sm">País</label>
+          <input v-model="form.country" type="text" class="input" placeholder="Ej: Colombia" />
+        </div>
+
+        <div>
+          <label class="text-gray-300 text-sm">Celular</label>
+          <input v-model="form.phone" type="tel" class="input" placeholder="Ej: +57 300 123 4567" />
+          <p v-if="form.errors.phone" class="text-red-500 text-sm mt-1">
+            {{ form.errors.phone }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Documentación -->
+    <div class="bg-[#151513] border border-[#2a2a2a] rounded-lg p-4 space-y-4">
+      <h3 class="text-[#ffa236] font-semibold">Documentación y datos adicionales</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-gray-300 text-sm">Tipo de documento</label>
+          <select v-model="form.identification_type" class="input">
+            <option value="">Selecciona tipo</option>
+            <option v-for="option in identificationTypes" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+          <p v-if="form.errors.identification_type" class="text-red-500 text-sm mt-1">
+            {{ form.errors.identification_type }}
+          </p>
+        </div>
+
+        <div>
+          <label class="text-gray-300 text-sm">Número de documento</label>
+          <input v-model="form.identification_number" type="text" class="input" placeholder="Número de identificación" />
+          <p v-if="form.errors.identification_number" class="text-red-500 text-sm mt-1">
+            {{ form.errors.identification_number }}
+          </p>
+        </div>
       </div>
 
-
       <div>
-        <label class="text-gray-300 text-sm">País</label>
-        <input v-model="form.country" type="text" class="input" placeholder="Ej: Colombia" />
-      </div>
-
-      <div>
-        <label class="text-gray-300 text-sm">Celular</label>
-        <input v-model="form.phone" type="tel" class="input" placeholder="Ej: +57 300 123 4567" />
-        <p v-if="form.errors.phone" class="text-red-500 text-sm mt-1">
-          {{ form.errors.phone }}
+        <label class="text-gray-300 text-sm">Información adicional</label>
+        <textarea
+          v-model="form.additional_information"
+          rows="3"
+          class="input"
+          placeholder="Observaciones administrativas o datos relevantes del artista..."
+        ></textarea>
+        <p v-if="form.errors.additional_information" class="text-red-500 text-sm mt-1">
+          {{ form.errors.additional_information }}
         </p>
       </div>
     </div>
@@ -337,12 +419,11 @@ const handleSubmit = () => {
       </p>
     </div>
 
-    <!-- Botón -->
-    <div class="flex justify-end">
-      <button type="submit" class="btn-primary">
-        {{ props.mode === "edit" ? "Actualizar artista" : "Guardar artista" }}
-      </button>
-    </div>
+    <FormActions
+      :cancel-href="props.cancelHref"
+      :submit-label="props.mode === 'edit' ? 'Actualizar artista' : 'Guardar artista'"
+      :processing="form.processing"
+    />
   </form>
 </template>
 
@@ -351,7 +432,4 @@ const handleSubmit = () => {
   @apply w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white focus:border-[#ffa236] focus:ring-[#ffa236];
 }
 
-.btn-primary {
-  @apply bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold px-4 py-2 rounded-md transition-colors;
-}
 </style>

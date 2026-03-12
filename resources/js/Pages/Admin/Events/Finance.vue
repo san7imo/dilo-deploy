@@ -1,5 +1,6 @@
 <script setup>
 import AdminLayout from "@/Layouts/AdminLayout.vue";
+import DangerConfirmModal from "@/Components/DangerConfirmModal.vue";
 import { Link, useForm, usePage } from "@inertiajs/vue3";
 import { computed, ref, watch } from "vue";
 import FinanceCharts from "@/Components/Finance/FinanceCharts.vue";
@@ -30,6 +31,9 @@ const showExpenseModal = ref(false);
 const showPersonalExpenseModal = ref(false);
 const editingPayment = ref(null);
 const editingExpense = ref(null);
+const deleteModalOpen = ref(false);
+const deleteProcessing = ref(false);
+const pendingDelete = ref(null);
 
 // Opciones
 const paymentMethodOptions = [
@@ -384,19 +388,92 @@ const submitPayment = () => {
     });
 };
 
+const deleteTargetLabel = computed(() => {
+    if (!pendingDelete.value) return "este registro";
+
+    return {
+        payment: "este ingreso",
+        expense: "este gasto",
+        personal_expense: "este pago al artista",
+    }[pendingDelete.value.type] || "este registro";
+});
+
+const openDeleteModal = (type, id) => {
+    if (!isAdmin.value) return;
+    pendingDelete.value = { type, id };
+    deleteModalOpen.value = true;
+};
+
+const closeDeleteModal = () => {
+    if (deleteProcessing.value) return;
+    deleteModalOpen.value = false;
+    pendingDelete.value = null;
+};
+
+const confirmDelete = () => {
+    if (!pendingDelete.value || deleteProcessing.value) return;
+
+    const { type, id } = pendingDelete.value;
+    deleteProcessing.value = true;
+
+    if (type === "payment") {
+        paymentForm.delete(route("admin.events.payments.destroy", id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (editingPayment.value?.id === id) {
+                    editingPayment.value = null;
+                    showPaymentModal.value = false;
+                }
+            },
+            onFinish: () => {
+                deleteProcessing.value = false;
+                closeDeleteModal();
+            },
+        });
+        return;
+    }
+
+    if (type === "expense") {
+        expenseForm.delete(route("admin.events.expenses.destroy", id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (editingExpense.value?.id === id) {
+                    editingExpense.value = null;
+                    showExpenseModal.value = false;
+                }
+            },
+            onFinish: () => {
+                deleteProcessing.value = false;
+                closeDeleteModal();
+            },
+        });
+        return;
+    }
+
+    if (type === "personal_expense") {
+        personalExpenseForm.delete(route("admin.events.personal-expenses.destroy", id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (editingPersonalExpense.value?.id === id) {
+                    editingPersonalExpense.value = null;
+                    showPersonalExpenseModal.value = false;
+                }
+            },
+            onFinish: () => {
+                deleteProcessing.value = false;
+                closeDeleteModal();
+            },
+        });
+        return;
+    }
+
+    deleteProcessing.value = false;
+    closeDeleteModal();
+};
+
 const deletePayment = (paymentId) => {
     if (!isAdmin.value) return;
-    if (!confirm("¿Eliminar este ingreso?")) return;
-
-    paymentForm.delete(route("admin.events.payments.destroy", paymentId), {
-        preserveScroll: true,
-        onSuccess: () => {
-            if (editingPayment.value?.id === paymentId) {
-                editingPayment.value = null;
-                showPaymentModal.value = false;
-            }
-        },
-    });
+    openDeleteModal("payment", paymentId);
 };
 
 const submitExpense = () => {
@@ -420,17 +497,7 @@ const submitExpense = () => {
 
 const deleteExpense = (expenseId) => {
     if (!isAdmin.value) return;
-    if (!confirm("¿Eliminar este gasto?")) return;
-
-    expenseForm.delete(route("admin.events.expenses.destroy", expenseId), {
-        preserveScroll: true,
-        onSuccess: () => {
-            if (editingExpense.value?.id === expenseId) {
-                editingExpense.value = null;
-                showExpenseModal.value = false;
-            }
-        },
-    });
+    openDeleteModal("expense", expenseId);
 };
 
 const submitPersonalExpense = () => {
@@ -462,17 +529,7 @@ const submitPersonalExpense = () => {
 
 const deletePersonalExpense = (expenseId) => {
     if (!isAdmin.value) return;
-    if (!confirm("¿Eliminar este pago al artista?")) return;
-
-    personalExpenseForm.delete(route("admin.events.personal-expenses.destroy", expenseId), {
-        preserveScroll: true,
-        onSuccess: () => {
-            if (editingPersonalExpense.value?.id === expenseId) {
-                editingPersonalExpense.value = null;
-                showPersonalExpenseModal.value = false;
-            }
-        },
-    });
+    openDeleteModal("personal_expense", expenseId);
 };
 
 const updateEventDetails = () => {
@@ -1123,6 +1180,15 @@ const closePersonalExpenseModal = () => {
                 :is-editing="!!editingPersonalExpense"
                 @close="closePersonalExpenseModal"
                 @submit="submitPersonalExpense"
+            />
+            <DangerConfirmModal
+                :show="deleteModalOpen"
+                title="Mover registro a papelera"
+                :message="`Esta acción moverá ${deleteTargetLabel} a la papelera.`"
+                confirm-label="Mover a papelera"
+                :processing="deleteProcessing"
+                @close="closeDeleteModal"
+                @confirm="confirmDelete"
             />
         </div>
     </AdminLayout>

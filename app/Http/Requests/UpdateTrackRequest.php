@@ -32,7 +32,9 @@ class UpdateTrackRequest extends FormRequest
             // Datos principales
             'title'        => [
                 'sometimes','required','string','max:255',
-                Rule::unique('tracks', 'title')->ignore($track?->id)
+                Rule::unique('tracks', 'title')
+                    ->ignore($track?->id)
+                    ->whereNull('deleted_at')
             ],
             'isrc'         => 'sometimes|nullable|string|max:32',
             'track_number' => 'sometimes|nullable|integer|min:1',

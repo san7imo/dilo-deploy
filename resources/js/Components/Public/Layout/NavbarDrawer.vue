@@ -56,38 +56,16 @@ const emit = defineEmits<{ (e: 'close'): void }>()
         </a>
 
         <nav class="w-full max-w-[14rem] text-center">
+          <p class="mb-4 text-xs uppercase tracking-[0.25em] text-white/50">
+            Menu Dilo Records
+          </p>
           <ul class="space-y-3">
-            <li><Link href="/artistas" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90">Artistas</Link></li>
-            <li><Link href="/eventos" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90">Eventos</Link></li>
-            <li><Link href="/contacto" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90">Contacto</Link></li>
-            <li>
-              <div class="rounded-lg px-4 py-3 text-gray-400 bg-white/5 shadow-inner cursor-not-allowed transition flex items-center justify-center gap-3" aria-disabled="true" role="button" aria-pressed="true">
-                <span class="font-medium">Tienda</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <rect x="3" y="11" width="18" height="10" rx="2" ry="2" />
-                  <path d="M7 11V8a5 5 0 0 1 10 0v3" />
-                </svg>
-              </div>
-            </li>
-            <li>
-              <div class="rounded-lg px-4 py-3 text-gray-400 bg-white/5 shadow-inner cursor-not-allowed transition flex items-center justify-center gap-3" aria-disabled="true" role="button" aria-pressed="true">
-                <span class="font-medium">Beats</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <rect x="3" y="11" width="18" height="10" rx="2" ry="2" />
-                  <path d="M7 11V8a5 5 0 0 1 10 0v3" />
-                </svg>
-              </div>
-            </li>
-            <li><a href="https://ascaniopub.com/" target="_blank" rel="noopener noreferrer" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90">Editorial</a></li>
-            <li>
-              <div class="rounded-lg px-4 py-3 text-gray-400 bg-white/5 shadow-inner cursor-not-allowed transition flex items-center justify-center gap-3" aria-disabled="true" role="button" aria-pressed="true">
-                <span class="font-medium">Noticias</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <rect x="3" y="11" width="18" height="10" rx="2" ry="2" />
-                  <path d="M7 11V8a5 5 0 0 1 10 0v3" />
-                </svg>
-              </div>
-            </li>
+            <li><Link :href="route('public.artists.index')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Artistas</Link></li>
+            <li><Link :href="route('public.events.index')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Eventos</Link></li>
+            <li><Link :href="route('public.studio')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Estudio</Link></li>
+            <li><Link :href="route('public.editorial')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Editorial</Link></li>
+            <li><Link :href="route('public.store')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Tienda</Link></li>
+            <li><Link :href="route('public.news')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Noticias</Link></li>
           </ul>
         </nav>
 

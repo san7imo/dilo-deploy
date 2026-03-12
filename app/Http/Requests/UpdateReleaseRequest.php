@@ -30,7 +30,9 @@ class UpdateReleaseRequest extends FormRequest
             'artist_id'    => 'sometimes|exists:artists,id',
             'title'        => [
                 'sometimes','required','string','max:255',
-                Rule::unique('releases','title')->ignore($release?->id)
+                Rule::unique('releases','title')
+                    ->ignore($release?->id)
+                    ->whereNull('deleted_at')
             ],
             'upc'          => 'sometimes|nullable|string|max:32',
             'release_date' => 'sometimes|nullable|date',
