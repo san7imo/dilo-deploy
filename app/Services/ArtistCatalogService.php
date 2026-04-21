@@ -16,6 +16,9 @@ class ArtistCatalogService
         return User::query()
             ->role('external_artist')
             ->whereDoesntHave('artist')
+            ->whereNotIn('id', Artist::withTrashed()
+                ->whereNotNull('user_id')
+                ->select('user_id'))
             ->orderBy('id')
             ->get()
             ->map(fn (User $user) => $this->createOrAttachExternalArtist(

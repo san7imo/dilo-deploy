@@ -151,6 +151,91 @@ class TrashManagementTest extends TestCase
         ]);
     }
 
+    public function test_external_artist_cannot_be_sent_to_trash_when_has_active_release(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole($this->role('admin'));
+
+        $artist = Artist::create([
+            'name' => 'External With Release',
+            'artist_origin' => 'external',
+            'has_public_profile' => false,
+        ]);
+
+        Release::create([
+            'artist_id' => $artist->id,
+            'title' => 'Release Blocks Delete',
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.artists.index'))
+            ->delete(route('admin.artists.destroy', $artist))
+            ->assertRedirect(route('admin.artists.index'))
+            ->assertSessionHasErrors('artist');
+
+        $this->assertNull($artist->fresh()?->deleted_at);
+    }
+
+    public function test_external_artist_cannot_be_sent_to_trash_when_has_active_track_association(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole($this->role('admin'));
+
+        $mainArtist = Artist::create(['name' => 'Main Artist']);
+        $externalArtist = Artist::create([
+            'name' => 'External Collaborator',
+            'artist_origin' => 'external',
+            'has_public_profile' => false,
+        ]);
+
+        $release = Release::create([
+            'artist_id' => $mainArtist->id,
+            'title' => 'Release For Collaboration',
+        ]);
+
+        $track = Track::create([
+            'release_id' => $release->id,
+            'title' => 'Collaborative Track',
+        ]);
+        $track->artists()->sync([$mainArtist->id, $externalArtist->id]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.artists.index'))
+            ->delete(route('admin.artists.destroy', $externalArtist))
+            ->assertRedirect(route('admin.artists.index'))
+            ->assertSessionHasErrors('artist');
+
+        $this->assertNull($externalArtist->fresh()?->deleted_at);
+    }
+
+    public function test_trashed_external_artist_is_not_recreated_by_sync(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole($this->role('admin'));
+
+        $user = User::factory()->create([
+            'name' => 'External Legal Name',
+            'stage_name' => 'External Stage Name',
+        ]);
+        $user->assignRole($this->role('external_artist'));
+
+        $artist = Artist::create([
+            'name' => 'External Stage Name',
+            'user_id' => $user->id,
+            'artist_origin' => 'external',
+            'has_public_profile' => false,
+        ]);
+        $artist->delete();
+
+        $this->actingAs($admin)
+            ->get(route('admin.artists.index'))
+            ->assertOk();
+
+        $this->assertSame(1, Artist::withTrashed()->where('user_id', $user->id)->count());
+        $this->assertSoftDeleted('artists', ['id' => $artist->id]);
+        $this->assertSame(0, Artist::query()->where('user_id', $user->id)->count());
+    }
+
     public function test_collaborator_force_delete_is_blocked_when_has_active_payments(): void
     {
         $admin = User::factory()->create();

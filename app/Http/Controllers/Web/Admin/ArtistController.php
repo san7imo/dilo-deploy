@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreArtistRequest;
 use App\Http\Requests\StoreExternalArtistInvitationRequest;
 use App\Http\Requests\UpdateArtistRequest;
-use App\Models\{Artist, Event, Genre, Release, User};
+use App\Models\{Artist, Event, Genre, Release, Track, User};
 use App\Services\ArtistCatalogService;
 use App\Services\ArtistService;
 use App\Services\ExternalArtistInvitationService;
@@ -147,6 +147,12 @@ class ArtistController extends Controller
     /** Eliminar artista */
     public function destroy(Artist $artist)
     {
+        if ($blockedReason = $this->externalArtistDeletionBlockedReason($artist)) {
+            return redirect()
+                ->route('admin.artists.index')
+                ->withErrors(['artist' => $blockedReason]);
+        }
+
         $this->artistService->delete($artist);
 
         return redirect()
@@ -211,6 +217,14 @@ class ArtistController extends Controller
                 $blockedReason = null;
                 if ($activeReleases > 0) {
                     $blockedReason = "Tiene {$activeReleases} lanzamientos activos.";
+                } elseif ($artist->artist_origin === 'external') {
+                    $activeTracks = Track::query()
+                        ->whereHas('artists', fn ($query) => $query->where('artists.id', $artist->id))
+                        ->count();
+
+                    if ($activeTracks > 0) {
+                        $blockedReason = "Tiene {$activeTracks} canciones activas asociadas.";
+                    }
                 } elseif ($activeMainEvents > 0) {
                     $blockedReason = "Tiene {$activeMainEvents} eventos activos como artista principal.";
                 }
@@ -290,6 +304,18 @@ class ArtistController extends Controller
             ]);
         }
 
+        if ($artist->artist_origin === 'external') {
+            $activeTracks = Track::query()
+                ->whereHas('artists', fn ($query) => $query->where('artists.id', $artist->id))
+                ->count();
+
+            if ($activeTracks > 0) {
+                return back()->withErrors([
+                    'artist' => "No se puede eliminar permanentemente el artista: tiene {$activeTracks} canciones activas asociadas.",
+                ]);
+            }
+        }
+
         $activeMainEvents = Event::query()
             ->where('main_artist_id', $artist->id)
             ->count();
@@ -309,6 +335,31 @@ class ArtistController extends Controller
         return redirect()
             ->route('admin.artists.index')
             ->with('success', 'Artista eliminado permanentemente');
+    }
+
+    private function externalArtistDeletionBlockedReason(Artist $artist): ?string
+    {
+        if ($artist->artist_origin !== 'external') {
+            return null;
+        }
+
+        $activeReleases = Release::query()
+            ->where('artist_id', $artist->id)
+            ->count();
+
+        if ($activeReleases > 0) {
+            return "No se puede enviar a papelera el artista externo: tiene {$activeReleases} lanzamientos activos.";
+        }
+
+        $activeTracks = Track::query()
+            ->whereHas('artists', fn ($query) => $query->where('artists.id', $artist->id))
+            ->count();
+
+        if ($activeTracks > 0) {
+            return "No se puede enviar a papelera el artista externo: tiene {$activeTracks} canciones activas asociadas.";
+        }
+
+        return null;
     }
 
     /** Eliminar una imagen específica del artista (AJAX) */
