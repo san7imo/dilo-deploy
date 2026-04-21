@@ -234,6 +234,10 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin|contentmanager'])
         Route::delete('artists/{artistId}/force', [AdminArtistController::class, 'forceDelete'])
             ->whereNumber('artistId')
             ->name('artists.force-delete');
+        Route::patch('artists/{artist}/convert-to-external', [AdminArtistController::class, 'convertToExternal'])
+            ->name('artists.convert-to-external');
+        Route::patch('artists/{artist}/convert-to-internal', [AdminArtistController::class, 'convertToInternal'])
+            ->name('artists.convert-to-internal');
         Route::post('artists/external-invitations', [AdminArtistController::class, 'inviteExternalArtist'])
             ->name('artists.external-invitations.store');
         Route::resource('artists', AdminArtistController::class)->except(['show']);

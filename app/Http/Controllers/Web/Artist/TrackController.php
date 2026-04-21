@@ -290,7 +290,7 @@ class TrackController extends Controller
         $user = $request->user();
         $artist = $user->artist()->first();
 
-        if ($artist) {
+        if ($artist && $artist->artist_origin === 'internal') {
             return [
                 'type' => 'internal',
                 'artist_id' => $artist->id,

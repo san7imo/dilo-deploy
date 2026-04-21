@@ -361,6 +361,23 @@ const normalizePersonalExpenseCurrencyAndRate = () => {
     }
 };
 
+const submitFinanceForm = (form, routeName, isEditing, onSuccess) => {
+    form.transform((data) => (
+        isEditing
+            ? { ...data, _method: "put" }
+            : data
+    ));
+
+    form.post(routeName, {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess,
+        onFinish: () => {
+            form.transform((data) => data);
+        },
+    });
+};
+
 // Actions
 const submitPayment = () => {
     normalizePaymentCurrencyAndRate();
@@ -369,22 +386,19 @@ const submitPayment = () => {
     const routeName = isEditing
         ? route("admin.events.payments.update", editingPayment.value.id)
         : route("admin.events.payments.store", props.event.id);
-    paymentForm[isEditing ? "put" : "post"](routeName, {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            paymentForm.reset(
-                "amount_original",
-                "payment_method",
-                "collaborator_id",
-                "is_advance",
-                "notes",
-                "receipt_file"
-            );
-            editingPayment.value = null;
-            showPaymentModal.value = false;
-            activeTab.value = "pagos";
-        },
+
+    submitFinanceForm(paymentForm, routeName, isEditing, () => {
+        paymentForm.reset(
+            "amount_original",
+            "payment_method",
+            "collaborator_id",
+            "is_advance",
+            "notes",
+            "receipt_file"
+        );
+        editingPayment.value = null;
+        showPaymentModal.value = false;
+        activeTab.value = "pagos";
     });
 };
 
@@ -483,15 +497,12 @@ const submitExpense = () => {
     const routeName = isEditing
         ? route("admin.events.expenses.update", editingExpense.value.id)
         : route("admin.events.expenses.store", props.event.id);
-    expenseForm[isEditing ? "put" : "post"](routeName, {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            expenseForm.reset("amount_original", "name", "description", "category", "receipt_file");
-            editingExpense.value = null;
-            showExpenseModal.value = false;
-            activeTab.value = "gastos";
-        },
+
+    submitFinanceForm(expenseForm, routeName, isEditing, () => {
+        expenseForm.reset("amount_original", "name", "description", "category", "receipt_file");
+        editingExpense.value = null;
+        showExpenseModal.value = false;
+        activeTab.value = "gastos";
     });
 };
 
@@ -507,23 +518,20 @@ const submitPersonalExpense = () => {
     const routeName = isEditing
         ? route("admin.events.personal-expenses.update", editingPersonalExpense.value.id)
         : route("admin.events.personal-expenses.store", props.event.id);
-    personalExpenseForm[isEditing ? "put" : "post"](routeName, {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            personalExpenseForm.reset(
-                "amount_original",
-                "expense_type",
-                "name",
-                "description",
-                "payment_method",
-                "recipient",
-                "receipt_file"
-            );
-            editingPersonalExpense.value = null;
-            showPersonalExpenseModal.value = false;
-            activeTab.value = "gastos-personales";
-        },
+
+    submitFinanceForm(personalExpenseForm, routeName, isEditing, () => {
+        personalExpenseForm.reset(
+            "amount_original",
+            "expense_type",
+            "name",
+            "description",
+            "payment_method",
+            "recipient",
+            "receipt_file"
+        );
+        editingPersonalExpense.value = null;
+        showPersonalExpenseModal.value = false;
+        activeTab.value = "gastos-personales";
     });
 };
 
@@ -633,7 +641,7 @@ const editPersonalExpense = (expense) => {
 
     editingPersonalExpense.value = expense;
     personalExpenseForm.clearErrors();
-    personalExpenseForm.expense_date = expense.expense_date || new Date().toISOString().slice(0, 10);
+    personalExpenseForm.expense_date = toDateInputValue(expense.expense_date) || new Date().toISOString().slice(0, 10);
     personalExpenseForm.expense_type = expense.expense_type || "";
     personalExpenseForm.name = expense.name || "";
     personalExpenseForm.description = expense.description || "";

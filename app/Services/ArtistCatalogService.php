@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Artist;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -76,6 +77,56 @@ class ArtistCatalogService
         });
     }
 
+    public function convertToExternal(Artist $artist): Artist
+    {
+        return DB::transaction(function () use ($artist): Artist {
+            $artist->update([
+                'artist_origin' => 'external',
+                'has_public_profile' => false,
+            ]);
+
+            $user = $artist->user;
+            if ($user) {
+                if ($user->hasRole('artist')) {
+                    $user->removeRole('artist');
+                }
+
+                if (!$user->hasRole('external_artist')) {
+                    $user->assignRole('external_artist');
+                }
+            }
+
+            $this->flushArtistCaches();
+
+            return $artist->fresh(['user']);
+        });
+    }
+
+    public function convertToInternal(Artist $artist): Artist
+    {
+        return DB::transaction(function () use ($artist): Artist {
+            $artist->update([
+                'artist_origin' => 'internal',
+                'has_public_profile' => true,
+            ]);
+
+            $user = $artist->user;
+            if ($user) {
+                if ($user->hasRole('external_artist')) {
+                    $user->removeRole('external_artist');
+                }
+
+                if (!$user->hasRole('artist')) {
+                    $user->assignRole('artist');
+                }
+            }
+
+            $this->flushArtistCaches();
+
+            return $artist->fresh(['user']);
+        });
+    }
+
     public function resolveDisplayName(?string ...$candidates): string
     {
         foreach ($candidates as $candidate) {
@@ -134,5 +185,10 @@ class ArtistCatalogService
             ->when($ignoreArtistId, fn ($query) => $query->where('id', '!=', $ignoreArtistId))
             ->where('slug', $slug)
             ->exists();
+    }
+
+    private function flushArtistCaches(): void
+    {
+        Cache::flush();
     }
 }

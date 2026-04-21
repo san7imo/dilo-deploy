@@ -22,7 +22,7 @@ class RoyaltyPayoutService
     {
         $artist = $user->artist()->first();
 
-        if ($artist) {
+        if ($artist && $artist->artist_origin === 'internal') {
             return [
                 'type' => 'internal',
                 'artist_id' => $artist->id,

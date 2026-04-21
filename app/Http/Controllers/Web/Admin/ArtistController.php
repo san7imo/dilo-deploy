@@ -154,6 +154,24 @@ class ArtistController extends Controller
             ->with('success', 'Artista eliminado correctamente');
     }
 
+    public function convertToExternal(Artist $artist)
+    {
+        $this->artistCatalogService->convertToExternal($artist);
+
+        return redirect()
+            ->route('admin.artists.index')
+            ->with('success', 'El artista se convirtió en externo y salió del catálogo público.');
+    }
+
+    public function convertToInternal(Artist $artist)
+    {
+        $this->artistCatalogService->convertToInternal($artist);
+
+        return redirect()
+            ->route('admin.artists.index')
+            ->with('success', 'El artista se convirtió en interno y volvió al catálogo público.');
+    }
+
     /** Invitar artista externo desde módulo de artistas */
     public function inviteExternalArtist(
         StoreExternalArtistInvitationRequest $request,

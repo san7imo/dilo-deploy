@@ -3,7 +3,6 @@ import AdminLayout from "@/Layouts/AdminLayout.vue";
 import DangerConfirmModal from "@/Components/DangerConfirmModal.vue";
 import Modal from "@/Components/Modal.vue";
 import PaginationLinks from "@/Components/PaginationLinks.vue";
-import RowActionMenu from "@/Components/RowActionMenu.vue";
 import { Link, router, useForm } from "@inertiajs/vue3";
 import { ref } from "vue";
 
@@ -33,6 +32,8 @@ const formatIdentificationType = (value) => identificationTypeLabels[value] || "
 const deleteModalOpen = ref(false);
 const deleteProcessing = ref(false);
 const pendingArtistId = ref(null);
+const pendingAction = ref("delete");
+const pendingArtistName = ref("");
 const inviteModalOpen = ref(false);
 
 const inviteForm = useForm({
@@ -40,8 +41,10 @@ const inviteForm = useForm({
   email: "",
 });
 
-const openDeleteModal = (id) => {
-  pendingArtistId.value = id;
+const openActionModal = (action, artist) => {
+  pendingAction.value = action;
+  pendingArtistId.value = artist.id;
+  pendingArtistName.value = artist.name || "";
   deleteModalOpen.value = true;
 };
 
@@ -49,12 +52,65 @@ const closeDeleteModal = () => {
   if (deleteProcessing.value) return;
   deleteModalOpen.value = false;
   pendingArtistId.value = null;
+  pendingArtistName.value = "";
+  pendingAction.value = "delete";
 };
 
-const handleDelete = () => {
+const modalConfig = () => {
+  if (pendingAction.value === "convert_to_external") {
+    return {
+      title: "Convertir artista en externo",
+      message: `El artista ${pendingArtistName.value || ""} saldrá del catálogo interno y conservará sus canciones y regalías como artista externo.`,
+      confirmLabel: "Convertir a externo",
+      confirmKeyword: "EXTERNO",
+      requireKeyword: false,
+    };
+  }
+
+  if (pendingAction.value === "convert_to_internal") {
+    return {
+      title: "Convertir artista en interno",
+      message: `El artista ${pendingArtistName.value || ""} volverá al catálogo interno y su perfil público quedará visible nuevamente.`,
+      confirmLabel: "Convertir a interno",
+      confirmKeyword: "INTERNO",
+      requireKeyword: false,
+    };
+  }
+
+  return {
+    title: "Mover artista a papelera",
+    message: "El artista se moverá a la papelera y podrás restaurarlo luego.",
+    confirmLabel: "Mover a papelera",
+    confirmKeyword: "ELIMINAR",
+    requireKeyword: true,
+  };
+};
+
+const handleAction = () => {
   if (!pendingArtistId.value || deleteProcessing.value) return;
 
   deleteProcessing.value = true;
+
+  if (pendingAction.value === "convert_to_external") {
+    router.patch(route("admin.artists.convert-to-external", pendingArtistId.value), {}, {
+      onFinish: () => {
+        deleteProcessing.value = false;
+        closeDeleteModal();
+      },
+    });
+    return;
+  }
+
+  if (pendingAction.value === "convert_to_internal") {
+    router.patch(route("admin.artists.convert-to-internal", pendingArtistId.value), {}, {
+      onFinish: () => {
+        deleteProcessing.value = false;
+        closeDeleteModal();
+      },
+    });
+    return;
+  }
+
   router.delete(route("admin.artists.destroy", pendingArtistId.value), {
     onFinish: () => {
       deleteProcessing.value = false;
@@ -173,15 +229,13 @@ const handleInviteExternalArtist = () => {
                   >
                     <i class="fa-solid fa-pen-to-square mr-1"></i>Editar
                   </Link>
-                  <RowActionMenu label="Acciones de artista">
-                    <button
-                      type="button"
-                      class="block w-full rounded px-3 py-2 text-left text-sm text-red-300 hover:bg-red-500/20"
-                      @click="openDeleteModal(artist.id)"
-                    >
-                      Mover a papelera
-                    </button>
-                  </RowActionMenu>
+                  <button
+                    type="button"
+                    class="rounded bg-blue-500/10 px-3 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-500/20"
+                    @click="openActionModal('convert_to_external', artist)"
+                  >
+                    <i class="fa-solid fa-right-left mr-1"></i>Convertir a externo
+                  </button>
                 </div>
               </div>
             </div>
@@ -246,6 +300,25 @@ const handleInviteExternalArtist = () => {
                 {{ artist.user.additional_information }}
               </p>
             </div>
+
+            <div class="pt-3 mt-3 border-t border-[#2a2a2a]">
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="flex-1 rounded bg-blue-500/10 px-3 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-500/20"
+                  @click="openActionModal('convert_to_internal', artist)"
+                >
+                  <i class="fa-solid fa-right-left mr-1"></i>Convertir a interno
+                </button>
+                <button
+                  type="button"
+                  class="flex-1 rounded bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-500/20"
+                  @click="openActionModal('delete', artist)"
+                >
+                  <i class="fa-solid fa-trash mr-1"></i>Papelera
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -253,12 +326,14 @@ const handleInviteExternalArtist = () => {
 
     <DangerConfirmModal
       :show="deleteModalOpen"
-      title="Mover artista a papelera"
-      message="El artista se moverá a la papelera y podrás restaurarlo luego."
-      confirm-label="Mover a papelera"
+      :title="modalConfig().title"
+      :message="modalConfig().message"
+      :confirm-label="modalConfig().confirmLabel"
+      :confirm-keyword="modalConfig().confirmKeyword"
+      :require-keyword="modalConfig().requireKeyword"
       :processing="deleteProcessing"
       @close="closeDeleteModal"
-      @confirm="handleDelete"
+      @confirm="handleAction"
     />
 
     <Modal :show="inviteModalOpen" max-width="md" @close="closeInviteModal">

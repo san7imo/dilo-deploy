@@ -122,6 +122,35 @@ class TrashManagementTest extends TestCase
         $this->assertNotNull(Release::withTrashed()->find($release->id)?->deleted_at);
     }
 
+    public function test_soft_deleting_artist_does_not_delete_related_release_or_track(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole($this->role('admin'));
+
+        $artist = Artist::create(['name' => 'Artist With Catalog']);
+        $release = Release::create([
+            'artist_id' => $artist->id,
+            'title' => 'Release Preserved',
+        ]);
+        $track = Track::create([
+            'release_id' => $release->id,
+            'title' => 'Track Preserved',
+        ]);
+        $track->artists()->sync([$artist->id]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.artists.destroy', $artist))
+            ->assertRedirect(route('admin.artists.index'));
+
+        $this->assertSoftDeleted('artists', ['id' => $artist->id]);
+        $this->assertDatabaseHas('releases', ['id' => $release->id]);
+        $this->assertDatabaseHas('tracks', ['id' => $track->id]);
+        $this->assertDatabaseHas('track_artist', [
+            'artist_id' => $artist->id,
+            'track_id' => $track->id,
+        ]);
+    }
+
     public function test_collaborator_force_delete_is_blocked_when_has_active_payments(): void
     {
         $admin = User::factory()->create();
