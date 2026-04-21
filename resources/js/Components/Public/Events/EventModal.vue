@@ -114,10 +114,16 @@ const handleBackdropClick = (e) => {
                 }}
               </p>
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <a v-for="artist in event.artists" :key="artist.id" :href="route('public.artists.show', artist.slug)"
-                  class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-center hover:border-zinc-600 hover:bg-zinc-800 transition block">
+                <component
+                  v-for="artist in event.artists"
+                  :key="artist.id"
+                  :is="artist.has_public_profile ? 'a' : 'div'"
+                  :href="artist.has_public_profile ? route('public.artists.show', artist.slug) : undefined"
+                  class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-center transition block"
+                  :class="artist.has_public_profile ? 'hover:border-zinc-600 hover:bg-zinc-800' : ''"
+                >
                   <p class="text-white font-medium text-sm">{{ artist.name }}</p>
-                </a>
+                </component>
               </div>
             </div>
 

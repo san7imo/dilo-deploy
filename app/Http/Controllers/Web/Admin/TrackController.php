@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTrackRequest;
 use App\Http\Requests\UpdateTrackRequest;
 use App\Models\{Artist, Release, RoyaltyStatementLine, Track, TrackSplitAgreement, TrackSplitParticipant};
+use App\Services\ArtistCatalogService;
 use App\Services\TrackService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,10 +18,12 @@ use Inertia\Inertia;
 class TrackController extends Controller
 {
     protected TrackService $trackService;
+    protected ArtistCatalogService $artistCatalogService;
 
-    public function __construct(TrackService $trackService)
+    public function __construct(TrackService $trackService, ArtistCatalogService $artistCatalogService)
     {
         $this->trackService = $trackService;
+        $this->artistCatalogService = $artistCatalogService;
     }
 
     /** Listado de pistas */
@@ -36,9 +39,11 @@ class TrackController extends Controller
     /** Formulario de creación */
     public function create()
     {
+        $this->artistCatalogService->syncExternalUsersWithoutArtist();
+
         return Inertia::render('Admin/Tracks/Create', [
             'releases' => Release::orderBy('release_date', 'desc')->get(['id', 'title']),
-            'artists'  => Artist::orderBy('name')->get(['id', 'name']),
+            'artists'  => Artist::orderBy('name')->get(['id', 'name', 'artist_origin']),
         ]);
     }
 
@@ -69,10 +74,12 @@ class TrackController extends Controller
     /** Formulario de edición */
     public function edit(Track $track)
     {
+        $this->artistCatalogService->syncExternalUsersWithoutArtist();
+
         return Inertia::render('Admin/Tracks/Edit', [
             'track'    => $track->load(['release', 'artists']),
             'releases' => Release::orderBy('release_date', 'desc')->get(['id', 'title']),
-            'artists'  => Artist::orderBy('name')->get(['id', 'name']),
+            'artists'  => Artist::orderBy('name')->get(['id', 'name', 'artist_origin']),
         ]);
     }
 

@@ -425,9 +425,11 @@ const handleShare = () => {
                     <section v-if="event.artists && event.artists.length > 0" class="space-y-4">
                         <h2 class="text-2xl font-bold">Artistas participantes</h2>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <a v-for="artist in event.artists" :key="artist.id"
-                                :href="route('public.artists.show', artist.slug)"
-                                class="group bg-gradient-to-br from-zinc-900 to-black rounded-2xl p-6 ring-1 ring-white/10 hover:ring-white/20 hover:shadow-xl transition">
+                            <component v-for="artist in event.artists" :key="artist.id"
+                                :is="artist.has_public_profile ? 'a' : 'div'"
+                                :href="artist.has_public_profile ? route('public.artists.show', artist.slug) : undefined"
+                                class="group bg-gradient-to-br from-zinc-900 to-black rounded-2xl p-6 ring-1 ring-white/10 transition"
+                                :class="artist.has_public_profile ? 'hover:ring-white/20 hover:shadow-xl' : ''">
                                 <div class="flex items-center gap-4">
                                     <div v-if="artist.image_url"
                                         class="w-16 h-16 rounded-full flex-shrink-0 overflow-hidden">
@@ -440,12 +442,13 @@ const handleShare = () => {
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <p
-                                            class="font-semibold text-white group-hover:text-[#ffa236] transition truncate">
+                                            class="font-semibold text-white transition truncate"
+                                            :class="artist.has_public_profile ? 'group-hover:text-[#ffa236]' : ''">
                                             {{ artist.name }}
                                         </p>
                                     </div>
                                 </div>
-                            </a>
+                            </component>
                         </div>
                     </section>
                 </div>

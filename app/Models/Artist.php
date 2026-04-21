@@ -32,6 +32,8 @@ class Artist extends Model
     protected $fillable = [
         'name',
         'user_id',
+        'artist_origin',
+        'has_public_profile',
         'slug',
         'bio',
         'country',
@@ -62,6 +64,7 @@ class Artist extends Model
      */
     protected $casts = [
         'social_links' => 'array',
+        'has_public_profile' => 'boolean',
         'deleted_unique_snapshot' => 'array',
     ];
 
@@ -111,6 +114,21 @@ class Artist extends Model
     public function personalExpenses()
     {
         return $this->hasMany(EventPersonalExpense::class);
+    }
+
+    public function scopePublicProfileVisible($query)
+    {
+        return $query->where('has_public_profile', true);
+    }
+
+    public function scopeInternal($query)
+    {
+        return $query->where('artist_origin', 'internal');
+    }
+
+    public function scopeExternal($query)
+    {
+        return $query->where('artist_origin', 'external');
     }
 
     /*

@@ -7,6 +7,7 @@ use App\Http\Requests\StoreArtistRequest;
 use App\Http\Requests\StoreExternalArtistInvitationRequest;
 use App\Http\Requests\UpdateArtistRequest;
 use App\Models\{Artist, Event, Genre, Release, User};
+use App\Services\ArtistCatalogService;
 use App\Services\ArtistService;
 use App\Services\ExternalArtistInvitationService;
 use Illuminate\Http\Request;
@@ -18,16 +19,21 @@ use Inertia\Inertia;
 class ArtistController extends Controller
 {
     protected ArtistService $artistService;
+    protected ArtistCatalogService $artistCatalogService;
 
-    public function __construct(ArtistService $artistService)
+    public function __construct(ArtistService $artistService, ArtistCatalogService $artistCatalogService)
     {
         $this->artistService = $artistService;
+        $this->artistCatalogService = $artistCatalogService;
     }
 
     /** Listado de artistas */
     public function index(Request $request)
     {
+        $this->artistCatalogService->syncExternalUsersWithoutArtist();
+
         $artists = Artist::query()
+            ->internal()
             ->select([
                 'artists.id',
                 'artists.name',
@@ -45,19 +51,18 @@ class ArtistController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $externalArtists = User::query()
-            ->role('external_artist')
+        $externalArtists = Artist::query()
+            ->external()
             ->select([
-                'users.id',
-                'users.name',
-                'users.stage_name',
-                'users.email',
-                'users.phone',
-                'users.identification_type',
-                'users.identification_number',
-                'users.additional_information',
+                'artists.id',
+                'artists.name',
+                'artists.user_id',
+                'artists.phone',
+                'artists.artist_origin',
+                'artists.has_public_profile',
             ])
-            ->orderByRaw("COALESCE(NULLIF(stage_name, ''), name)")
+            ->with('user:id,name,stage_name,email,phone,identification_type,identification_number,additional_information')
+            ->orderBy('artists.name')
             ->get();
 
         return Inertia::render('Admin/Artists/Index', [

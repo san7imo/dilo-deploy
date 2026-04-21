@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReleaseRequest;
 use App\Http\Requests\UpdateReleaseRequest;
 use App\Models\{Artist, Genre, Release, Track};
+use App\Services\ArtistCatalogService;
 use App\Services\ReleaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,10 +17,12 @@ use Inertia\Inertia;
 class ReleaseController extends Controller
 {
     protected ReleaseService $releaseService;
+    protected ArtistCatalogService $artistCatalogService;
 
-    public function __construct(ReleaseService $releaseService)
+    public function __construct(ReleaseService $releaseService, ArtistCatalogService $artistCatalogService)
     {
         $this->releaseService = $releaseService;
+        $this->artistCatalogService = $artistCatalogService;
     }
 
     /** 📜 Listado de lanzamientos (panel admin) */
@@ -35,8 +38,10 @@ class ReleaseController extends Controller
     /** 🆕 Formulario de creación */
     public function create()
     {
+        $this->artistCatalogService->syncExternalUsersWithoutArtist();
+
         return Inertia::render('Admin/Releases/Create', [
-            'artists' => Artist::orderBy('name')->get(['id', 'name']),
+            'artists' => Artist::orderBy('name')->get(['id', 'name', 'artist_origin']),
             'genres'  => Genre::orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -71,9 +76,11 @@ class ReleaseController extends Controller
     /** ✏️ Formulario de edición */
     public function edit(Release $release)
     {
+        $this->artistCatalogService->syncExternalUsersWithoutArtist();
+
         return Inertia::render('Admin/Releases/Edit', [
             'release' => $release->load(['artist', 'tracks']),
-            'artists' => Artist::orderBy('name')->get(['id', 'name']),
+            'artists' => Artist::orderBy('name')->get(['id', 'name', 'artist_origin']),
             'genres'  => Genre::orderBy('name')->get(['id', 'name']),
         ]);
     }

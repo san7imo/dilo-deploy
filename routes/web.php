@@ -46,6 +46,14 @@ Route::get('/noticias', fn() => inertia('Public/SectionPage', [
     'description' => 'Entérate de lanzamientos, anuncios y novedades de nuestra comunidad.',
 ]))->name('public.news');
 
+// Legal
+Route::get('/privacidad', fn() => inertia('Public/Legal/PrivacyPolicy'))
+    ->name('public.privacy');
+Route::get('/legal', fn() => inertia('Public/Legal/LegalNotice'))
+    ->name('public.legal-notice');
+Route::get('/cookies', fn() => inertia('Public/Legal/CookiesPolicy'))
+    ->name('public.cookies');
+
 // --- Artistas ---
 Route::prefix('artistas')->name('public.artists.')->group(function () {
     Route::get('/', [PublicArtistController::class, 'index'])->name('index');

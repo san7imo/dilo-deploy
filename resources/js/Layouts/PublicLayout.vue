@@ -4,6 +4,7 @@ import Header from '@/Components/Public/Layout/Header.vue'
 import NavbarDrawer from '@/Components/Public/Layout/NavbarDrawer.vue'
 import Footer from '@/Components/Public/Layout/Footer.vue'
 import WhatsAppButton from '@/Components/Public/Layout/WhatsAppButton.vue'
+import CookieConsentModal from '@/Components/Public/Layout/CookieConsentModal.vue'
 
 const drawerOpen = ref(false)
 const openDrawer = () => (drawerOpen.value = true)
@@ -37,5 +38,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 
     <!-- 🔹 Botón flotante WhatsApp -->
     <WhatsAppButton phone="+34 608 52 94 93" />
+
+    <!-- 🔹 Consentimiento de cookies -->
+    <CookieConsentModal />
   </div>
 </template>

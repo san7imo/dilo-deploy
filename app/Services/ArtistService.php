@@ -25,6 +25,11 @@ class ArtistService
     /** TTL cache consultas públicas (min). 0 = sin cache */
     private int $publicTtl = 5;
 
+    private function publicArtistQuery()
+    {
+        return Artist::query()->publicProfileVisible();
+    }
+
     /* =========================
      |  CONSULTAS PÚBLICAS
      |=========================*/
@@ -41,7 +46,7 @@ class ArtistService
         $key = "artists.index:p{$perPage}:t{$withTracksForPlaylists}:l{$tracksLimit}";
 
         $fetch = function () use ($perPage, $withTracksForPlaylists, $tracksLimit) {
-            $query = Artist::query()
+            $query = $this->publicArtistQuery()
                 ->select([
                     'artists.id',
                     'artists.name',
@@ -88,6 +93,7 @@ class ArtistService
 
         $fetch = function () use ($limit) {
             return Artist::query()
+                ->publicProfileVisible()
                 ->select([
                     'artists.id',
                     'artists.name',
@@ -114,7 +120,7 @@ class ArtistService
         $key = "artists.show:{$idOrSlug}";
 
         $fetch = function () use ($idOrSlug) {
-            $query = Artist::query()
+            $query = $this->publicArtistQuery()
                 ->withCount('releases')
                 ->with([
                     'tracks' => function ($q) {
@@ -171,6 +177,7 @@ class ArtistService
         $term = trim($term);
 
         return Artist::query()
+            ->publicProfileVisible()
             ->select([
                 'artists.id',
                 'artists.name',
@@ -234,6 +241,8 @@ class ArtistService
             $artist = Artist::create([
                 ...$data,
                 'user_id' => $user->id,
+                'artist_origin' => 'internal',
+                'has_public_profile' => true,
             ]);
 
             Log::info('✅ [ArtistService] Artista creado', [

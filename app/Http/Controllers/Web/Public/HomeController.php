@@ -16,6 +16,7 @@ class HomeController extends Controller
         // 🎵 Banner principal (solo artistas con banner_home_url)
         $banners = Cache::remember('home.banners', $ttl, function () {
             return Artist::query()
+                ->publicProfileVisible()
                 ->whereNotNull('banner_home_url')
                 ->orderByDesc('updated_at')
                 ->limit(5)
@@ -73,6 +74,7 @@ $latestReleases = Cache::remember('home.releases', $ttl, function () {
         // 👩‍🎤 Carrusel de artistas
         $artists = Cache::remember('home.artists', $ttl, function () {
             return Artist::query()
+                ->publicProfileVisible()
                 ->whereNotNull('carousel_home_url')
                 ->orderBy('name')
                 ->limit(8)

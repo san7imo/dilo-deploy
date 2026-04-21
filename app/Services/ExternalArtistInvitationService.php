@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\ExternalArtistInvitationMail;
+use App\Models\Artist;
 use App\Models\ExternalArtistInvitation;
 use App\Models\Track;
 use App\Models\TrackSplitParticipant;
@@ -15,6 +16,11 @@ use Illuminate\Validation\ValidationException;
 
 class ExternalArtistInvitationService
 {
+    public function __construct(
+        private readonly ArtistCatalogService $artistCatalogService
+    ) {
+    }
+
     public function inviteForParticipants(Track $track, iterable $participants, ?User $inviter = null): array
     {
         $sent = 0;
@@ -89,6 +95,22 @@ class ExternalArtistInvitationService
 
             $user->assignRole('external_artist');
 
+            $linkedArtist = null;
+            $artistId = data_get($invitation->metadata, 'artist_id');
+            if ($artistId) {
+                $linkedArtist = Artist::query()->find($artistId);
+            }
+
+            $this->artistCatalogService->createOrAttachExternalArtist(
+                displayName: $this->artistCatalogService->resolveDisplayName(
+                    $payload['stage_name'] ?? null,
+                    $invitation->invitee_name ?? null,
+                    $payload['name'] ?? null
+                ),
+                user: $user,
+                artist: $linkedArtist
+            );
+
             TrackSplitParticipant::query()
                 ->whereNull('user_id')
                 ->whereRaw('LOWER(payee_email) = ?', [$email])
@@ -127,11 +149,25 @@ class ExternalArtistInvitationService
         $cleanInviteeName = trim((string) $inviteeName);
 
         $invitation = DB::transaction(function () use ($normalizedEmail, $token, $expiresAt, $inviter, $cleanInviteeName): ExternalArtistInvitation {
+            $existingArtistId = ExternalArtistInvitation::query()
+                ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+                ->orderByDesc('id')
+                ->get()
+                ->map(fn (ExternalArtistInvitation $invitation) => data_get($invitation->metadata, 'artist_id'))
+                ->filter()
+                ->map(fn ($artistId) => (int) $artistId)
+                ->first();
+
             ExternalArtistInvitation::query()
                 ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
                 ->whereNull('accepted_at')
                 ->whereNull('revoked_at')
                 ->update(['revoked_at' => now()]);
+
+            $artist = $this->artistCatalogService->createOrAttachExternalArtist(
+                displayName: $cleanInviteeName !== '' ? $cleanInviteeName : 'artista-externo',
+                artist: $existingArtistId ? Artist::query()->find($existingArtistId) : null
+            );
 
             return ExternalArtistInvitation::create([
                 'email' => $normalizedEmail,
@@ -142,6 +178,7 @@ class ExternalArtistInvitationService
                 'metadata' => [
                     'source' => 'admin_artists_module',
                     'invitation_type' => 'standalone_external_artist',
+                    'artist_id' => $artist->id,
                 ],
             ]);
         });

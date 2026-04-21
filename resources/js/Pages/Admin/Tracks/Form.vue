@@ -151,7 +151,9 @@ const handleSubmit = () => {
     <div>
       <label class="text-gray-300 text-sm">Artistas participantes</label>
       <select v-model="form.artist_ids" class="input" multiple>
-        <option v-for="a in artists" :key="a.id" :value="a.id">{{ a.name }}</option>
+        <option v-for="a in artists" :key="a.id" :value="a.id">
+          {{ a.name }}{{ a.artist_origin === 'external' ? ' · externo' : '' }}
+        </option>
       </select>
       <p class="text-gray-500 text-xs mt-2">Puedes seleccionar varios artistas (Ctrl/Cmd + click).</p>
     </div>

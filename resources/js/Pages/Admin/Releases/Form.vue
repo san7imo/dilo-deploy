@@ -67,7 +67,9 @@ const handleSubmit = () => {
         <label class="text-gray-300 text-sm">Artista</label>
         <select v-model="form.artist_id" class="input">
           <option disabled value="">Selecciona un artista</option>
-          <option v-for="a in artists" :key="a.id" :value="a.id">{{ a.name }}</option>
+          <option v-for="a in artists" :key="a.id" :value="a.id">
+            {{ a.name }}{{ a.artist_origin === 'external' ? ' · externo' : '' }}
+          </option>
         </select>
         <p v-if="form.errors.artist_id" class="text-red-500 text-xs mt-1">{{ form.errors.artist_id }}</p>
       </div>

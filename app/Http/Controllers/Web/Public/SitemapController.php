@@ -54,6 +54,7 @@ class SitemapController extends Controller
     public function artists(): Response
     {
         $artists = Artist::query()
+            ->publicProfileVisible()
             ->select('id', 'slug', 'updated_at')
             ->orderBy('updated_at', 'desc')
             ->get();

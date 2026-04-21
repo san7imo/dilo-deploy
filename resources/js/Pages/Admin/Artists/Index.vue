@@ -223,20 +223,27 @@ const handleInviteExternalArtist = () => {
                 <i class="fa-solid fa-user text-[#3a3a3a]"></i>
               </div>
               <div class="min-w-0">
-                <h3 class="text-white font-semibold truncate">{{ artist.stage_name || artist.name }}</h3>
-                <p class="text-xs text-gray-500 truncate">Legal: {{ artist.name || "-" }}</p>
+                <h3 class="text-white font-semibold truncate">{{ artist.name }}</h3>
+                <p class="text-xs text-gray-500 truncate">
+                  Legal: {{ artist.user?.name || "-" }}
+                </p>
               </div>
             </div>
 
             <div class="space-y-1.5 text-sm">
-              <p class="text-gray-300"><span class="text-gray-500">Correo:</span> {{ artist.email || "-" }}</p>
-              <p class="text-gray-300"><span class="text-gray-500">Celular:</span> {{ artist.phone || "-" }}</p>
+              <p class="text-gray-300"><span class="text-gray-500">Estado:</span> {{ artist.user ? "Cuenta activa" : "Pendiente de registro" }}</p>
+              <p class="text-gray-300"><span class="text-gray-500">Correo:</span> {{ artist.user?.email || "-" }}</p>
+              <p class="text-gray-300"><span class="text-gray-500">Celular:</span> {{ artist.user?.phone || artist.phone || "-" }}</p>
               <p class="text-gray-300">
                 <span class="text-gray-500">Documento:</span>
-                {{ formatIdentificationType(artist.identification_type) }} {{ artist.identification_number || "-" }}
+                {{ formatIdentificationType(artist.user?.identification_type) }} {{ artist.user?.identification_number || "-" }}
               </p>
-              <p v-if="artist.additional_information" class="text-xs text-gray-500 pt-1 line-clamp-2">
-                {{ artist.additional_information }}
+              <p class="text-gray-300">
+                <span class="text-gray-500">Perfil público:</span>
+                {{ artist.has_public_profile ? "Sí" : "No" }}
+              </p>
+              <p v-if="artist.user?.additional_information" class="text-xs text-gray-500 pt-1 line-clamp-2">
+                {{ artist.user.additional_information }}
               </p>
             </div>
           </div>
