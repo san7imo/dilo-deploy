@@ -863,3 +863,346 @@ La prioridad de implementación es:
 4. asegurar USD y allocations;
 5. construir composición correctamente;
 6. luego importar regalías de composición.
+
+---
+
+# Plan correctivo — Artistas externos, invitaciones y selección de participantes en splits
+
+## Objetivo
+
+Corregir el flujo administrativo de artistas externos y selección de participantes en splits para que:
+
+- un artista externo pueda editarse sin borrar ni recrear su registro;
+- se pueda corregir el correo de registro y reenviar la invitación manteniendo el mismo `artist_id`;
+- un artista externo ya registrado pueda actualizar su correo de acceso sin crear cuentas duplicadas;
+- los selectores de splits de máster y composición solo muestren artistas activos de la categoría correcta;
+- los splits guarden referencias trazables a `artists.id`, especialmente para artistas externos;
+- las correcciones de splits se hagan mediante versionado, no sobrescribiendo historial sin trazabilidad.
+
+## Reglas no negociables de este plan
+
+1. **Nunca borrar y recrear artistas para corregir correo, nombre o categoría.**
+   - El `artists.id` existente debe conservarse.
+   - Los splits, allocations y royalties existentes dependen de ese identificador.
+
+2. **La fuente principal para seleccionar participantes en splits debe ser `artists`, no `users`.**
+   - `users` solo sirve como cuenta de acceso asociada.
+   - En royalties, la trazabilidad debe preservar `artist_id`.
+
+3. **No mostrar registros eliminados en selectores operativos.**
+   - Los formularios de creación/corrección de splits deben excluir artistas en papelera.
+   - Los registros históricos pueden seguir mostrándose en vistas de auditoría, pero no como opciones nuevas.
+
+4. **Respetar categoría actual del artista.**
+   - Selector interno: solo `artist_origin = internal`.
+   - Selector externo existente: solo `artist_origin = external`.
+   - Si un artista cambió de categoría, debe aparecer únicamente en su categoría actual.
+
+5. **No mezclar master royalties con composition royalties.**
+   - Se puede reutilizar un helper de opciones de artistas.
+   - Las validaciones y controladores de master splits y composition splits deben permanecer separados.
+
+6. **Corregir splits mediante nuevas versiones.**
+   - No editar silenciosamente participantes históricos.
+   - Crear un nuevo split/version set y archivar el activo anterior.
+   - Si ya existen allocations calculadas, el recálculo debe ser explícito y auditable.
+
+---
+
+## Hito C1 — Fuente confiable para opciones de artistas en splits
+
+### Alcance
+
+Crear una forma centralizada de obtener artistas seleccionables para splits.
+
+### Entregables
+
+- Servicio/helper para construir opciones de participantes.
+- Lista de artistas internos activos.
+- Lista de artistas externos activos.
+- Cada opción externa debe incluir, cuando exista:
+  - `artist_id`
+  - `artist_name`
+  - `user_id`
+  - `email`
+  - `stage_name`
+  - estado básico de cuenta: pendiente o activa
+
+### Reglas
+
+- No usar `User::role('external_artist')` como fuente principal del selector.
+- No incluir artistas soft-deleted.
+- No incluir artistas de otra categoría.
+- No crear ni modificar artistas en este hito.
+
+### Criterios de aceptación
+
+- Un artista externo no aparece en el selector interno.
+- Un artista interno no aparece en el selector externo.
+- Un artista eliminado no aparece en ningún selector nuevo.
+- Un artista que cambió de categoría aparece solo en la categoría actual.
+
+### Pruebas mínimas
+
+- Test de servicio/helper con artistas internos, externos y eliminados.
+- Test de artista cambiado de categoría.
+
+---
+
+## Hito C2 — Corregir selección y persistencia en master splits
+
+### Alcance
+
+Actualizar el flujo de creación de splits de máster para usar la fuente confiable de artistas.
+
+### Entregables
+
+- `TrackSplitAgreementController@create` debe enviar opciones filtradas:
+  - `internalArtists`
+  - `externalArtists`
+- El formulario Vue de master splits debe usar la lista correcta según `participant_type`.
+- Para `external_existing`, el formulario debe enviar `artist_id` como identificador principal.
+- El backend debe derivar `user_id` y `payee_email` desde el artista externo seleccionado cuando existan.
+
+### Reglas
+
+- `participant_type = internal` requiere `artist_id` interno activo.
+- `participant_type = external_existing` requiere `artist_id` externo activo.
+- No aceptar combinación simultánea de artista interno y usuario externo como identidad primaria.
+- Mantener `external_new` con `name` y `payee_email` para invitación.
+- Mantener `manual` para casos sin usuario/artista, como label.
+
+### Criterios de aceptación
+
+- Crear un split master con artista externo existente guarda `track_split_participants.artist_id`.
+- Si el artista externo tiene usuario asociado, también guarda `user_id`.
+- El email queda derivado del usuario asociado cuando corresponda.
+- No se puede enviar un artista eliminado o de categoría incorrecta manipulando el payload.
+
+### Pruebas mínimas
+
+- Feature test de creación de split master con interno válido.
+- Feature test de creación de split master con externo existente válido.
+- Feature test rechazando externo en participante interno.
+- Feature test rechazando interno en participante externo.
+- Feature test rechazando artista eliminado.
+
+---
+
+## Hito C3 — Corregir selección y persistencia en composition splits
+
+### Alcance
+
+Aplicar el mismo criterio de selección a splits de composición sin mezclar su lógica con master.
+
+### Entregables
+
+- `CompositionSplitAgreementController@create` debe enviar opciones filtradas.
+- El formulario Vue de composition splits debe seleccionar externos existentes por `artist_id`.
+- `CompositionSplitSetService` debe derivar `user_id` y `payee_email` desde el artista seleccionado.
+- Las validaciones deben respetar `artist_origin` y soft deletes.
+
+### Reglas
+
+- Mantener validación por pools:
+  - `writer = 100`
+  - `publisher = 100`
+  - `mechanical_payee = 100`
+- No reutilizar reglas monetarias o allocation de master.
+- No cambiar el cálculo de composition royalties en este hito.
+
+### Criterios de aceptación
+
+- Los selectores de composición muestran solo artistas activos de la categoría correcta.
+- Un split de composición con externo existente preserva `artist_id`.
+- Si existe usuario asociado, se deriva `user_id`.
+- Las validaciones de pools siguen funcionando.
+
+### Pruebas mínimas
+
+- Feature test de split de composición con externo existente.
+- Feature test rechazando categoría incorrecta.
+- Regression test de validación de pools.
+
+---
+
+## Hito C4 — Edición administrativa de artistas externos
+
+### Alcance
+
+Permitir que un administrador edite artistas externos existentes sin borrar ni recrear registros.
+
+### Entregables
+
+- Botón visible de edición en la sección de artistas externos.
+- Reutilización o adaptación del formulario actual de artista.
+- Actualización segura de:
+  - nombre artístico;
+  - nombre legal si hay usuario asociado;
+  - teléfono;
+  - documento;
+  - información adicional;
+  - correo, cuando exista usuario asociado.
+
+### Reglas
+
+- Conservar siempre el mismo `artists.id`.
+- No cambiar `artist_origin` salvo mediante las acciones existentes de conversión.
+- Si el artista no tiene `user_id`, el correo de registro debe gestionarse mediante el flujo de invitación, no mediante creación manual de usuario silenciosa.
+- Si el artista tiene `user_id`, actualizar `users.email` respetando unicidad.
+
+### Criterios de aceptación
+
+- Un artista externo se puede editar desde la lista de externos.
+- Al editarlo, no cambian sus relaciones con splits, tracks ni allocations.
+- El email de usuario se actualiza si ya existe cuenta.
+- No se crea un segundo artista ni un segundo usuario accidentalmente.
+
+### Pruebas mínimas
+
+- Feature test: editar artista externo conserva `artists.id`.
+- Feature test: cambiar email de externo con usuario actualiza `users.email`.
+- Feature test: no permite email ya usado por otro usuario activo.
+
+---
+
+## Hito C5 — Reenvío de invitación y corrección de correo de registro
+
+### Alcance
+
+Crear una acción administrativa para corregir el correo de un artista externo y reenviar invitación o acceso según su estado.
+
+### Entregables
+
+- Ruta admin para reenviar invitación/acceso a un artista externo existente.
+- Request dedicado con validación de email.
+- Método de servicio que maneje dos escenarios:
+  1. artista externo pendiente sin `user_id`;
+  2. artista externo activo con `user_id`.
+- Modal o acción en UI para ingresar/corregir email.
+
+### Reglas
+
+- El artista debe existir, estar activo y tener `artist_origin = external`.
+- No crear un nuevo `Artist`.
+- No aceptar email usado por otro usuario activo.
+- Si no tiene `user_id`:
+  - revocar invitaciones pendientes anteriores vinculadas a ese `artist_id`;
+  - crear nueva invitación con `metadata.artist_id`;
+  - enviar correo de invitación.
+- Si tiene `user_id`:
+  - actualizar el email del usuario asociado;
+  - asegurar rol `external_artist`;
+  - enviar correo de acceso o reset de contraseña;
+  - no crear una invitación que intente registrar otro usuario con el mismo artista.
+
+### Criterios de aceptación
+
+- Se puede corregir un correo de prueba antes de que el externo acepte la invitación.
+- La invitación nueva conserva el mismo `metadata.artist_id`.
+- La invitación anterior queda revocada.
+- Si el artista ya tiene cuenta, puede iniciar sesión con el nuevo correo.
+- No se crean artistas duplicados.
+
+### Pruebas mínimas
+
+- Feature test: reenvío a artista pendiente revoca invitación anterior.
+- Feature test: reenvío a artista pendiente crea nueva invitación con mismo `artist_id`.
+- Feature test: actualizar acceso de artista con cuenta cambia `users.email`.
+- Feature test: bloqueo por email ya registrado en otro usuario.
+
+---
+
+## Hito C6 — Corrección versionada de splits equivocados
+
+### Alcance
+
+Mejorar la experiencia para corregir artistas o porcentajes equivocados en splits sin perder trazabilidad.
+
+### Entregables
+
+- Acción "crear corrección desde split activo" o equivalente.
+- Formulario prellenado desde el split activo.
+- Al guardar:
+  - crear nuevo acuerdo/version set;
+  - archivar el activo anterior;
+  - conservar contrato nuevo requerido o documentar si se permite reutilizar contrato previo.
+
+### Reglas
+
+- No editar participantes históricos directamente.
+- No borrar agreements antiguos.
+- No recalcular allocations automáticamente sin una acción explícita.
+- Mostrar advertencia si existen royalties/allocations que podrían requerir recálculo.
+
+### Criterios de aceptación
+
+- El administrador puede corregir artista o porcentaje partiendo del split actual.
+- El split anterior queda archivado.
+- El nuevo split queda activo.
+- Las allocations existentes no se sobrescriben silenciosamente.
+
+### Pruebas mínimas
+
+- Feature test: crear corrección archiva split anterior.
+- Feature test: nuevo split conserva participantes corregidos.
+- Test de advertencia cuando existen allocations del track o composición.
+
+---
+
+## Hito C7 — Recálculo explícito posterior a corrección de splits
+
+### Alcance
+
+Preparar o conectar el recálculo de allocations cuando un split corregido deba aplicarse a royalties ya importados.
+
+### Entregables
+
+- Acción explícita para recalcular statements afectados.
+- Registro de motivo, usuario/proceso disparador y resultados.
+- Mensajes claros de cantidad de líneas/allocations recalculadas.
+
+### Reglas
+
+- No mezclar accrued status con payout status.
+- No alterar montos originales de statements.
+- No borrar statements.
+- No recalcular composition royalties desde acciones de master, ni master desde acciones de composition.
+
+### Criterios de aceptación
+
+- Un admin puede recalcular allocations afectadas después de corregir un split.
+- El recálculo queda auditado.
+- La suma de allocations por línea coincide con el monto base.
+
+### Pruebas mínimas
+
+- Regression test de allocation master tras cambio de split.
+- Test de línea negativa.
+- Test de auditoría de recálculo.
+
+---
+
+## Orden recomendado de ejecución
+
+1. Hito C1 — Fuente confiable para opciones de artistas.
+2. Hito C2 — Master splits con selectores y validación correctos.
+3. Hito C3 — Composition splits con selectores y validación correctos.
+4. Hito C4 — Edición administrativa de artistas externos.
+5. Hito C5 — Reenvío de invitación/corrección de correo.
+6. Hito C6 — Corrección versionada de splits.
+7. Hito C7 — Recálculo explícito posterior.
+
+## Definition of Done de este plan correctivo
+
+La corrección se considera completa solo si:
+
+1. ningún selector operativo de splits muestra artistas eliminados;
+2. ningún selector interno muestra externos ni viceversa;
+3. los artistas externos existentes se seleccionan por `artist_id`;
+4. editar un artista externo no rompe splits ni royalties existentes;
+5. reenviar invitación conserva el mismo `artist_id`;
+6. un artista externo con cuenta puede cambiar de email sin duplicar usuario;
+7. los splits corregidos se versionan;
+8. cualquier recálculo de royalties es explícito y auditable;
+9. existen tests de regresión para los casos anteriores.

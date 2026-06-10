@@ -35,9 +35,15 @@ const pendingArtistId = ref(null);
 const pendingAction = ref("delete");
 const pendingArtistName = ref("");
 const inviteModalOpen = ref(false);
+const resendModalOpen = ref(false);
+const selectedExternalArtist = ref(null);
 
 const inviteForm = useForm({
   name: "",
+  email: "",
+});
+
+const resendForm = useForm({
   email: "",
 });
 
@@ -135,6 +141,32 @@ const handleInviteExternalArtist = () => {
     preserveScroll: true,
     onSuccess: () => {
       closeInviteModal();
+    },
+  });
+};
+
+const openResendModal = (artist) => {
+  selectedExternalArtist.value = artist;
+  resendForm.email = artist.user?.email || artist.latest_invitation?.email || "";
+  resendForm.clearErrors();
+  resendModalOpen.value = true;
+};
+
+const closeResendModal = () => {
+  if (resendForm.processing) return;
+  resendModalOpen.value = false;
+  selectedExternalArtist.value = null;
+  resendForm.reset();
+  resendForm.clearErrors();
+};
+
+const handleResendExternalInvitation = () => {
+  if (!selectedExternalArtist.value) return;
+
+  resendForm.post(route("admin.artists.external-invitations.resend", selectedExternalArtist.value.id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      closeResendModal();
     },
   });
 };
@@ -286,7 +318,7 @@ const handleInviteExternalArtist = () => {
 
             <div class="space-y-1.5 text-sm">
               <p class="text-gray-300"><span class="text-gray-500">Estado:</span> {{ artist.user ? "Cuenta activa" : "Pendiente de registro" }}</p>
-              <p class="text-gray-300"><span class="text-gray-500">Correo:</span> {{ artist.user?.email || "-" }}</p>
+              <p class="text-gray-300"><span class="text-gray-500">Correo:</span> {{ artist.user?.email || artist.latest_invitation?.email || "-" }}</p>
               <p class="text-gray-300"><span class="text-gray-500">Celular:</span> {{ artist.user?.phone || artist.phone || "-" }}</p>
               <p class="text-gray-300">
                 <span class="text-gray-500">Documento:</span>
@@ -302,17 +334,30 @@ const handleInviteExternalArtist = () => {
             </div>
 
             <div class="pt-3 mt-3 border-t border-[#2a2a2a]">
-              <div class="flex gap-2">
+              <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <Link
+                  :href="route('admin.artists.edit', artist.id)"
+                  class="rounded bg-[#ffa236] px-3 py-2 text-center text-sm font-semibold text-black transition hover:bg-[#ffb54d]"
+                >
+                  <i class="fa-solid fa-pen-to-square mr-1"></i>Editar
+                </Link>
                 <button
                   type="button"
-                  class="flex-1 rounded bg-blue-500/10 px-3 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-500/20"
+                  class="rounded bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
+                  @click="openResendModal(artist)"
+                >
+                  <i class="fa-solid fa-envelope-circle-check mr-1"></i>{{ artist.user ? "Actualizar acceso" : "Reenviar invitación" }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded bg-blue-500/10 px-3 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-500/20"
                   @click="openActionModal('convert_to_internal', artist)"
                 >
                   <i class="fa-solid fa-right-left mr-1"></i>Convertir a interno
                 </button>
                 <button
                   type="button"
-                  class="flex-1 rounded bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-500/20"
+                  class="rounded bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-500/20"
                   @click="openActionModal('delete', artist)"
                 >
                   <i class="fa-solid fa-trash mr-1"></i>Papelera
@@ -394,6 +439,67 @@ const handleInviteExternalArtist = () => {
             :disabled="inviteForm.processing"
           >
             {{ inviteForm.processing ? "Enviando..." : "Enviar invitación" }}
+          </button>
+        </div>
+      </form>
+    </Modal>
+
+    <Modal :show="resendModalOpen" max-width="md" @close="closeResendModal">
+      <form @submit.prevent="handleResendExternalInvitation" class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-white">
+            {{ selectedExternalArtist?.user ? "Actualizar acceso" : "Reenviar invitación" }}
+          </h3>
+          <button
+            type="button"
+            class="text-gray-400 hover:text-white text-sm"
+            @click="closeResendModal"
+          >
+            Cerrar
+          </button>
+        </div>
+
+        <p class="text-sm text-gray-400">
+          {{ selectedExternalArtist?.user
+            ? "Actualiza el correo de acceso y envía un enlace para restablecer la contraseña."
+            : "Corrige el correo y envía una nueva invitación conservando el mismo artista externo." }}
+        </p>
+
+        <div v-if="selectedExternalArtist" class="rounded-md border border-[#2a2a2a] bg-[#0f0f0f] px-3 py-2 text-sm text-gray-300">
+          <span class="text-gray-500">Artista:</span> {{ selectedExternalArtist.name }}
+        </div>
+
+        <div>
+          <label class="text-gray-300 text-sm">Correo electrónico</label>
+          <input
+            v-model="resendForm.email"
+            type="email"
+            class="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-md px-3 py-2 text-white focus:border-[#ffa236] focus:ring-[#ffa236]"
+            placeholder="correo@dominio.com"
+          />
+          <p v-if="resendForm.errors.email" class="text-red-500 text-sm mt-1">
+            {{ resendForm.errors.email }}
+          </p>
+          <p v-if="resendForm.errors.artist" class="text-red-500 text-sm mt-1">
+            {{ resendForm.errors.artist }}
+          </p>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            class="px-4 py-2 rounded-md border border-[#2a2a2a] text-gray-300 hover:text-white"
+            :disabled="resendForm.processing"
+            @click="closeResendModal"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 rounded-md bg-[#ffa236] hover:bg-[#ffb54d] text-black font-semibold disabled:opacity-60"
+            :disabled="resendForm.processing"
+          >
+            {{ resendForm.processing ? "Enviando..." : "Enviar" }}
           </button>
         </div>
       </form>

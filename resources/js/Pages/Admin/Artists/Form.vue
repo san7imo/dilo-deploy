@@ -1,6 +1,6 @@
 <script setup>
 import { useForm } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import ImageGrid from "@/Components/ImageGrid.vue";
 import FormActions from "@/Components/FormActions.vue";
 import PasswordInput from "@/Components/PasswordInput.vue";
@@ -14,6 +14,14 @@ const props = defineProps({
 });
 
 const isDeleting = ref(false);
+const isPendingExternalEdit = computed(() =>
+  props.mode === "edit" &&
+  props.artist.artist_origin === "external" &&
+  !props.artist.user
+);
+
+const hasAccountFields = computed(() => !isPendingExternalEdit.value);
+
 const identificationTypes = [
   { value: "passport", label: "Pasaporte" },
   { value: "national_id", label: "Documento nacional / ID nacional" },
@@ -218,11 +226,24 @@ const handleSubmit = () => {
       : route("admin.artists.store");
 
   form
-    .transform((data) => ({
-      ...data,
-      _method: props.mode === "edit" ? "put" : "post",
-      social_links: data.social_links,
-    }))
+    .transform((data) => {
+      const payload = {
+        ...data,
+        _method: props.mode === "edit" ? "put" : "post",
+        social_links: data.social_links,
+      };
+
+      if (isPendingExternalEdit.value) {
+        delete payload.legal_name;
+        delete payload.email;
+        delete payload.password;
+        delete payload.identification_type;
+        delete payload.identification_number;
+        delete payload.additional_information;
+      }
+
+      return payload;
+    })
     .submit(method, url, {
       forceFormData: true,
       onStart: () => console.log("🚀 Enviando request a:", url),
@@ -255,7 +276,7 @@ const handleSubmit = () => {
           </p>
         </div>
 
-        <div>
+        <div v-if="hasAccountFields">
           <label class="text-gray-300 text-sm">Nombre legal completo</label>
           <input v-model="form.legal_name" type="text" class="input" placeholder="Nombre real completo" />
           <p v-if="form.errors.legal_name" class="text-red-500 text-sm mt-1">
@@ -263,7 +284,7 @@ const handleSubmit = () => {
           </p>
         </div>
 
-        <div>
+        <div v-if="hasAccountFields">
           <label class="text-gray-300 text-sm">Correo del artista</label>
           <input v-model="form.email" type="email" class="input" placeholder="artista@email.com" />
           <p v-if="form.errors.email" class="text-red-500 text-sm mt-1">
@@ -271,7 +292,7 @@ const handleSubmit = () => {
           </p>
         </div>
 
-        <div>
+        <div v-if="hasAccountFields">
           <label class="text-gray-300 text-sm">Contraseña</label>
           <PasswordInput
             id="artist-password"
@@ -286,6 +307,10 @@ const handleSubmit = () => {
           <p v-if="props.mode === 'edit'" class="text-xs text-gray-500 mt-1">
             Deja en blanco para no cambiarla.
           </p>
+        </div>
+
+        <div v-else class="sm:col-span-2 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+          Este artista externo aún no tiene cuenta. El correo y el acceso se gestionan desde la invitación.
         </div>
 
         <div>
@@ -304,7 +329,7 @@ const handleSubmit = () => {
     </div>
 
     <!-- Documentación -->
-    <div class="bg-[#151513] border border-[#2a2a2a] rounded-lg p-4 space-y-4">
+    <div v-if="hasAccountFields" class="bg-[#151513] border border-[#2a2a2a] rounded-lg p-4 space-y-4">
       <h3 class="text-[#ffa236] font-semibold">Documentación y datos adicionales</h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>

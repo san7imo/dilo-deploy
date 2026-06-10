@@ -12,6 +12,26 @@ class UpdateArtistRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $artist = $this->route('artist');
+
+        if ($artist?->artist_origin !== 'external' || $artist?->user_id) {
+            return;
+        }
+
+        $this->replace(collect($this->all())
+            ->except([
+                'legal_name',
+                'email',
+                'password',
+                'identification_type',
+                'identification_number',
+                'additional_information',
+            ])
+            ->all());
+    }
+
     public function rules(): array
     {
         $artist = $this->route('artist');

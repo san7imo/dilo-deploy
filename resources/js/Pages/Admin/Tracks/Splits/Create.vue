@@ -7,10 +7,21 @@ import { computed } from "vue";
 
 const props = defineProps({
   track: Object,
-  artists: Array,
+  internalArtists: {
+    type: Array,
+    default: () => [],
+  },
   externalArtists: {
     type: Array,
     default: () => [],
+  },
+  initialParticipants: {
+    type: Array,
+    default: () => [],
+  },
+  correction: {
+    type: Object,
+    default: null,
   },
 });
 
@@ -68,18 +79,22 @@ const createParticipant = (overrides = {}) => ({
   ...overrides,
 });
 
-const form = useForm({
-  split_type: "master",
-  contract: null,
-  effective_from: "",
-  effective_to: "",
-  participants: [
+const defaultParticipants = () => [
     createParticipant({
       role: "label",
       participant_type: "manual",
       name: "Dilo Records",
     }),
-  ],
+];
+
+const form = useForm({
+  split_type: props.correction?.split_type || "master",
+  contract: null,
+  effective_from: props.correction?.effective_from || "",
+  effective_to: props.correction?.effective_to || "",
+  participants: props.initialParticipants.length
+    ? props.initialParticipants.map((participant) => createParticipant(participant))
+    : defaultParticipants(),
 });
 
 const totalPercentage = computed(() =>
@@ -131,6 +146,12 @@ const participantTypeBadgeClass = (participantType) =>
 const participantTypeLabel = (participantType) =>
   participantTypeOptions.find((option) => option.value === participantType)?.label || "Participante";
 
+const externalArtistLabel = (external) => {
+  const displayName = external.stage_name || external.artist_name || external.name;
+  const email = external.email || "pendiente de registro";
+  return `${displayName} · ${email}`;
+};
+
 const handleSubmit = () => {
   form.post(route("admin.tracks.splits.store", props.track.id), {
     forceFormData: true,
@@ -142,7 +163,9 @@ const handleSubmit = () => {
   <AdminLayout title="Create Split">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-semibold text-white">Create Split · {{ track.title }}</h1>
+        <h1 class="text-2xl font-semibold text-white">
+          {{ correction ? "Corregir split" : "Create Split" }} · {{ track.title }}
+        </h1>
         <p class="text-gray-400 text-sm">
           {{ track.release?.title || "-" }}
         </p>
@@ -151,6 +174,19 @@ const handleSubmit = () => {
     </div>
 
     <form @submit.prevent="handleSubmit" class="space-y-6">
+      <div v-if="correction" class="panel border-amber-500/40 bg-amber-500/5">
+        <p class="text-sm font-semibold text-amber-200">
+          Esta corrección creará un nuevo split activo y archivará el split activo actual.
+        </p>
+        <p class="mt-2 text-sm text-amber-100/80">
+          No se recalcularán allocations existentes automáticamente. El split actual tiene
+          {{ correction.allocation_count || 0 }} allocations asociadas.
+        </p>
+        <p class="mt-2 text-xs text-amber-100/70">
+          Contrato anterior: {{ correction.contract_original_filename || "-" }}. Debes subir el contrato corregido.
+        </p>
+      </div>
+
       <div class="panel max-w-xl">
         <label class="field-label">Contrato</label>
         <input
@@ -264,7 +300,7 @@ const handleSubmit = () => {
                   <label class="field-label">Artista Dilo Records</label>
                   <select v-model="participant.artist_id" class="input">
                     <option value="">Selecciona artista interno</option>
-                    <option v-for="a in artists" :key="a.id" :value="a.id">{{ a.name }}</option>
+                    <option v-for="a in internalArtists" :key="a.artist_id" :value="a.artist_id">{{ a.artist_name || a.name }}</option>
                   </select>
                 </div>
               </template>
@@ -272,10 +308,10 @@ const handleSubmit = () => {
               <template v-else-if="participant.participant_type === 'external_existing'">
                 <div class="lg:col-span-3">
                   <label class="field-label">Artista externo existente</label>
-                  <select v-model="participant.user_id" class="input">
+                  <select v-model="participant.artist_id" class="input">
                     <option value="">Selecciona artista externo</option>
-                    <option v-for="external in externalArtists" :key="external.id" :value="external.id">
-                      {{ external.stage_name || external.name }} · {{ external.email }}
+                    <option v-for="external in externalArtists" :key="external.artist_id" :value="external.artist_id">
+                      {{ externalArtistLabel(external) }}
                     </option>
                   </select>
                 </div>
@@ -331,7 +367,7 @@ const handleSubmit = () => {
 
       <FormActions
         :cancel-href="route('admin.tracks.splits.index', track.id)"
-        submit-label="Guardar Split"
+        :submit-label="correction ? 'Guardar corrección' : 'Guardar Split'"
         processing-label="Guardando..."
         :processing="form.processing"
       />

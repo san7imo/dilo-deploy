@@ -22,15 +22,14 @@ class RoyaltyAllocationService
     ) {
     }
 
-    public function rebuildForStatement(RoyaltyStatement $statement, array $context = []): void
+    public function rebuildForStatement(RoyaltyStatement $statement, array $context = []): array
     {
         $stats = $this->buildInitialStats($statement);
         $warnings = [];
 
         if (!Schema::hasTable('royalty_allocations')) {
             $warnings[] = 'Tabla royalty_allocations no disponible; recálculo omitido.';
-            $this->recordRecalculation($statement, $context, $stats, $warnings);
-            return;
+            return $this->finishRecalculation($statement, $context, $stats, $warnings);
         }
 
         if ($statement->is_reference_only) {
@@ -39,8 +38,7 @@ class RoyaltyAllocationService
                 ->delete();
 
             $warnings[] = 'Statement en modo reference_only; allocations eliminadas.';
-            $this->recordRecalculation($statement, $context, $stats, $warnings);
-            return;
+            return $this->finishRecalculation($statement, $context, $stats, $warnings);
         }
 
         $trackIds = RoyaltyStatementLine::query()
@@ -55,8 +53,7 @@ class RoyaltyAllocationService
 
         if ($trackIds->isEmpty()) {
             $warnings[] = 'No hay líneas matched para recalcular.';
-            $this->recordRecalculation($statement, $context, $stats, $warnings);
-            return;
+            return $this->finishRecalculation($statement, $context, $stats, $warnings);
         }
 
         $canAllocateComposition = $this->canAllocateComposition();
@@ -319,7 +316,7 @@ class RoyaltyAllocationService
                 }
             });
 
-        $this->recordRecalculation($statement, $context, $stats, $warnings);
+        return $this->finishRecalculation($statement, $context, $stats, $warnings);
     }
 
     private function canAllocateComposition(): bool
@@ -607,6 +604,23 @@ class RoyaltyAllocationService
             'composition_allocations_count' => (int) ($stats['composition_allocations_count'] ?? 0),
             'warnings_count' => count($warnings),
         ]);
+    }
+
+    private function finishRecalculation(
+        RoyaltyStatement $statement,
+        array $context,
+        array $stats,
+        array $warnings
+    ): array {
+        $this->recordRecalculation($statement, $context, $stats, $warnings);
+
+        return [
+            'lines_total' => (int) ($stats['lines_total'] ?? 0),
+            'lines_matched' => (int) ($stats['lines_matched'] ?? 0),
+            'master_allocations_count' => (int) ($stats['master_allocations_count'] ?? 0),
+            'composition_allocations_count' => (int) ($stats['composition_allocations_count'] ?? 0),
+            'warnings' => $warnings,
+        ];
     }
 
     private function appendWarning(array $warnings, string $code, array $payload): array

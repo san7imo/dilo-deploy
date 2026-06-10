@@ -104,10 +104,11 @@ class CompositionSplitSetService
             ->unique()
             ->values();
 
-        $artistUserMap = Artist::query()
+        $artistsById = Artist::query()
             ->whereIn('id', $artistIds)
-            ->pluck('user_id', 'id')
-            ->map(fn($value) => $value ? (int) $value : null);
+            ->with('user:id,name,stage_name,email')
+            ->get(['id', 'name', 'user_id'])
+            ->keyBy('id');
 
         $participantEmails = $participants
             ->pluck('payee_email')
@@ -115,18 +116,6 @@ class CompositionSplitSetService
             ->map(fn($email) => strtolower(trim((string) $email)))
             ->unique()
             ->values();
-
-        $selectedUserIds = $participants
-            ->pluck('user_id')
-            ->filter()
-            ->map(fn($id) => (int) $id)
-            ->unique()
-            ->values();
-
-        $selectedUsers = User::query()
-            ->whereIn('id', $selectedUserIds)
-            ->get(['id', 'name', 'stage_name', 'email'])
-            ->keyBy('id');
 
         $usersByEmail = User::query()
             ->whereIn('email', $participantEmails)
@@ -136,8 +125,7 @@ class CompositionSplitSetService
         return $participants->map(function (array $participant) use (
             $splitSetId,
             $legacyAgreementId,
-            $artistUserMap,
-            $selectedUsers,
+            $artistsById,
             $usersByEmail
         ): array {
             $email = !empty($participant['payee_email'])
@@ -148,13 +136,13 @@ class CompositionSplitSetService
                 ? (int) $participant['artist_id']
                 : null;
 
-            $selectedUserId = !empty($participant['user_id'])
-                ? (int) $participant['user_id']
-                : null;
+            $selectedArtist = $artistId ? $artistsById->get($artistId) : null;
+            $selectedUser = $selectedArtist?->user;
 
-            $userId = $selectedUserId ?: ($artistId ? ($artistUserMap[$artistId] ?? null) : null);
-            if ($userId && $selectedUsers->has($userId)) {
-                $selectedUser = $selectedUsers->get($userId);
+            $userId = $selectedUser?->id
+                ? (int) $selectedUser->id
+                : (!empty($participant['user_id']) ? (int) $participant['user_id'] : null);
+            if ($selectedUser) {
                 $selectedUserEmail = strtolower(trim((string) ($selectedUser->email ?? '')));
                 if (!$email && $selectedUserEmail !== '') {
                     $email = $selectedUserEmail;
@@ -165,6 +153,8 @@ class CompositionSplitSetService
                 }
             } elseif (!$userId && $email) {
                 $userId = $usersByEmail[$email] ?? null;
+            } elseif ($selectedArtist && empty($participant['name'])) {
+                $participant['name'] = $selectedArtist->name;
             }
 
             if ($email !== null && trim($email) === '') {
@@ -196,4 +186,3 @@ class CompositionSplitSetService
             : 'writer';
     }
 }
-

@@ -79,6 +79,24 @@ const formatDate = (value) => {
             </td>
             <td class="px-4 py-3">{{ formatDate(agreement.created_at) }}</td>
             <td class="px-4 py-3">
+              <div class="flex flex-wrap items-center gap-3">
+                <Link
+                  v-if="agreement.status === 'active'"
+                  :href="route('admin.compositions.splits.correct', { composition: composition.id, back: back_url || undefined })"
+                  class="text-emerald-300 hover:underline"
+                >
+                  Corregir
+                </Link>
+                <Link
+                  v-if="agreement.status === 'active'"
+                  :href="route('admin.compositions.splits.recalculate', { composition: composition.id, back: back_url || undefined })"
+                  method="post"
+                  as="button"
+                  preserve-scroll
+                  class="text-sky-300 hover:underline"
+                >
+                  Recalcular
+                </Link>
               <a
                 :href="route('admin.compositions.splits.download', [composition.id, agreement.id])"
                 class="text-[#ffa236] hover:underline"
@@ -87,6 +105,7 @@ const formatDate = (value) => {
               >
                 Descargar
               </a>
+              </div>
             </td>
           </tr>
           <tr v-if="!agreements.length">

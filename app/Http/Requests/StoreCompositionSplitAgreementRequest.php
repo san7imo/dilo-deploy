@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests;
 
-use App\Models\User;
+use App\Models\Artist;
 use App\Services\Compositions\CompositionSplitPoolValidator;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class StoreCompositionSplitAgreementRequest extends FormRequest
 {
@@ -25,7 +25,10 @@ class StoreCompositionSplitAgreementRequest extends FormRequest
             'participants.*.share_pool' => 'required|string|in:writer,publisher,mechanical_payee',
             'participants.*.percentage' => 'required|numeric|min:0|max:100',
             'participants.*.participant_type' => 'nullable|string|in:internal,external_existing,external_new,manual',
-            'participants.*.artist_id' => 'nullable|exists:artists,id',
+            'participants.*.artist_id' => [
+                'nullable',
+                Rule::exists('artists', 'id')->whereNull('deleted_at'),
+            ],
             'participants.*.user_id' => 'nullable|integer|exists:users,id',
             'participants.*.payee_email' => 'nullable|email',
             'participants.*.name' => 'nullable|string|max:255',
@@ -48,6 +51,18 @@ class StoreCompositionSplitAgreementRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $participants = $this->input('participants', []);
+            $artistIds = collect($participants)
+                ->pluck('artist_id')
+                ->filter()
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            $artistsById = Artist::query()
+                ->whereIn('id', $artistIds)
+                ->get(['id', 'artist_origin'])
+                ->keyBy('id');
+
             foreach ($participants as $index => $participant) {
                 $artistId = !empty($participant['artist_id']) ? (int) $participant['artist_id'] : null;
                 $userId = !empty($participant['user_id']) ? (int) $participant['user_id'] : null;
@@ -64,11 +79,31 @@ class StoreCompositionSplitAgreementRequest extends FormRequest
                     );
                 }
 
-                if ($participantType === 'external_existing' && !$userId) {
+                if ($participantType === 'internal' && $artistId) {
+                    $artist = $artistsById->get($artistId);
+                    if (!$artist || $artist->artist_origin !== 'internal') {
+                        $validator->errors()->add(
+                            "participants.$index.artist_id",
+                            'El artista seleccionado no es un artista interno activo.'
+                        );
+                    }
+                }
+
+                if ($participantType === 'external_existing' && !$artistId) {
                     $validator->errors()->add(
-                        "participants.$index.user_id",
+                        "participants.$index.artist_id",
                         'Debes seleccionar un artista externo existente.'
                     );
+                }
+
+                if ($participantType === 'external_existing' && $artistId) {
+                    $artist = $artistsById->get($artistId);
+                    if (!$artist || $artist->artist_origin !== 'external') {
+                        $validator->errors()->add(
+                            "participants.$index.artist_id",
+                            'El artista seleccionado no es un artista externo activo.'
+                        );
+                    }
                 }
 
                 if ($participantType === 'external_new') {
@@ -97,40 +132,8 @@ class StoreCompositionSplitAgreementRequest extends FormRequest
                 if ($artistId && $userId) {
                     $validator->errors()->add(
                         "participants.$index",
-                        'No puedes seleccionar artista interno y artista externo al mismo tiempo.'
+                        'Selecciona el artista; el usuario asociado se deriva automáticamente.'
                     );
-                }
-            }
-
-            if (Schema::hasTable('roles') && Schema::hasTable('model_has_roles')) {
-                $selectedUserIds = collect($participants)
-                    ->pluck('user_id')
-                    ->filter()
-                    ->map(fn($id) => (int) $id)
-                    ->unique()
-                    ->values();
-
-                if ($selectedUserIds->isNotEmpty()) {
-                    $externalUserIds = User::query()
-                        ->whereIn('id', $selectedUserIds)
-                        ->whereHas('roles', function ($query) {
-                            $query->where('name', 'external_artist')
-                                ->where('guard_name', 'web');
-                        })
-                        ->pluck('id')
-                        ->map(fn($id) => (int) $id)
-                        ->all();
-
-                    foreach ($participants as $index => $participant) {
-                        $userId = !empty($participant['user_id']) ? (int) $participant['user_id'] : null;
-
-                        if ($userId && !in_array($userId, $externalUserIds, true)) {
-                            $validator->errors()->add(
-                                "participants.$index.user_id",
-                                'El usuario seleccionado no pertenece a artistas externos.'
-                            );
-                        }
-                    }
                 }
             }
 

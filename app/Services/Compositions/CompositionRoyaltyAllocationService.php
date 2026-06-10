@@ -5,6 +5,7 @@ namespace App\Services\Compositions;
 use App\Models\CompositionRoyaltyLine;
 use App\Models\CompositionRoyaltyStatement;
 use App\Models\CompositionSplitSet;
+use App\Models\CompositionAllocationRecalculation;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,7 @@ class CompositionRoyaltyAllocationService
     /**
      * @return array<string, mixed>
      */
-    public function rebuildForStatement(CompositionRoyaltyStatement $statement): array
+    public function rebuildForStatement(CompositionRoyaltyStatement $statement, array $context = []): array
     {
         $stats = [
             'lines_total' => 0,
@@ -33,7 +34,7 @@ class CompositionRoyaltyAllocationService
 
         if (!$this->canAllocate()) {
             $stats['warnings'][] = 'Tablas de composición no disponibles para allocations.';
-            return $stats;
+            return $this->finishRecalculation($statement, $context, $stats);
         }
 
         DB::table('composition_allocations')
@@ -49,7 +50,7 @@ class CompositionRoyaltyAllocationService
         $stats['lines_matched'] = $stats['lines_total'];
 
         if ($stats['lines_total'] === 0) {
-            return $stats;
+            return $this->finishRecalculation($statement, $context, $stats);
         }
 
         $compositionIds = (clone $lineQuery)
@@ -206,7 +207,7 @@ class CompositionRoyaltyAllocationService
             ]);
         }
 
-        return $stats;
+        return $this->finishRecalculation($statement, $context, $stats);
     }
 
     private function canAllocate(): bool
@@ -343,5 +344,48 @@ class CompositionRoyaltyAllocationService
             'updated_at' => $now,
         ];
     }
-}
 
+    private function finishRecalculation(
+        CompositionRoyaltyStatement $statement,
+        array $context,
+        array $stats
+    ): array {
+        $this->recordRecalculation($statement, $context, $stats);
+
+        return $stats;
+    }
+
+    private function recordRecalculation(
+        CompositionRoyaltyStatement $statement,
+        array $context,
+        array $stats
+    ): void {
+        if (!Schema::hasTable('composition_allocation_recalculations')) {
+            return;
+        }
+
+        CompositionAllocationRecalculation::query()->create([
+            'composition_royalty_statement_id' => $statement->id,
+            'triggered_by_user_id' => $context['triggered_by_user_id'] ?? null,
+            'trigger_source' => (string) ($context['trigger_source'] ?? 'system'),
+            'reason' => $context['reason'] ?? null,
+            'lines_total' => (int) ($stats['lines_total'] ?? 0),
+            'lines_matched' => (int) ($stats['lines_matched'] ?? 0),
+            'allocations_count' => (int) ($stats['allocations_count'] ?? 0),
+            'allocations_total_usd' => (float) ($stats['allocations_total_usd'] ?? 0),
+            'warnings' => empty($stats['warnings']) ? null : $stats['warnings'],
+            'context' => $context['context'] ?? null,
+        ]);
+
+        Log::info('[CompositionRoyalties] allocations recalculated', [
+            'statement_id' => (int) $statement->id,
+            'trigger_source' => (string) ($context['trigger_source'] ?? 'system'),
+            'reason' => $context['reason'] ?? null,
+            'triggered_by_user_id' => $context['triggered_by_user_id'] ?? null,
+            'lines_total' => (int) ($stats['lines_total'] ?? 0),
+            'lines_matched' => (int) ($stats['lines_matched'] ?? 0),
+            'allocations_count' => (int) ($stats['allocations_count'] ?? 0),
+            'warnings_count' => count($stats['warnings'] ?? []),
+        ]);
+    }
+}

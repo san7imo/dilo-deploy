@@ -5,8 +5,9 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreArtistRequest;
 use App\Http\Requests\StoreExternalArtistInvitationRequest;
+use App\Http\Requests\ResendExternalArtistInvitationRequest;
 use App\Http\Requests\UpdateArtistRequest;
-use App\Models\{Artist, Event, Genre, Release, Track, User};
+use App\Models\{Artist, Event, ExternalArtistInvitation, Genre, Release, Track, User};
 use App\Services\ArtistCatalogService;
 use App\Services\ArtistService;
 use App\Services\ExternalArtistInvitationService;
@@ -63,7 +64,39 @@ class ArtistController extends Controller
             ])
             ->with('user:id,name,stage_name,email,phone,identification_type,identification_number,additional_information')
             ->orderBy('artists.name')
-            ->get();
+            ->get()
+            ->map(function (Artist $artist): array {
+                $latestInvitation = ExternalArtistInvitation::query()
+                    ->where('metadata->artist_id', $artist->id)
+                    ->orderByDesc('created_at')
+                    ->first();
+
+                return [
+                    'id' => $artist->id,
+                    'name' => $artist->name,
+                    'user_id' => $artist->user_id,
+                    'phone' => $artist->phone,
+                    'artist_origin' => $artist->artist_origin,
+                    'has_public_profile' => $artist->has_public_profile,
+                    'user' => $artist->user ? [
+                        'id' => $artist->user->id,
+                        'name' => $artist->user->name,
+                        'stage_name' => $artist->user->stage_name,
+                        'email' => $artist->user->email,
+                        'phone' => $artist->user->phone,
+                        'identification_type' => $artist->user->identification_type,
+                        'identification_number' => $artist->user->identification_number,
+                        'additional_information' => $artist->user->additional_information,
+                    ] : null,
+                    'latest_invitation' => $latestInvitation ? [
+                        'email' => $latestInvitation->email,
+                        'accepted_at' => $latestInvitation->accepted_at?->toDateTimeString(),
+                        'revoked_at' => $latestInvitation->revoked_at?->toDateTimeString(),
+                        'expires_at' => $latestInvitation->expires_at?->toDateTimeString(),
+                        'status' => $this->externalInvitationStatus($latestInvitation),
+                    ] : null,
+                ];
+            });
 
         return Inertia::render('Admin/Artists/Index', [
             'artists' => $artists,
@@ -194,6 +227,26 @@ class ArtistController extends Controller
         return redirect()
             ->route('admin.artists.index')
             ->with('success', 'Invitación enviada correctamente al artista externo.');
+    }
+
+    public function resendExternalInvitation(
+        ResendExternalArtistInvitationRequest $request,
+        Artist $artist,
+        ExternalArtistInvitationService $invitationService
+    ) {
+        $result = $invitationService->resendForExistingArtist(
+            artist: $artist,
+            email: $request->validated('email'),
+            inviter: $request->user()
+        );
+
+        $message = ($result['mode'] ?? null) === 'access'
+            ? 'Correo de acceso actualizado y enlace enviado correctamente.'
+            : 'Invitación reenviada correctamente al artista externo.';
+
+        return redirect()
+            ->route('admin.artists.index')
+            ->with('success', $message);
     }
 
     /** Papelera de artistas */
@@ -360,6 +413,23 @@ class ArtistController extends Controller
         }
 
         return null;
+    }
+
+    private function externalInvitationStatus(ExternalArtistInvitation $invitation): string
+    {
+        if ($invitation->isAccepted()) {
+            return 'accepted';
+        }
+
+        if ($invitation->isRevoked()) {
+            return 'revoked';
+        }
+
+        if ($invitation->isExpired()) {
+            return 'expired';
+        }
+
+        return 'pending';
     }
 
     /** Eliminar una imagen específica del artista (AJAX) */

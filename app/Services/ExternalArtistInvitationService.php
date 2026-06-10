@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -204,6 +205,157 @@ class ExternalArtistInvitationService
                 'email' => 'No se pudo enviar la invitación. Intenta nuevamente.',
             ]);
         }
+    }
+
+    /**
+     * @return array{mode:string, email:string}
+     */
+    public function resendForExistingArtist(Artist $artist, string $email, ?User $inviter = null): array
+    {
+        if ($artist->artist_origin !== 'external') {
+            throw ValidationException::withMessages([
+                'artist' => 'Solo puedes reenviar acceso a artistas externos.',
+            ]);
+        }
+
+        if (method_exists($artist, 'trashed') && $artist->trashed()) {
+            throw ValidationException::withMessages([
+                'artist' => 'No puedes reenviar acceso a un artista eliminado.',
+            ]);
+        }
+
+        $normalizedEmail = $this->normalizeEmail($email);
+        if ($normalizedEmail === null) {
+            throw ValidationException::withMessages([
+                'email' => 'Debes ingresar un correo válido.',
+            ]);
+        }
+
+        $existingUser = User::query()
+            ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+            ->when($artist->user_id, fn ($query) => $query->where('id', '!=', $artist->user_id))
+            ->first();
+
+        if ($existingUser) {
+            throw ValidationException::withMessages([
+                'email' => 'El correo ya está registrado en otra cuenta activa.',
+            ]);
+        }
+
+        if ($artist->user_id) {
+            return $this->updateExistingArtistAccess($artist, $normalizedEmail);
+        }
+
+        return $this->resendPendingArtistInvitation($artist, $normalizedEmail, $inviter);
+    }
+
+    /**
+     * @return array{mode:string, email:string}
+     */
+    private function resendPendingArtistInvitation(Artist $artist, string $email, ?User $inviter = null): array
+    {
+        $token = Str::random(64);
+        $expiresAt = now()->addDays(7);
+
+        $invitation = DB::transaction(function () use ($artist, $email, $token, $expiresAt, $inviter): ExternalArtistInvitation {
+            ExternalArtistInvitation::query()
+                ->where('metadata->artist_id', $artist->id)
+                ->whereNull('accepted_at')
+                ->whereNull('revoked_at')
+                ->update(['revoked_at' => now()]);
+
+            return ExternalArtistInvitation::query()->create([
+                'email' => $email,
+                'token_hash' => hash('sha256', $token),
+                'invited_by' => $inviter?->id,
+                'invitee_name' => $artist->name,
+                'expires_at' => $expiresAt,
+                'metadata' => [
+                    'source' => 'admin_artists_module',
+                    'invitation_type' => 'standalone_external_artist',
+                    'artist_id' => $artist->id,
+                    'resent_for_existing_artist' => true,
+                ],
+            ]);
+        });
+
+        $url = route('external-artists.invitations.show', ['token' => $token]);
+
+        try {
+            Mail::to($email)->send(new ExternalArtistInvitationMail(
+                invitationUrl: $url,
+                trackTitle: null,
+                inviteeName: $artist->name,
+                expiresAtText: $expiresAt->format('d/m/Y H:i')
+            ));
+        } catch (\Throwable $exception) {
+            $invitation->update(['revoked_at' => now()]);
+
+            Log::error('No se pudo reenviar invitación de artista externo existente', [
+                'artist_id' => $artist->id,
+                'email' => $email,
+                'error' => $exception->getMessage(),
+            ]);
+
+            throw ValidationException::withMessages([
+                'email' => 'No se pudo enviar la invitación. Intenta nuevamente.',
+            ]);
+        }
+
+        return [
+            'mode' => 'invitation',
+            'email' => $email,
+        ];
+    }
+
+    /**
+     * @return array{mode:string, email:string}
+     */
+    private function updateExistingArtistAccess(Artist $artist, string $email): array
+    {
+        $user = DB::transaction(function () use ($artist, $email): User {
+            $user = User::query()->findOrFail($artist->user_id);
+
+            $user->email = $email;
+            if (!$user->hasRole('external_artist')) {
+                $user->assignRole('external_artist');
+            }
+
+            if ($user->hasRole('artist')) {
+                $user->removeRole('artist');
+            }
+
+            if ($user->isDirty()) {
+                $user->save();
+            }
+
+            $artist->update([
+                'artist_origin' => 'external',
+                'has_public_profile' => false,
+            ]);
+
+            return $user->fresh();
+        });
+
+        $status = Password::sendResetLink(['email' => $email]);
+
+        if ($status !== Password::RESET_LINK_SENT) {
+            Log::warning('No se pudo enviar reset de contraseña a artista externo', [
+                'artist_id' => $artist->id,
+                'user_id' => $user->id,
+                'email' => $email,
+                'status' => $status,
+            ]);
+
+            throw ValidationException::withMessages([
+                'email' => 'El correo fue actualizado, pero no se pudo enviar el enlace de acceso.',
+            ]);
+        }
+
+        return [
+            'mode' => 'access',
+            'email' => $email,
+        ];
     }
 
     private function inviteForParticipant(Track $track, TrackSplitParticipant $participant, ?User $inviter = null): string

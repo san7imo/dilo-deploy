@@ -240,6 +240,8 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin|contentmanager'])
             ->name('artists.convert-to-internal');
         Route::post('artists/external-invitations', [AdminArtistController::class, 'inviteExternalArtist'])
             ->name('artists.external-invitations.store');
+        Route::post('artists/{artist}/external-invitation/resend', [AdminArtistController::class, 'resendExternalInvitation'])
+            ->name('artists.external-invitations.resend');
         Route::resource('artists', AdminArtistController::class)->except(['show']);
 
         Route::delete('artists/{artist}/image', [AdminArtistController::class, 'deleteImage'])
@@ -301,6 +303,10 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin|contentmanager'])
         Route::resource('compositions', CompositionController::class)->except(['show']);
         Route::get('compositions/{composition}/splits', [CompositionSplitAgreementController::class, 'index'])
             ->name('compositions.splits.index');
+        Route::get('compositions/{composition}/splits/correct', [CompositionSplitAgreementController::class, 'correct'])
+            ->name('compositions.splits.correct');
+        Route::post('compositions/{composition}/splits/recalculate', [CompositionSplitAgreementController::class, 'recalculate'])
+            ->name('compositions.splits.recalculate');
         Route::get('compositions/{composition}/splits/create', [CompositionSplitAgreementController::class, 'create'])
             ->name('compositions.splits.create');
         Route::post('compositions/{composition}/splits', [CompositionSplitAgreementController::class, 'store'])
@@ -414,6 +420,10 @@ Route::middleware(['auth:sanctum', 'verified', 'role:admin'])
         // --- Tracks / Splits ---
         Route::get('tracks/{track}/splits', [TrackSplitAgreementController::class, 'index'])
             ->name('tracks.splits.index');
+        Route::get('tracks/{track}/splits/correct', [TrackSplitAgreementController::class, 'correct'])
+            ->name('tracks.splits.correct');
+        Route::post('tracks/{track}/splits/recalculate', [TrackSplitAgreementController::class, 'recalculate'])
+            ->name('tracks.splits.recalculate');
         Route::get('tracks/{track}/splits/create', [TrackSplitAgreementController::class, 'create'])
             ->name('tracks.splits.create');
         Route::post('tracks/{track}/splits', [TrackSplitAgreementController::class, 'store'])
