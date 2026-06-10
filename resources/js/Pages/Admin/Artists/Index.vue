@@ -163,7 +163,18 @@ const closeResendModal = () => {
 const handleResendExternalInvitation = () => {
   if (!selectedExternalArtist.value) return;
 
-  resendForm.post(route("admin.artists.external-invitations.resend", selectedExternalArtist.value.id), {
+  const artistId = encodeURIComponent(selectedExternalArtist.value.id);
+  let resendUrl = `/admin/artists/${artistId}/external-invitation/resend`;
+
+  try {
+    if (route().has("admin.artists.external-invitations.resend")) {
+      resendUrl = route("admin.artists.external-invitations.resend", selectedExternalArtist.value.id);
+    }
+  } catch (error) {
+    resendUrl = `/admin/artists/${artistId}/external-invitation/resend`;
+  }
+
+  resendForm.post(resendUrl, {
     preserveScroll: true,
     onSuccess: () => {
       closeResendModal();
