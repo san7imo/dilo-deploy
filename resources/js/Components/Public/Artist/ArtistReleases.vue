@@ -1,6 +1,7 @@
 <!-- resources/js/Components/Public/Artist/ArtistReleases.vue -->
 <script setup>
 import { ref, computed } from 'vue'
+import { Link } from '@inertiajs/vue3'
 import { Icon } from '@iconify/vue'
 
 const props = defineProps({
@@ -151,14 +152,15 @@ const getPlatforms = (release) => {
                   </div>
 
                   <!-- Botón explorar -->
-                  <button
+                  <Link
+                    :href="release.slug ? route('public.releases.show', release.slug) : route('public.releases.index')"
                     class="w-full md:w-auto px-8 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-100 transition-colors duration-300 flex items-center justify-center gap-2">
                     <span>Explorar</span>
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
                     </svg>
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>

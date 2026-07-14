@@ -4,13 +4,14 @@ namespace App\Services;
 
 use App\Models\Artist;
 use App\Models\User;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Services\PublicCatalog\PublicTrackPresenter;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ArtistService
 {
@@ -67,18 +68,43 @@ class ArtistService
                 $query->with(['tracks' => function ($q) use ($tracksLimit) {
                     $q->select([
                         'tracks.id',
+                        'tracks.release_id',
                         'tracks.title',
+                        'tracks.isrc',
+                        'tracks.track_number',
                         'tracks.preview_url',
                         'tracks.duration',
+                        'tracks.cover_url',
+                        'tracks.spotify_url',
+                        'tracks.youtube_url',
+                        'tracks.apple_music_url',
+                        'tracks.deezer_url',
+                        'tracks.amazon_music_url',
+                        'tracks.soundcloud_url',
+                        'tracks.tidal_url',
                         'track_artist.artist_id',
                         'track_artist.track_id',
                     ])
-                    ->orderBy('tracks.id', 'desc')
-                    ->limit($tracksLimit);
+                        ->with('release.artist:id,name,slug')
+                        ->orderBy('tracks.id', 'desc')
+                        ->limit($tracksLimit);
                 }]);
             }
 
-            return $query->paginate($perPage);
+            $paginator = $query->paginate($perPage);
+
+            if ($withTracksForPlaylists) {
+                $presenter = app(PublicTrackPresenter::class);
+
+                $paginator->getCollection()->each(function (Artist $artist) use ($presenter) {
+                    $artist->setRelation(
+                        'tracks',
+                        $artist->tracks->map(fn ($track) => $presenter->present($track)),
+                    );
+                });
+            }
+
+            return $paginator;
         };
 
         return $this->publicTtl > 0
@@ -126,13 +152,25 @@ class ArtistService
                     'tracks' => function ($q) {
                         $q->select([
                             'tracks.id',
+                            'tracks.release_id',
                             'tracks.title',
+                            'tracks.isrc',
+                            'tracks.track_number',
                             'tracks.preview_url',
                             'tracks.duration',
+                            'tracks.cover_url',
+                            'tracks.spotify_url',
+                            'tracks.youtube_url',
+                            'tracks.apple_music_url',
+                            'tracks.deezer_url',
+                            'tracks.amazon_music_url',
+                            'tracks.soundcloud_url',
+                            'tracks.tidal_url',
                             'track_artist.artist_id',
                             'track_artist.track_id',
                         ])
-                        ->orderBy('tracks.id', 'desc');
+                            ->with('release.artist:id,name,slug')
+                            ->orderBy('tracks.id', 'desc');
                     },
                     'releases' => function ($q) {
                         $q->select([
@@ -152,18 +190,26 @@ class ArtistService
                             'releases.soundcloud_url',
                             'releases.tidal_url',
                         ])
-                        ->orderBy('releases.release_date', 'desc');
+                            ->orderBy('releases.release_date', 'desc');
                     },
                 ]);
 
             // Si es un número, buscar por ID; si no, buscar por slug
             if (is_numeric($idOrSlug)) {
-                $query->where('artists.id', (int)$idOrSlug);
+                $query->where('artists.id', (int) $idOrSlug);
             } else {
                 $query->where('artists.slug', $idOrSlug);
             }
 
-            return $query->firstOrFail();
+            $artist = $query->firstOrFail();
+            $presenter = app(PublicTrackPresenter::class);
+
+            $artist->setRelation(
+                'tracks',
+                $artist->tracks->map(fn ($track) => $presenter->present($track)),
+            );
+
+            return $artist;
         };
 
         return $this->publicTtl > 0
@@ -197,7 +243,7 @@ class ArtistService
     public function create(array $data): Artist
     {
         Log::info('🎨 [ArtistService] Iniciando creación de artista', [
-            'data' => array_keys($data)
+            'data' => array_keys($data),
         ]);
 
         return DB::transaction(function () use ($data) {
@@ -237,7 +283,7 @@ class ArtistService
             // uploads
             $this->handleUploads($data);
 
-            // crear artista 
+            // crear artista
             $artist = Artist::create([
                 ...$data,
                 'user_id' => $user->id,
@@ -255,7 +301,6 @@ class ArtistService
             return $artist;
         });
     }
-
 
     /** Actualizar artista existente (acepta modelo o id) */
     public function update(Artist|int $artist, array $data): Artist
@@ -278,10 +323,10 @@ class ArtistService
                 if (array_key_exists('name', $data)) {
                     $user->stage_name = $data['name'];
                 }
-                if (array_key_exists('legal_name', $data) && !empty($data['legal_name'])) {
+                if (array_key_exists('legal_name', $data) && ! empty($data['legal_name'])) {
                     $user->name = $data['legal_name'];
                 }
-                if (!empty($data['email'])) {
+                if (! empty($data['email'])) {
                     $user->email = $data['email'];
                 }
                 if (array_key_exists('phone', $data)) {
@@ -296,7 +341,7 @@ class ArtistService
                 if (array_key_exists('additional_information', $data)) {
                     $user->additional_information = $data['additional_information'];
                 }
-                if (!empty($data['password'])) {
+                if (! empty($data['password'])) {
                     $user->password = Hash::make($data['password']);
                 }
                 if ($user->isDirty()) {
@@ -314,7 +359,7 @@ class ArtistService
         }
 
         // Si cambió el nombre, re-slug opcional
-        if (!empty($data['name']) && empty($data['slug'])) {
+        if (! empty($data['name']) && empty($data['slug'])) {
             $data['slug'] = Str::slug($data['name']);
         }
 
@@ -325,6 +370,7 @@ class ArtistService
         Log::info('✅ [ArtistService] Artista actualizado', ['id' => $artist->id]);
 
         $this->flushPublicCaches();
+
         return $artist->fresh();
     }
 
@@ -332,25 +378,27 @@ class ArtistService
     public function deleteImage(Artist|int $artist, string $fieldName): bool
     {
         $artist = $artist instanceof Artist ? $artist : Artist::findOrFail($artist);
-        
+
         // Validar que el campo sea uno de los permitidos
-        if (!in_array($fieldName, self::IMAGE_FIELDS)) {
+        if (! in_array($fieldName, self::IMAGE_FIELDS)) {
             Log::warning('⚠️ [ArtistService] Campo de imagen inválido', ['field' => $fieldName]);
+
             return false;
         }
 
         $idKey = "{$fieldName}_id";
         $urlKey = "{$fieldName}_url";
 
-        if (!$artist->$idKey) {
+        if (! $artist->$idKey) {
             Log::warning('⚠️ [ArtistService] La imagen no existe', ['artist_id' => $artist->id, 'field' => $fieldName]);
+
             return false;
         }
 
         try {
             $imageKit = app(\App\Services\ImageKitService::class);
             $imageKit->delete($artist->$idKey);
-            
+
             // Limpiar datos de la BD
             $artist->update([
                 $urlKey => null,
@@ -359,9 +407,11 @@ class ArtistService
 
             Log::info('✅ [ArtistService] Imagen eliminada', ['artist_id' => $artist->id, 'field' => $fieldName]);
             $this->flushPublicCaches();
+
             return true;
         } catch (\Throwable $e) {
             Log::error('❌ [ArtistService] Error eliminando imagen', ['error' => $e->getMessage()]);
+
             return false;
         }
     }
@@ -394,8 +444,8 @@ class ArtistService
 
         foreach (self::IMAGE_FIELDS as $field) {
             $fileKey = "{$field}_file";
-            $idKey   = "{$field}_id";
-            $urlKey  = "{$field}_url";
+            $idKey = "{$field}_id";
+            $urlKey = "{$field}_url";
 
             /** @var \Illuminate\Http\UploadedFile|null $file */
             $file = $data[$fileKey] ?? null;
@@ -416,7 +466,7 @@ class ArtistService
                     $result = $imageKit->upload($file, '/artists');
                     if ($result) {
                         $data[$urlKey] = $result['url'] ?? null;
-                        $data[$idKey]  = $result['file_id'] ?? null;
+                        $data[$idKey] = $result['file_id'] ?? null;
                         Log::info("✅ [ArtistService] Imagen $field subida", ['url' => $data[$urlKey]]);
                     } else {
                         Log::warning("⚠️ [ArtistService] Upload $field devolvió resultado vacío");
@@ -454,7 +504,9 @@ class ArtistService
     /** Limpiar caches públicas relacionadas con listados/detalles */
     private function flushPublicCaches(): void
     {
-        if ($this->publicTtl <= 0) return;
+        if ($this->publicTtl <= 0) {
+            return;
+        }
 
         Cache::flush();
     }

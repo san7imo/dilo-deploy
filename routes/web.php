@@ -78,6 +78,9 @@ Route::prefix('releases')->name('public.releases.')->group(function () {
     Route::get('/{slug}', [PublicReleaseController::class, 'show'])->name('show');
 });
 
+// --- Canciones ---
+Route::get('/canciones', [PublicTrackController::class, 'index'])->name('public.songs.index');
+
 // --- Pistas ---
 Route::prefix('tracks')->name('public.tracks.')->group(function () {
     Route::get('/', [PublicTrackController::class, 'index'])->name('index');

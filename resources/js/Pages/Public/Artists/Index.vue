@@ -1,11 +1,13 @@
 <!-- resources/js/Pages/Public/Artists/Index.vue -->
 <script setup>
-import { Head } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import BannerFullWidth from '@/Components/Public/Artists/BannerFullWidth.vue'
 import ArtistCarousel from '@/Components/Public/Artists/ArtistCarousel.vue'
 import ArtistPlaylistCard from '@/Components/Public/Artists/ArtistPlaylistCard.vue'
+import PlatformLinksModal from '@/Components/Public/Music/PlatformLinksModal.vue'
 import PaginationLinks from '@/Components/PaginationLinks.vue'
+import SpotifyEmbedPlayer from '@/Components/Public/Music/SpotifyEmbedPlayer.vue'
 
 // Si tienes un layout público global, descomenta:
 import PublicLayout from '@/Layouts/PublicLayout.vue'
@@ -18,22 +20,17 @@ const props = defineProps({
 
 // soporte paginator o array
 const artistList = computed(() => Array.isArray(props.artists) ? props.artists : (props.artists.data ?? []))
+const selectedTrack = ref(null)
+const platformTrack = ref(null)
 
-// Reproductor simple temporal (hasta el reproductor global de la Fase 6)
-const audio = typeof Audio !== 'undefined' ? new Audio() : null
-const nowPlaying = ref(null)
-
-const handlePlay = ({ artist, track }) => {
-  if (!track?.audio_url || !audio) return
-  if (nowPlaying.value?.track?.id === track.id) {
-    // toggle pausa
-    if (!audio.paused) audio.pause()
-    else audio.play()
-    return
+const playTrack = (track) => {
+  if (track?.spotify_embed_url) {
+    selectedTrack.value = track
   }
-  nowPlaying.value = { artist, track }
-  audio.src = track.audio_url
-  audio.play().catch(() => {})
+}
+
+const openPlatforms = (track) => {
+  platformTrack.value = track
 }
 </script>
 
@@ -49,35 +46,53 @@ const handlePlay = ({ artist, track }) => {
 
   <ArtistCarousel :artists="artists" />
 
-  <!-- Playlists por artista -->
-  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-    <h2 class="text-white text-2xl md:text-3xl font-bold mb-6">Escucha las canciones de nuestros artistas</h2>
+  <section class="bg-black py-14">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p class="text-sm font-semibold uppercase tracking-[0.22em] text-dilo-orange">Catálogo</p>
+          <h2 class="mt-2 text-3xl font-black text-white md:text-4xl">Canciones destacadas por artista</h2>
+          <p class="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+            Una selección breve por artista para explorar lanzamientos, portadas y plataformas disponibles.
+          </p>
+        </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-      <ArtistPlaylistCard
-        v-for="a in artistList"
-        :key="a.id"
-        :artist="a"
-        @play="handlePlay"
+        <Link
+          :href="route('public.songs.index')"
+          class="inline-flex items-center justify-center rounded-xl border border-white/10 px-5 py-3 text-sm font-bold text-white transition hover:border-dilo-orange hover:text-dilo-orange"
+        >
+          Ver todas las canciones
+        </Link>
+      </div>
+
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <ArtistPlaylistCard
+          v-for="a in artistList"
+          :key="a.id"
+          :artist="a"
+          @play="playTrack"
+          @platforms="openPlatforms"
+        />
+      </div>
+
+      <PaginationLinks
+        v-if="props.artists && props.artists.links"
+        :links="props.artists.links"
+        :meta="props.artists.meta"
+        class="mt-10 justify-center"
       />
     </div>
-
-    <PaginationLinks
-      v-if="props.artists && props.artists.links"
-      :links="props.artists.links"
-      :meta="props.artists.meta"
-      class="justify-center mt-8"
-    />
-
-    <!-- Mini barra 'Now Playing' simple (temporal) -->
-    <div v-if="nowPlaying" class="mt-8 sticky bottom-4">
-      <div class="mx-auto max-w-3xl bg-white text-black rounded-2xl shadow-lg px-4 py-3 flex items-center justify-between gap-4">
-        <div class="min-w-0">
-          <p class="text-sm font-semibold truncate">{{ nowPlaying.track.title }}</p>
-          <p class="text-xs opacity-70 truncate">por {{ nowPlaying.artist.name }}</p>
-        </div>
-        <div class="text-xs opacity-70">Reproduciendo…</div>
-      </div>
-    </div>
   </section>
+
+  <SpotifyEmbedPlayer
+    :track="selectedTrack"
+    @close="selectedTrack = null"
+    @platforms="openPlatforms"
+  />
+
+  <PlatformLinksModal
+    :track="platformTrack"
+    :is-open="Boolean(platformTrack)"
+    @close="platformTrack = null"
+  />
 </template>

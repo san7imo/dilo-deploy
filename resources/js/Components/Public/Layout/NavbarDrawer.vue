@@ -5,6 +5,8 @@ import logoBlanco from '@/Assets/Images/Logos/responsive-blanco.webp'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
+
+const lockedItems = ['Estudio', 'Editorial', 'Tienda', 'Noticias']
 </script>
 
 <template>
@@ -61,11 +63,26 @@ const emit = defineEmits<{ (e: 'close'): void }>()
           </p>
           <ul class="space-y-3">
             <li><Link :href="route('public.artists.index')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Artistas</Link></li>
+            <li><Link :href="route('public.songs.index')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Canciones</Link></li>
+            <li><Link :href="route('public.releases.index')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Lanzamientos</Link></li>
             <li><Link :href="route('public.events.index')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Eventos</Link></li>
-            <li><Link :href="route('public.studio')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Estudio</Link></li>
-            <li><Link :href="route('public.editorial')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Editorial</Link></li>
-            <li><Link :href="route('public.store')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Tienda</Link></li>
-            <li><Link :href="route('public.news')" class="block rounded-lg px-4 py-3 hover:bg-white/5 text-white/90" @click="emit('close')">Noticias</Link></li>
+            <li v-for="item in lockedItems" :key="item">
+              <span
+                class="group relative flex cursor-not-allowed items-center justify-center gap-2 rounded-lg px-4 py-3 text-white/45"
+                aria-disabled="true"
+                tabindex="0"
+              >
+                <svg class="h-3.5 w-3.5 text-white/35" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M17 9h-1V7a4 4 0 0 0-8 0v2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-7-2a2 2 0 1 1 4 0v2h-4V7Zm3 9.73V18h-2v-1.27a2 2 0 1 1 2 0Z" />
+                </svg>
+                {{ item }}
+                <span
+                  class="pointer-events-none absolute left-1/2 top-full z-10 mt-2 -translate-x-1/2 rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-black opacity-0 shadow-xl transition group-hover:opacity-100 group-focus:opacity-100"
+                >
+                  Próximamente
+                </span>
+              </span>
+            </li>
           </ul>
         </nav>
 

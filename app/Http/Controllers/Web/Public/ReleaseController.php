@@ -3,16 +3,16 @@
 namespace App\Http\Controllers\Web\Public;
 
 use App\Http\Controllers\Controller;
-use App\Services\ReleaseService;
+use App\Services\PublicCatalog\PublicReleaseCatalogService;
 use Inertia\Inertia;
 
 class ReleaseController extends Controller
 {
-    protected ReleaseService $releaseService;
+    protected PublicReleaseCatalogService $releaseCatalogService;
 
-    public function __construct(ReleaseService $releaseService)
+    public function __construct(PublicReleaseCatalogService $releaseCatalogService)
     {
-        $this->releaseService = $releaseService;
+        $this->releaseCatalogService = $releaseCatalogService;
     }
 
     /**
@@ -20,7 +20,7 @@ class ReleaseController extends Controller
      */
     public function index()
     {
-        $releases = $this->releaseService->getAll(10);
+        $releases = $this->releaseCatalogService->paginatedReleases(12);
 
         return Inertia::render('Public/Releases/Index', [
             'releases' => $releases,
@@ -32,7 +32,7 @@ class ReleaseController extends Controller
      */
     public function show(string $slug)
     {
-        $release = $this->releaseService->getByIdOrSlug($slug);
+        $release = $this->releaseCatalogService->releaseBySlug($slug);
 
         return Inertia::render('Public/Releases/Show', [
             'release' => $release,
