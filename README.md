@@ -148,5 +148,3 @@ composer test
 - Integracion de pagos externos para eventos.
 
 ---
-
-Si necesitas agregar nuevos modulos o documentar flujos especificos, indica el alcance y lo incorporo en el README.
